@@ -1,36 +1,115 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Zefer Financeiro
 
-## Getting Started
+Sistema web de gestão financeira da imobiliária **Zefer** — substitui as planilhas
+de comissões, entradas/distribuições e financeiro por um sistema único, com perfis
+de acesso, dashboard, relatórios e DRE.
 
-First, run the development server:
+## Stack
+
+- **Next.js 16** (App Router, TypeScript, Server Actions)
+- **Supabase** (Postgres, Auth, Storage, RLS)
+- **Tailwind CSS v4** + componentes shadcn/ui (Radix)
+- **Recharts** (gráficos) · **Vitest** (testes)
+- Deploy na **Vercel**
+
+## Módulos
+
+1. **Vendas / Comissões** — cadastro de venda com cálculo da comissão em tempo real.
+2. **Pagamento de corretores** — extrato, adiantamentos, bonificações, pagamento com recibo.
+3. **Entradas e Distribuições** — dízimo e distribuição automática empresa/pessoal.
+4. **Financeiro** — custos fixos, despesas variáveis, investimentos, pessoal, caixa e fluxo.
+5. **Dashboard, Relatórios e DRE** · **Configurações** (parâmetros, cadastros, usuários).
+
+## Motor de cálculo
+
+Toda a matemática vive em [`lib/calculos.ts`](lib/calculos.ts), com funções puras e
+testes ([`lib/calculos.test.ts`](lib/calculos.test.ts)). A cadeia é calculada em
+precisão total e arredondada (2 casas, _half away from zero_) só nos campos finais —
+reproduzindo as planilhas ao centavo. Rode `npm test`.
+
+## Configuração local
+
+### 1. Dependências
+
+```bash
+npm install
+```
+
+### 2. Projeto Supabase
+
+Crie um projeto em [supabase.com](https://supabase.com). Em **Project Settings → API**,
+copie a **Project URL**, a **anon key** e a **service_role key**.
+
+Copie `.env.example` para `.env.local` e preencha:
+
+```
+NEXT_PUBLIC_SUPABASE_URL=...
+NEXT_PUBLIC_SUPABASE_ANON_KEY=...
+SUPABASE_SERVICE_ROLE_KEY=...
+```
+
+### 3. Banco de dados
+
+Aplique as migrações **em ordem**. Duas opções:
+
+**A) SQL Editor (mais simples):** no painel do Supabase, cole e rode, na ordem:
+`supabase/migrations/0001_schema.sql`, `0002_rls.sql`, `0003_storage.sql` e por fim
+`supabase/seed.sql`.
+
+**B) Supabase CLI:**
+
+```bash
+supabase init           # se ainda não houver config.toml
+supabase link --project-ref <ref-do-projeto>
+supabase db push        # aplica as migrações
+# rode o seed.sql pelo SQL Editor ou: psql "$DATABASE_URL" -f supabase/seed.sql
+```
+
+> O bucket de Storage `anexos` é criado pela `0003_storage.sql` (público; caminhos UUID).
+
+### 4. Primeiro administrador
+
+```bash
+node scripts/criar-admin.mjs voce@zefer.com.br SuaSenha "Seu Nome"
+```
+
+### 5. Rodar
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Acesse http://localhost:3000 e entre com o admin criado.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Deploy na Vercel
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+1. Suba o repositório para o GitHub.
+2. Em [vercel.com](https://vercel.com) → **Add New → Project** → importe o repositório.
+3. Em **Environment Variables**, defina as três variáveis do `.env.local`.
+4. **Deploy**. (O mesmo banco Supabase serve produção e desenvolvimento.)
 
-## Learn More
+## Perfis de acesso
 
-To learn more about Next.js, take a look at the following resources:
+- **Administrador** — acesso total, incluindo cadastros e usuários.
+- **Financeiro** — opera vendas, entradas, pagamentos e financeiro.
+- **Diretor** — leitura de dashboards e relatórios.
+- **Corretor** — vê apenas o próprio extrato (`/meu-extrato`).
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+As regras são aplicadas no servidor (Server Actions) e no banco (RLS).
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Scripts
 
-## Deploy on Vercel
+```bash
+npm run dev        # desenvolvimento
+npm run build      # build de produção
+npm run lint       # ESLint
+npm test           # testes (Vitest)
+npm run typecheck  # checagem de tipos
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Observações
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- **Recibo de pagamento**: página imprimível (`/recibo/pagamento/[id]`) — use "Salvar como PDF".
+- **Dízimo** e **distribuição empresa/pessoal** são configuráveis em _Configurações → Parâmetros_
+  (o documento cita 10% de dízimo como exemplo; o padrão vem zerado).
+- Comece pelos cadastros (construtoras, corretores, etc.) em _Configurações → Cadastros_.
