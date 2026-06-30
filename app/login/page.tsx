@@ -18,7 +18,7 @@ export default function LoginPage() {
     <div className="flex min-h-svh items-center justify-center bg-muted/40 p-4">
       <div className="w-full max-w-sm">
         <div className="mb-6 flex flex-col items-center gap-2">
-          <div className="flex size-12 items-center justify-center rounded-xl bg-primary text-xl font-bold text-primary-foreground">
+          <div className="flex size-12 items-center justify-center rounded-xl bg-[linear-gradient(135deg,#f3da8b,#d9b75a_45%,#a87c24)] font-serif text-2xl font-bold text-[#1a1206] shadow-md ring-1 ring-[#d9b75a]/30">
             Z
           </div>
           <div className="text-center">

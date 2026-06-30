@@ -30,7 +30,7 @@ function isActive(pathname: string, href: string) {
 function Brand() {
   return (
     <div className="flex items-center gap-2 px-2">
-      <div className="flex size-9 items-center justify-center rounded-lg bg-primary text-primary-foreground font-bold">
+      <div className="flex size-9 items-center justify-center rounded-lg bg-[linear-gradient(135deg,#f3da8b,#d9b75a_45%,#a87c24)] font-serif text-lg font-bold text-[#1a1206] shadow-sm ring-1 ring-[#d9b75a]/30">
         Z
       </div>
       <div className="leading-tight">
