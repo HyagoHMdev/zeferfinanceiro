@@ -8,6 +8,7 @@ import { Loader2 } from "lucide-react";
 
 import { calcularComissao } from "@/lib/calculos";
 import { parseNumeroBR, formatBRL } from "@/lib/format";
+import { percentualComFallback } from "@/lib/percentuais";
 import { criarVenda, atualizarVenda } from "@/app/(app)/vendas/actions";
 import type { VendaInput } from "@/lib/schemas/venda";
 import type {
@@ -17,6 +18,7 @@ import type {
   Empreendimento,
   Corretor,
   Parceiro,
+  PercentualMensal,
 } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -48,6 +50,7 @@ interface VendaFormProps {
   empreendimentos: Empreendimento[];
   corretores: Corretor[];
   parceiros: Parceiro[];
+  percentuaisMensais?: PercentualMensal[];
   venda?: Venda;
 }
 
@@ -58,6 +61,7 @@ export function VendaForm({
   empreendimentos,
   corretores,
   parceiros,
+  percentuaisMensais = [],
   venda,
 }: VendaFormProps) {
   const [dataVenda, setDataVenda] = useState(
@@ -122,26 +126,104 @@ export function VendaForm({
     [vgv, pctComissao, pctParceiro, pctImpostoImob, pctCorretor, pctImpostoNf, temParceiro],
   );
 
+  // Resolve o percentual aplicável (mês → padrão do cadastro → padrão global)
+  // e preenche o campo. Os valores continuam editáveis manualmente.
+  function aplicarComissao(cId: string, d: string) {
+    const c = construtoras.find((x) => x.id === cId);
+    setPctComissao(
+      fracaoParaPctStr(
+        percentualComFallback(
+          percentuaisMensais,
+          "comissao_construtora",
+          cId === NONE ? null : cId,
+          d,
+          c?.comissao_padrao,
+          config.percentual_comissao_padrao,
+        ),
+      ),
+    );
+  }
+
+  function aplicarImpostoImob(d: string) {
+    setPctImpostoImob(
+      fracaoParaPctStr(
+        percentualComFallback(
+          percentuaisMensais,
+          "imposto_imobiliaria",
+          null,
+          d,
+          config.percentual_imposto_imobiliaria,
+        ),
+      ),
+    );
+  }
+
+  function aplicarCorretor(coId: string, d: string) {
+    const c = corretores.find((x) => x.id === coId);
+    setPctCorretor(
+      fracaoParaPctStr(
+        percentualComFallback(
+          percentuaisMensais,
+          "comissao_corretor",
+          coId === NONE ? null : coId,
+          d,
+          c?.percentual_comissao_padrao,
+          config.percentual_comissao_corretor_padrao,
+        ),
+      ),
+    );
+    setPctImpostoNf(
+      fracaoParaPctStr(
+        percentualComFallback(
+          percentuaisMensais,
+          "imposto_nf_corretor",
+          coId === NONE ? null : coId,
+          d,
+          c?.percentual_imposto_nf,
+          config.percentual_imposto_nf_corretor,
+        ),
+      ),
+    );
+  }
+
+  function aplicarParceiro(pId: string, d: string) {
+    const p = parceiros.find((x) => x.id === pId);
+    setPctParceiro(
+      fracaoParaPctStr(
+        percentualComFallback(
+          percentuaisMensais,
+          "repasse_parceiro",
+          pId === NONE ? null : pId,
+          d,
+          p?.percentual_padrao,
+          config.percentual_parceiro_padrao,
+        ),
+      ),
+    );
+  }
+
   function onSelectConstrutora(value: string) {
     setConstrutoraId(value);
     setEmpreendimentoId(NONE);
-    const c = construtoras.find((x) => x.id === value);
-    if (c?.comissao_padrao != null) setPctComissao(fracaoParaPctStr(c.comissao_padrao));
+    aplicarComissao(value, dataVenda);
   }
 
   function onSelectCorretor(value: string) {
     setCorretorId(value);
-    const c = corretores.find((x) => x.id === value);
-    if (c?.percentual_comissao_padrao != null)
-      setPctCorretor(fracaoParaPctStr(c.percentual_comissao_padrao));
-    if (c?.percentual_imposto_nf != null)
-      setPctImpostoNf(fracaoParaPctStr(c.percentual_imposto_nf));
+    aplicarCorretor(value, dataVenda);
   }
 
   function onSelectParceiro(value: string) {
     setParceiroId(value);
-    const p = parceiros.find((x) => x.id === value);
-    if (p?.percentual_padrao != null) setPctParceiro(fracaoParaPctStr(p.percentual_padrao));
+    aplicarParceiro(value, dataVenda);
+  }
+
+  function onChangeData(value: string) {
+    setDataVenda(value);
+    aplicarComissao(construtoraId, value);
+    aplicarImpostoImob(value);
+    aplicarCorretor(corretorId, value);
+    if (parceiroId !== NONE) aplicarParceiro(parceiroId, value);
   }
 
   async function onSubmit(e: React.FormEvent) {
@@ -190,7 +272,7 @@ export function VendaForm({
                 id="data"
                 type="date"
                 value={dataVenda}
-                onChange={(e) => setDataVenda(e.target.value)}
+                onChange={(e) => onChangeData(e.target.value)}
                 required
               />
             </div>

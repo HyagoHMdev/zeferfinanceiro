@@ -1,6 +1,6 @@
 import { requireRole } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
-import { CATEGORIA_TIPO_LABEL } from "@/lib/types";
+import { CATEGORIA_TIPO_LABEL, type PercentualMensal } from "@/lib/types";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   CadastroManager,
@@ -21,7 +21,7 @@ export default async function CadastrosPage() {
   await requireRole(["admin"]);
   const supabase = await createClient();
 
-  const [construtoras, empreendimentos, corretores, parceiros, contas, centros, fornecedores, categorias] =
+  const [construtoras, empreendimentos, corretores, parceiros, contas, centros, fornecedores, categorias, percentuais] =
     await Promise.all([
       supabase.from("construtoras").select("*").order("nome"),
       supabase.from("empreendimentos").select("*, construtoras(nome)").order("nome"),
@@ -31,7 +31,10 @@ export default async function CadastrosPage() {
       supabase.from("centros_custo").select("*").order("nome"),
       supabase.from("fornecedores").select("*").order("nome"),
       supabase.from("categorias_financeiras").select("*").order("nome"),
+      supabase.from("percentuais_mensais").select("*"),
     ]);
+
+  const percentuaisRows = (percentuais.data ?? []) as unknown as PercentualMensal[];
 
   const construtoraOptions = (construtoras.data ?? []).map((c) => ({
     value: c.id as string,
@@ -77,6 +80,10 @@ export default async function CadastrosPage() {
             { key: "comissao_padrao", label: "% Comissão", formato: "percent", alignRight: true },
             { key: "ativo", label: "Status", formato: "bool" },
           ]}
+          percentuais={{
+            campos: [{ chave: "comissao_construtora", label: "% Comissão" }],
+            rows: percentuaisRows,
+          }}
         />
       </TabsContent>
 
@@ -117,6 +124,13 @@ export default async function CadastrosPage() {
             { key: "percentual_comissao_padrao", label: "% Comissão", formato: "percent", alignRight: true },
             { key: "ativo", label: "Status", formato: "bool" },
           ]}
+          percentuais={{
+            campos: [
+              { chave: "comissao_corretor", label: "% Comissão" },
+              { chave: "imposto_nf_corretor", label: "% Imposto NF" },
+            ],
+            rows: percentuaisRows,
+          }}
         />
       </TabsContent>
 
@@ -135,6 +149,10 @@ export default async function CadastrosPage() {
             { key: "percentual_padrao", label: "% Repasse", formato: "percent", alignRight: true },
             { key: "ativo", label: "Status", formato: "bool" },
           ]}
+          percentuais={{
+            campos: [{ chave: "repasse_parceiro", label: "% Repasse" }],
+            rows: percentuaisRows,
+          }}
         />
       </TabsContent>
 

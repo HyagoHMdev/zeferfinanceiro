@@ -13,6 +13,7 @@ import {
   fracaoParaInputPct,
   inputPctParaFracao,
 } from "@/lib/format";
+import { percentualComFallback } from "@/lib/percentuais";
 import { criarEntrada, atualizarEntrada } from "@/app/(app)/entradas/actions";
 import type { EntradaInput } from "@/lib/schemas/entrada";
 import {
@@ -20,6 +21,7 @@ import {
   type Configuracoes,
   type Entrada,
   type EntradaTipo,
+  type PercentualMensal,
 } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -54,24 +56,55 @@ interface Props {
   config: Configuracoes;
   vendas: VendaDisponivel[];
   entrada?: Entrada;
+  percentuaisMensais?: PercentualMensal[];
   trigger: React.ReactNode;
 }
 
-export function EntradaFormDialog({ config, vendas, entrada, trigger }: Props) {
+export function EntradaFormDialog({
+  config,
+  vendas,
+  entrada,
+  percentuaisMensais = [],
+  trigger,
+}: Props) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  const [data, setData] = useState(
-    entrada?.data ?? new Date().toISOString().slice(0, 10),
-  );
+  const dataInicial = entrada?.data ?? new Date().toISOString().slice(0, 10);
+  const [data, setData] = useState(dataInicial);
   const [tipo, setTipo] = useState<EntradaTipo>(entrada?.tipo ?? "comissao");
   const [descricao, setDescricao] = useState(entrada?.descricao ?? "");
   const [valor, setValor] = useState(entrada ? String(entrada.valor) : "");
   const [pctDizimo, setPctDizimo] = useState(
-    fracaoParaInputPct(entrada?.percentual_dizimo ?? config.percentual_dizimo),
+    fracaoParaInputPct(
+      entrada
+        ? entrada.percentual_dizimo
+        : percentualComFallback(
+            percentuaisMensais,
+            "dizimo",
+            null,
+            dataInicial,
+            config.percentual_dizimo,
+          ),
+    ),
   );
   const [vendaId, setVendaId] = useState(entrada?.venda_id ?? NONE);
+
+  function onChangeData(value: string) {
+    setData(value);
+    setPctDizimo(
+      fracaoParaInputPct(
+        percentualComFallback(
+          percentuaisMensais,
+          "dizimo",
+          null,
+          value,
+          config.percentual_dizimo,
+        ),
+      ),
+    );
+  }
 
   const dist = useMemo(
     () =>
@@ -138,7 +171,7 @@ export function EntradaFormDialog({ config, vendas, entrada, trigger }: Props) {
                 id="e-data"
                 type="date"
                 value={data}
-                onChange={(ev) => setData(ev.target.value)}
+                onChange={(ev) => onChangeData(ev.target.value)}
                 required
               />
             </div>

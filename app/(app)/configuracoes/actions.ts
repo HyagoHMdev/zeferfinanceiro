@@ -5,8 +5,8 @@ import { z } from "zod";
 
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { requireRole } from "@/lib/auth";
-import type { AppRole } from "@/lib/types";
+import { requireRole, ADMIN_FIN_ROLES } from "@/lib/auth";
+import type { AppRole, PercentualChave } from "@/lib/types";
 
 type ActionResult = { error?: string };
 
@@ -145,5 +145,83 @@ export async function atualizarPerfil(
   if (error) return { error: error.message };
 
   revalidatePath("/configuracoes", "layout");
+  return {};
+}
+
+const CHAVES_VALIDAS: PercentualChave[] = [
+  "comissao_construtora",
+  "repasse_parceiro",
+  "comissao_corretor",
+  "imposto_nf_corretor",
+  "imposto_imobiliaria",
+  "dizimo",
+];
+
+function revalidarPercentuais() {
+  revalidatePath("/configuracoes", "layout");
+  revalidatePath("/vendas", "layout");
+  revalidatePath("/entradas");
+}
+
+/** Salva (substitui) os percentuais de um mês para uma entidade (ou global). */
+export async function salvarMesPercentuais(
+  entidadeId: string | null,
+  competenciaYYYYMM: string,
+  valores: { chave: PercentualChave; percentual: number }[],
+): Promise<ActionResult> {
+  await requireRole(ADMIN_FIN_ROLES);
+  if (!/^\d{4}-\d{2}$/.test(competenciaYYYYMM)) return { error: "Mês inválido." };
+  const competencia = `${competenciaYYYYMM}-01`;
+  const itens = valores.filter(
+    (v) => CHAVES_VALIDAS.includes(v.chave) && Number.isFinite(v.percentual),
+  );
+  if (itens.length === 0) return { error: "Informe ao menos um percentual." };
+
+  const supabase = await createClient();
+  const chaves = itens.map((i) => i.chave);
+
+  let del = supabase
+    .from("percentuais_mensais")
+    .delete()
+    .eq("competencia", competencia)
+    .in("chave", chaves);
+  del = entidadeId ? del.eq("entidade_id", entidadeId) : del.is("entidade_id", null);
+  const { error: delErr } = await del;
+  if (delErr) return { error: delErr.message };
+
+  const { error } = await supabase.from("percentuais_mensais").insert(
+    itens.map((i) => ({
+      chave: i.chave,
+      entidade_id: entidadeId,
+      competencia,
+      percentual: i.percentual,
+    })),
+  );
+  if (error) return { error: error.message };
+
+  revalidarPercentuais();
+  return {};
+}
+
+/** Remove os percentuais de um mês para uma entidade (ou global). */
+export async function excluirMesPercentuais(
+  entidadeId: string | null,
+  competenciaYYYYMM: string,
+  chaves: PercentualChave[],
+): Promise<ActionResult> {
+  await requireRole(ADMIN_FIN_ROLES);
+  const competencia = `${competenciaYYYYMM}-01`;
+  const supabase = await createClient();
+
+  let del = supabase
+    .from("percentuais_mensais")
+    .delete()
+    .eq("competencia", competencia)
+    .in("chave", chaves);
+  del = entidadeId ? del.eq("entidade_id", entidadeId) : del.is("entidade_id", null);
+  const { error } = await del;
+  if (error) return { error: error.message };
+
+  revalidarPercentuais();
   return {};
 }

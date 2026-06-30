@@ -246,3 +246,29 @@ export const CATEGORIA_TIPO_LABEL: Record<CategoriaTipo, string> = {
   despesa_variavel: "Despesa Variável",
   investimento: "Investimento",
 };
+
+export type PercentualChave =
+  | "comissao_construtora"
+  | "repasse_parceiro"
+  | "comissao_corretor"
+  | "imposto_nf_corretor"
+  | "imposto_imobiliaria"
+  | "dizimo";
+
+export interface PercentualMensal {
+  id: string;
+  chave: PercentualChave;
+  entidade_id: string | null;
+  competencia: string; // 'YYYY-MM-01'
+  percentual: number;
+  created_at: string;
+}
+
+export const PERCENTUAL_CHAVE_LABEL: Record<PercentualChave, string> = {
+  comissao_construtora: "% Comissão construtora",
+  repasse_parceiro: "% Repasse parceiro",
+  comissao_corretor: "% Comissão corretor",
+  imposto_nf_corretor: "% Imposto NF corretor",
+  imposto_imobiliaria: "% Imposto imobiliária",
+  dizimo: "% Dízimo",
+};

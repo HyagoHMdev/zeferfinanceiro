@@ -5,6 +5,7 @@ import type {
   Empreendimento,
   Corretor,
   Parceiro,
+  PercentualMensal,
 } from "@/lib/types";
 
 /** Configuração padrão usada como fallback se a linha ainda não existir. */
@@ -34,13 +35,14 @@ export async function getConfig(): Promise<Configuracoes> {
 /** Carrega config + cadastros ativos necessários para o formulário de venda. */
 export async function carregarCadastrosVenda() {
   const supabase = await createClient();
-  const [config, construtoras, empreendimentos, corretores, parceiros] =
+  const [config, construtoras, empreendimentos, corretores, parceiros, percentuais] =
     await Promise.all([
       supabase.from("configuracoes").select("*").eq("id", true).single(),
       supabase.from("construtoras").select("*").eq("ativo", true).order("nome"),
       supabase.from("empreendimentos").select("*").eq("ativo", true).order("nome"),
       supabase.from("corretores").select("*").eq("ativo", true).order("nome"),
       supabase.from("parceiros").select("*").eq("ativo", true).order("nome"),
+      supabase.from("percentuais_mensais").select("*"),
     ]);
 
   return {
@@ -49,5 +51,6 @@ export async function carregarCadastrosVenda() {
     empreendimentos: (empreendimentos.data ?? []) as Empreendimento[],
     corretores: (corretores.data ?? []) as Corretor[],
     parceiros: (parceiros.data ?? []) as Parceiro[],
+    percentuaisMensais: (percentuais.data ?? []) as PercentualMensal[],
   };
 }

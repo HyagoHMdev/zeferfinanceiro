@@ -4,7 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { requireRole, STAFF_ROLES, ADMIN_FIN_ROLES } from "@/lib/auth";
 import { getConfig } from "@/lib/data/cadastros";
 import { formatBRL, formatData } from "@/lib/format";
-import { ENTRADA_TIPO_LABEL, type Entrada } from "@/lib/types";
+import { ENTRADA_TIPO_LABEL, type Entrada, type PercentualMensal } from "@/lib/types";
 import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -39,7 +39,7 @@ export default async function EntradasPage() {
   const podeEditar = ADMIN_FIN_ROLES.includes(profile.role);
 
   const supabase = await createClient();
-  const [config, entradasRes, vendasRes] = await Promise.all([
+  const [config, entradasRes, vendasRes, percentuaisRes] = await Promise.all([
     getConfig(),
     supabase
       .from("entradas")
@@ -50,10 +50,12 @@ export default async function EntradasPage() {
       .select("id, cliente, liquido_zefer, empreendimentos(nome)")
       .eq("status", "aguardando_recebimento")
       .order("data_venda", { ascending: false }),
+    supabase.from("percentuais_mensais").select("*"),
   ]);
 
   const entradas = (entradasRes.data ?? []) as unknown as EntradaRow[];
   const vendasDisp = (vendasRes.data ?? []) as unknown as VendaDispRow[];
+  const percentuaisMensais = (percentuaisRes.data ?? []) as unknown as PercentualMensal[];
 
   const vendas: VendaDisponivel[] = vendasDisp.map((v) => ({
     id: v.id,
@@ -79,6 +81,7 @@ export default async function EntradasPage() {
           <EntradaFormDialog
             config={config}
             vendas={vendas}
+            percentuaisMensais={percentuaisMensais}
             trigger={
               <Button>
                 <Plus className="size-4" />
@@ -140,6 +143,7 @@ export default async function EntradasPage() {
                             config={config}
                             vendas={vendas}
                             entrada={e}
+                            percentuaisMensais={percentuaisMensais}
                             trigger={
                               <Button variant="ghost" size="icon" aria-label="Editar">
                                 <Pencil className="size-4" />

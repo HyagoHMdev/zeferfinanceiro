@@ -4,7 +4,7 @@ import * as React from "react";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Plus, Pencil, Trash2, Loader2 } from "lucide-react";
+import { Plus, Pencil, Trash2, Loader2, CalendarClock } from "lucide-react";
 
 import {
   parseNumeroBR,
@@ -41,6 +41,11 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  PercentuaisMensaisDialog,
+  type CampoPercentual,
+} from "@/components/configuracoes/percentuais-mensais-dialog";
+import type { PercentualMensal } from "@/lib/types";
 
 const NONE = "__none__";
 
@@ -86,6 +91,7 @@ export function CadastroManager({
   campos,
   colunas,
   registros,
+  percentuais,
 }: {
   tabela: string;
   titulo: string;
@@ -93,6 +99,7 @@ export function CadastroManager({
   campos: Campo[];
   colunas: Coluna[];
   registros: Registro[];
+  percentuais?: { campos: CampoPercentual[]; rows: PercentualMensal[] };
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -215,6 +222,24 @@ export function CadastroManager({
                   ))}
                   <TableCell className="text-right">
                     <div className="flex justify-end">
+                      {percentuais ? (
+                        <PercentuaisMensaisDialog
+                          titulo={String(r.nome ?? "")}
+                          entidadeId={r.id}
+                          campos={percentuais.campos}
+                          rows={percentuais.rows}
+                          trigger={
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              aria-label="Percentuais por mês"
+                              title="Percentuais por mês"
+                            >
+                              <CalendarClock className="size-4" />
+                            </Button>
+                          }
+                        />
+                      ) : null}
                       <Button
                         variant="ghost"
                         size="icon"
