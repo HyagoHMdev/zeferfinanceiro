@@ -6,6 +6,7 @@ import { Menu, LogOut } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { navParaPerfil, ROLE_LABELS, type Role } from "@/lib/nav";
+import { LogoBadge } from "@/components/logo-badge";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import {
@@ -30,9 +31,7 @@ function isActive(pathname: string, href: string) {
 function Brand() {
   return (
     <div className="flex items-center gap-2 px-2">
-      <div className="flex size-9 items-center justify-center rounded-lg bg-[linear-gradient(135deg,#f3da8b,#d9b75a_45%,#a87c24)] font-serif text-lg font-bold text-[#1a1206] shadow-sm ring-1 ring-[#d9b75a]/30">
-        Z
-      </div>
+      <LogoBadge height={34} />
       <div className="leading-tight">
         <div className="font-semibold">Zefer</div>
         <div className="text-xs text-muted-foreground">Financeiro</div>
