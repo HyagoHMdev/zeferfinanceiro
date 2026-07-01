@@ -459,11 +459,7 @@ export function VendaForm({
             />
             <ResumoLinha label="Líquido pós-parceria" valor={calc.liquidoPosParceria} divider />
             <ResumoLinha label="(−) Imposto" valor={-calc.valorImposto} />
-            <ResumoLinha label="Líquido Zefer" valor={calc.liquidoZefer} strong divider />
-            <ResumoLinha label="Comissão corretor" valor={calc.comissaoCorretorAjustada} />
-            <ResumoLinha label="(−) Imposto NF" valor={-calc.valorImpostoNf} />
-            <ResumoLinha label="Líquido corretor" valor={calc.liquidoCorretor} strong divider />
-            <ResumoLinha label="Lucro Zefer" valor={calc.lucroLiquido} highlight />
+            <ResumoLinha label="Líquido Zefer" valor={calc.liquidoZefer} highlight divider />
 
             <div className="pt-4">
               <Button type="submit" className="w-full" disabled={saving}>
