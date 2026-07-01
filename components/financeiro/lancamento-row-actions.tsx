@@ -25,6 +25,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { LancamentoFormDialog } from "@/components/financeiro/lancamento-form-dialog";
 
 const STATUS: LancamentoStatus[] = ["pendente", "pago", "atrasado"];
@@ -43,6 +53,8 @@ export function LancamentoRowActions({
   const router = useRouter();
   const [status, setStatus] = useState<LancamentoStatus>(lancamento.status);
   const [busy, setBusy] = useState(false);
+  const [openDel, setOpenDel] = useState(false);
+  const isGrupo = Boolean(lancamento.recorrencia_grupo);
 
   async function mudarStatus(value: string) {
     const novo = value as LancamentoStatus;
@@ -59,15 +71,16 @@ export function LancamentoRowActions({
     }
   }
 
-  async function remover() {
+  async function remover(escopo: "este" | "grupo") {
     setBusy(true);
-    const res = await excluirLancamento(lancamento.id);
+    const res = await excluirLancamento(lancamento.id, escopo);
     setBusy(false);
     if (res?.error) {
       toast.error("Erro ao excluir", { description: res.error });
       return;
     }
     toast.success("Lançamento excluído");
+    setOpenDel(false);
     router.refresh();
   }
 
@@ -98,15 +111,54 @@ export function LancamentoRowActions({
         }
       />
 
-      <Button
-        variant="ghost"
-        size="icon"
-        onClick={remover}
-        disabled={busy}
-        aria-label="Excluir"
-      >
-        <Trash2 className="size-4 text-destructive" />
-      </Button>
+      <Dialog open={openDel} onOpenChange={setOpenDel}>
+        <DialogTrigger asChild>
+          <Button variant="ghost" size="icon" aria-label="Excluir">
+            <Trash2 className="size-4 text-destructive" />
+          </Button>
+        </DialogTrigger>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Excluir lançamento?</DialogTitle>
+            <DialogDescription>
+              {isGrupo
+                ? "Este lançamento faz parte de uma recorrência. Excluir somente este ou todos do grupo?"
+                : "Esta ação não pode ser desfeita."}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button variant="ghost">Cancelar</Button>
+            </DialogClose>
+            {isGrupo ? (
+              <>
+                <Button
+                  variant="outline"
+                  onClick={() => remover("este")}
+                  disabled={busy}
+                >
+                  Somente este
+                </Button>
+                <Button
+                  variant="destructive"
+                  onClick={() => remover("grupo")}
+                  disabled={busy}
+                >
+                  Todos do grupo
+                </Button>
+              </>
+            ) : (
+              <Button
+                variant="destructive"
+                onClick={() => remover("este")}
+                disabled={busy}
+              >
+                Excluir
+              </Button>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

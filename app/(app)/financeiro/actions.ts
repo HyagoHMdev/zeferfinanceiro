@@ -76,6 +76,7 @@ export async function criarLancamento(
 export async function atualizarLancamento(
   id: string,
   input: LancamentoInput,
+  escopo: "este" | "grupo" = "este",
 ): Promise<ActionResult> {
   await requireRole(ADMIN_FIN_ROLES);
   const parsed = lancamentoSchema.safeParse(input);
@@ -83,24 +84,70 @@ export async function atualizarLancamento(
   const e = parsed.data;
 
   const supabase = await createClient();
-  const { error } = await supabase
-    .from("lancamentos")
-    .update({
-      escopo: e.escopo,
-      natureza: e.natureza,
-      categoria_id: e.categoria_id,
-      descricao: e.descricao,
-      valor: e.valor,
-      competencia: competenciaISO(e.competencia, 0),
-      data_vencimento: e.data_vencimento,
-      status: e.status,
-      conta_id: e.conta_id,
-      centro_custo_id: e.centro_custo_id,
-      fornecedor_id: e.fornecedor_id,
-      anexo_url: e.anexo_url,
-    })
-    .eq("id", id);
-  if (error) return { error: error.message };
+
+  // Campos compartilhados (não incluem competência/vencimento, que são por mês).
+  const comuns = {
+    escopo: e.escopo,
+    natureza: e.natureza,
+    categoria_id: e.categoria_id,
+    descricao: e.descricao,
+    valor: e.valor,
+    status: e.status,
+    conta_id: e.conta_id,
+    centro_custo_id: e.centro_custo_id,
+    fornecedor_id: e.fornecedor_id,
+    anexo_url: e.anexo_url,
+  };
+
+  // Descobre o grupo (se houver) para o escopo "grupo".
+  let grupo: string | null = null;
+  if (escopo === "grupo") {
+    const { data: base } = await supabase
+      .from("lancamentos")
+      .select("recorrencia_grupo")
+      .eq("id", id)
+      .single();
+    grupo = (base?.recorrencia_grupo as string | null) ?? null;
+  }
+
+  if (escopo === "grupo" && grupo) {
+    // Atualiza os campos comuns em todas as ocorrências do grupo.
+    const { error } = await supabase
+      .from("lancamentos")
+      .update(comuns)
+      .eq("recorrencia_grupo", grupo);
+    if (error) return { error: error.message };
+
+    // Se um vencimento foi informado, propaga o dia para cada mês (clampado).
+    if (e.data_vencimento) {
+      const dia = new Date(e.data_vencimento).getUTCDate();
+      const { data: rows } = await supabase
+        .from("lancamentos")
+        .select("id, competencia")
+        .eq("recorrencia_grupo", grupo);
+      await Promise.all(
+        (rows ?? []).map((r) =>
+          supabase
+            .from("lancamentos")
+            .update({
+              data_vencimento: vencimentoDaCompetencia(dia, r.competencia as string),
+            })
+            .eq("id", r.id as string),
+        ),
+      );
+    }
+  } else {
+    // Somente este lançamento (inclui competência e vencimento).
+    const { error } = await supabase
+      .from("lancamentos")
+      .update({
+        ...comuns,
+        competencia: competenciaISO(e.competencia, 0),
+        data_vencimento: e.data_vencimento,
+      })
+      .eq("id", id);
+    if (error) return { error: error.message };
+  }
 
   revalidarFinanceiro();
   return {};
@@ -125,9 +172,31 @@ export async function alterarStatusLancamento(
   return {};
 }
 
-export async function excluirLancamento(id: string): Promise<ActionResult> {
+export async function excluirLancamento(
+  id: string,
+  escopo: "este" | "grupo" = "este",
+): Promise<ActionResult> {
   await requireRole(ADMIN_FIN_ROLES);
   const supabase = await createClient();
+
+  if (escopo === "grupo") {
+    const { data: base } = await supabase
+      .from("lancamentos")
+      .select("recorrencia_grupo")
+      .eq("id", id)
+      .single();
+    const grupo = (base?.recorrencia_grupo as string | null) ?? null;
+    if (grupo) {
+      const { error } = await supabase
+        .from("lancamentos")
+        .delete()
+        .eq("recorrencia_grupo", grupo);
+      if (error) return { error: error.message };
+      revalidarFinanceiro();
+      return {};
+    }
+  }
+
   const { error } = await supabase.from("lancamentos").delete().eq("id", id);
   if (error) return { error: error.message };
 

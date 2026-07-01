@@ -108,6 +108,9 @@ export function LancamentoFormDialog({
   const [anexoUrl, setAnexoUrl] = useState<string | null>(
     lancamento?.anexo_url ?? null,
   );
+  const [escopoEdicao, setEscopoEdicao] = useState<"este" | "grupo">("este");
+
+  const isGrupo = isEdit && Boolean(lancamento?.recorrencia_grupo);
 
   const categoriasFiltradas = TIPOS_COM_CATEGORIA.includes(natureza)
     ? cadastros.categorias.filter((c) => c.tipo === natureza)
@@ -134,7 +137,7 @@ export function LancamentoFormDialog({
     };
 
     const res = lancamento
-      ? await atualizarLancamento(lancamento.id, input)
+      ? await atualizarLancamento(lancamento.id, input, isGrupo ? escopoEdicao : "este")
       : await criarLancamento(input);
     setSaving(false);
     if (res?.error) {
@@ -337,6 +340,28 @@ export function LancamentoFormDialog({
             <Label>Comprovante / Anexo</Label>
             <AnexoUpload value={anexoUrl} onChange={setAnexoUrl} pasta="lancamentos" />
           </div>
+
+          {isGrupo ? (
+            <div className="space-y-2 rounded-md border bg-muted/40 p-3">
+              <Label>Aplicar alteração a</Label>
+              <Select
+                value={escopoEdicao}
+                onValueChange={(v) => setEscopoEdicao(v as "este" | "grupo")}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="este">Somente este</SelectItem>
+                  <SelectItem value="grupo">Todos deste grupo (recorrência)</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                Este lançamento faz parte de uma recorrência. &quot;Todos&quot;
+                mantém o mês/vencimento de cada ocorrência.
+              </p>
+            </div>
+          ) : null}
 
           <DialogFooter>
             <Button type="submit" disabled={saving}>
