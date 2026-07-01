@@ -44,7 +44,13 @@ import {
 } from "@/components/ui/dialog";
 
 const NONE = "__none__";
-const TIPOS: EntradaTipo[] = ["comissao", "bonificacao", "premiacao", "outras"];
+const TIPOS: EntradaTipo[] = [
+  "comissao",
+  "bonificacao",
+  "premiacao",
+  "investidor",
+  "outras",
+];
 
 export interface VendaDisponivel {
   id: string;
@@ -57,6 +63,9 @@ interface Props {
   vendas: VendaDisponivel[];
   entrada?: Entrada;
   percentuaisMensais?: PercentualMensal[];
+  /** % Empresa/Pessoal atuais (edição). Criação usa 0/100 como ponto de partida. */
+  percentualEmpresaInicial?: number;
+  percentualPessoalInicial?: number;
   trigger: React.ReactNode;
 }
 
@@ -65,6 +74,8 @@ export function EntradaFormDialog({
   vendas,
   entrada,
   percentuaisMensais = [],
+  percentualEmpresaInicial = 0,
+  percentualPessoalInicial = 1,
   trigger,
 }: Props) {
   const router = useRouter();
@@ -90,6 +101,16 @@ export function EntradaFormDialog({
     ),
   );
   const [vendaId, setVendaId] = useState(entrada?.venda_id ?? NONE);
+  const [pctEmpresa, setPctEmpresa] = useState(
+    fracaoParaInputPct(percentualEmpresaInicial),
+  );
+  const [pctPessoal, setPctPessoal] = useState(
+    fracaoParaInputPct(percentualPessoalInicial),
+  );
+
+  const fracEmpresa = inputPctParaFracao(pctEmpresa);
+  const fracPessoal = inputPctParaFracao(pctPessoal);
+  const somaValida = Math.abs(fracEmpresa + fracPessoal - 1) < 0.0001;
 
   function onChangeData(value: string) {
     setData(value);
@@ -111,9 +132,9 @@ export function EntradaFormDialog({
       calcularDistribuicao({
         valor: parseNumeroBR(valor),
         percentualDizimo: inputPctParaFracao(pctDizimo),
-        percentualEmpresa: config.percentual_distribuicao_empresa,
+        percentualEmpresa: fracEmpresa,
       }),
-    [valor, pctDizimo, config.percentual_distribuicao_empresa],
+    [valor, pctDizimo, fracEmpresa],
   );
 
   function onSelectVenda(value: string) {
@@ -129,6 +150,12 @@ export function EntradaFormDialog({
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (!somaValida) {
+      toast.error(
+        "A distribuição entre Empresa e Pessoal deve totalizar exatamente 100%.",
+      );
+      return;
+    }
     setSaving(true);
     const input: EntradaInput = {
       data,
@@ -136,6 +163,8 @@ export function EntradaFormDialog({
       descricao: descricao.trim() || null,
       valor: parseNumeroBR(valor),
       percentual_dizimo: inputPctParaFracao(pctDizimo),
+      percentual_empresa: fracEmpresa,
+      percentual_pessoal: fracPessoal,
       venda_id: vendaId === NONE ? null : vendaId,
     };
     const res = entrada
@@ -243,6 +272,35 @@ export function EntradaFormDialog({
             </div>
           </div>
 
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="e-empresa">% Empresa</Label>
+              <Input
+                id="e-empresa"
+                inputMode="decimal"
+                value={pctEmpresa}
+                onChange={(ev) => setPctEmpresa(ev.target.value)}
+                placeholder="0"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="e-pessoal">% Pessoal</Label>
+              <Input
+                id="e-pessoal"
+                inputMode="decimal"
+                value={pctPessoal}
+                onChange={(ev) => setPctPessoal(ev.target.value)}
+                placeholder="100"
+              />
+            </div>
+          </div>
+          {!somaValida ? (
+            <p className="text-sm text-destructive">
+              A distribuição entre Empresa e Pessoal deve totalizar exatamente
+              100%.
+            </p>
+          ) : null}
+
           <div className="rounded-md border bg-muted/40 p-3 text-sm">
             <Resumo label="Dízimo" valor={dist.valorDizimo} />
             <Resumo label="Líquido" valor={dist.liquido} strong />
@@ -251,7 +309,7 @@ export function EntradaFormDialog({
           </div>
 
           <DialogFooter>
-            <Button type="submit" disabled={saving}>
+            <Button type="submit" disabled={saving || !somaValida}>
               {saving ? <Loader2 className="size-4 animate-spin" /> : null}
               {entrada ? "Salvar" : "Registrar entrada"}
             </Button>

@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 
 import { createClient } from "@/lib/supabase/server";
 import { requireRole, ADMIN_FIN_ROLES } from "@/lib/auth";
+import { vencimentoDaCompetencia } from "@/lib/format";
 import { lancamentoSchema, type LancamentoInput } from "@/lib/schemas/lancamento";
 import type { LancamentoStatus } from "@/lib/types";
 
@@ -32,16 +33,28 @@ export async function criarLancamento(
   const reps = e.recorrencia === "nenhuma" ? 1 : e.repeticoes;
   const grupo = reps > 1 ? crypto.randomUUID() : null;
 
+  // Dia base do vencimento (para replicar em cada mês da recorrência).
+  const diaBase = e.data_vencimento
+    ? new Date(e.data_vencimento).getUTCDate()
+    : null;
+
   const rows = Array.from({ length: reps }, (_, i) => {
     const offset = e.recorrencia === "anual" ? i * 12 : i;
+    const competencia = competenciaISO(e.competencia, offset);
+    // Recorrente: cada ocorrência tem seu próprio vencimento (dia base,
+    // clampado ao último dia do mês). Único (reps=1): respeita a data digitada.
+    const dataVencimento =
+      reps > 1
+        ? vencimentoDaCompetencia(diaBase ?? 1, competencia)
+        : e.data_vencimento;
     return {
       escopo: e.escopo,
       natureza: e.natureza,
       categoria_id: e.categoria_id,
       descricao: e.descricao,
       valor: e.valor,
-      competencia: competenciaISO(e.competencia, offset),
-      data_vencimento: i === 0 ? e.data_vencimento : null,
+      competencia,
+      data_vencimento: dataVencimento,
       status: e.status,
       recorrencia: e.recorrencia,
       recorrencia_grupo: grupo,

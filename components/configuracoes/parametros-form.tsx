@@ -20,8 +20,6 @@ const CAMPOS: { key: keyof Configuracoes; label: string }[] = [
   { key: "percentual_imposto_nf_corretor", label: "% Imposto NF do corretor" },
   { key: "percentual_comissao_corretor_padrao", label: "% Comissão padrão do corretor" },
   { key: "percentual_dizimo", label: "% Dízimo" },
-  { key: "percentual_distribuicao_empresa", label: "% Distribuição — Empresa" },
-  { key: "percentual_distribuicao_pessoal", label: "% Distribuição — Pessoal" },
 ];
 
 export function ParametrosForm({ config }: { config: Configuracoes }) {
@@ -45,8 +43,6 @@ export function ParametrosForm({ config }: { config: Configuracoes }) {
         valores.percentual_comissao_corretor_padrao,
       ),
       percentual_dizimo: inputPctParaFracao(valores.percentual_dizimo),
-      percentual_distribuicao_empresa: inputPctParaFracao(valores.percentual_distribuicao_empresa),
-      percentual_distribuicao_pessoal: inputPctParaFracao(valores.percentual_distribuicao_pessoal),
     };
     const res = await salvarParametros(dados);
     setSaving(false);
@@ -76,8 +72,8 @@ export function ParametrosForm({ config }: { config: Configuracoes }) {
         ))}
       </div>
       <p className="text-xs text-muted-foreground">
-        Os percentuais alimentam o cálculo de comissões e a distribuição de
-        entradas. Empresa + Pessoal devem somar 100%.
+        Percentuais padrão usados quando não há valor específico no cadastro ou
+        no mês. A distribuição Empresa/Pessoal é definida em cada entrada.
       </p>
       <Button type="submit" disabled={saving}>
         {saving ? <Loader2 className="size-4 animate-spin" /> : null}

@@ -4,7 +4,12 @@ import { createClient } from "@/lib/supabase/server";
 import { requireRole, STAFF_ROLES, ADMIN_FIN_ROLES } from "@/lib/auth";
 import { getConfig } from "@/lib/data/cadastros";
 import { formatBRL, formatData } from "@/lib/format";
-import { ENTRADA_TIPO_LABEL, type Entrada, type PercentualMensal } from "@/lib/types";
+import {
+  ENTRADA_TIPO_LABEL,
+  type Entrada,
+  type EntradaTipo,
+  type PercentualMensal,
+} from "@/lib/types";
 import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -22,9 +27,14 @@ import {
   type VendaDisponivel,
 } from "@/components/entradas/entrada-form-dialog";
 import { EntradaDelete } from "@/components/entradas/entrada-delete";
+import { EntradaTipoFiltro } from "@/components/entradas/tipo-filtro";
 
 interface EntradaRow extends Entrada {
-  distribuicoes: { destino: "empresa" | "pessoal"; valor: number }[];
+  distribuicoes: {
+    destino: "empresa" | "pessoal";
+    valor: number;
+    percentual: number;
+  }[];
 }
 
 interface VendaDispRow {
@@ -34,17 +44,37 @@ interface VendaDispRow {
   empreendimentos: { nome: string } | null;
 }
 
-export default async function EntradasPage() {
+const TIPOS_VALIDOS: EntradaTipo[] = [
+  "comissao",
+  "bonificacao",
+  "premiacao",
+  "investidor",
+  "outras",
+];
+
+export default async function EntradasPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ tipo?: string }>;
+}) {
   const { profile } = await requireRole(STAFF_ROLES);
   const podeEditar = ADMIN_FIN_ROLES.includes(profile.role);
 
+  const { tipo } = await searchParams;
+  const tipoFiltro = TIPOS_VALIDOS.includes(tipo as EntradaTipo)
+    ? (tipo as EntradaTipo)
+    : null;
+
   const supabase = await createClient();
+  let entradasQuery = supabase
+    .from("entradas")
+    .select("*, distribuicoes(destino, valor, percentual)")
+    .order("data", { ascending: false });
+  if (tipoFiltro) entradasQuery = entradasQuery.eq("tipo", tipoFiltro);
+
   const [config, entradasRes, vendasRes, percentuaisRes] = await Promise.all([
     getConfig(),
-    supabase
-      .from("entradas")
-      .select("*, distribuicoes(destino, valor)")
-      .order("data", { ascending: false }),
+    entradasQuery,
     supabase
       .from("vendas")
       .select("id, cliente, liquido_zefer, empreendimentos(nome)")
@@ -63,13 +93,17 @@ export default async function EntradasPage() {
     label: `${v.empreendimentos?.nome ?? "Venda"}${v.cliente ? " — " + v.cliente : ""} (${formatBRL(v.liquido_zefer)})`,
   }));
 
+  const distDe = (e: EntradaRow, destino: "empresa" | "pessoal") =>
+    e.distribuicoes?.find((d) => d.destino === destino);
   const valorDe = (e: EntradaRow, destino: "empresa" | "pessoal") =>
-    e.distribuicoes?.find((d) => d.destino === destino)?.valor ?? 0;
+    Number(distDe(e, destino)?.valor ?? 0);
+  const percDe = (e: EntradaRow, destino: "empresa" | "pessoal") =>
+    Number(distDe(e, destino)?.percentual ?? 0);
 
   const totalValor = entradas.reduce((s, e) => s + Number(e.valor), 0);
   const totalLiquido = entradas.reduce((s, e) => s + Number(e.liquido), 0);
-  const totalEmpresa = entradas.reduce((s, e) => s + Number(valorDe(e, "empresa")), 0);
-  const totalPessoal = entradas.reduce((s, e) => s + Number(valorDe(e, "pessoal")), 0);
+  const totalEmpresa = entradas.reduce((s, e) => s + valorDe(e, "empresa"), 0);
+  const totalPessoal = entradas.reduce((s, e) => s + valorDe(e, "pessoal"), 0);
 
   return (
     <div>
@@ -77,6 +111,7 @@ export default async function EntradasPage() {
         title="Entradas e Distribuições"
         description="Toda entrada financeira, com dízimo e distribuição empresa/pessoal."
       >
+        <EntradaTipoFiltro atual={tipoFiltro ?? "todos"} />
         {podeEditar ? (
           <EntradaFormDialog
             config={config}
@@ -96,7 +131,7 @@ export default async function EntradasPage() {
         <CardContent className="px-0">
           {entradas.length === 0 ? (
             <div className="py-12 text-center text-sm text-muted-foreground">
-              Nenhuma entrada registrada ainda.
+              Nenhuma entrada registrada.
             </div>
           ) : (
             <Table>
@@ -144,6 +179,8 @@ export default async function EntradasPage() {
                             vendas={vendas}
                             entrada={e}
                             percentuaisMensais={percentuaisMensais}
+                            percentualEmpresaInicial={percDe(e, "empresa")}
+                            percentualPessoalInicial={percDe(e, "pessoal")}
                             trigger={
                               <Button variant="ghost" size="icon" aria-label="Editar">
                                 <Pencil className="size-4" />

@@ -61,46 +61,128 @@ export interface ComissaoResultado {
   lucroLiquido: number;
 }
 
+// ---------------------------------------------------------------------------
+// FONTE ÚNICA DE VERDADE da cadeia financeira de uma venda.
+// ---------------------------------------------------------------------------
+
+export interface VendaCalcInput {
+  /** Valor Geral de Venda (valor do imóvel). */
+  vgv: number;
+  /** % de comissão paga pela construtora, em fração (ex.: 0.05). */
+  percentualComissao: number;
+  /** Se há parceria nesta venda. */
+  possuiParceria?: boolean;
+  /** % da parceria sobre a comissão bruta, em fração. Só aplica se possuiParceria. */
+  percentualParceria?: number;
+  /** % de imposto da imobiliária, em fração (incide sobre o líquido pós-parceria). */
+  percentualImpostoImobiliaria: number;
+  /** % de comissão do corretor sobre o VGV, em fração. */
+  percentualCorretor: number;
+  /** % de desconto na comissão do corretor quando há parceria, em fração (0 = nenhum). */
+  percentualDescontoParceiro?: number;
+  /** % de imposto retido na NF do corretor, em fração. */
+  percentualImpostoNf: number;
+}
+
+export interface VendaCalcResultado {
+  comissaoBruta: number;
+  valorParceria: number;
+  liquidoPosParceria: number;
+  valorImposto: number;
+  liquidoZefer: number;
+  comissaoCorretorBruto: number;
+  descontoCorretor: number;
+  comissaoCorretorAjustada: number;
+  valorImpostoNf: number;
+  liquidoCorretor: number;
+  /** Lucro líquido da imobiliária = líquido Zefer − líquido do corretor. */
+  lucroLiquido: number;
+}
+
 /**
- * Calcula toda a cadeia de comissão de uma venda, do bruto ao lucro líquido da
- * imobiliária. Reproduz exatamente a planilha COMISSÕES.xlsx.
+ * Calcula toda a cadeia financeira de uma venda, do bruto ao lucro líquido.
+ * Base de cálculo da imobiliária e do corretor respeita a parceria. Único ponto
+ * onde essa matemática existe — reusado por formulários, actions e resumos.
  */
-export function calcularComissao(input: ComissaoInput): ComissaoResultado {
+export function calcularVenda(input: VendaCalcInput): VendaCalcResultado {
   const {
     vgv,
     percentualComissao,
-    percentualParceiro = 0,
+    possuiParceria = false,
+    percentualParceria = 0,
     percentualImpostoImobiliaria,
     percentualCorretor,
+    percentualDescontoParceiro = 0,
     percentualImpostoNf,
   } = input;
 
   // Cadeia da imobiliária (precisão total).
   const comissaoBrutaRaw = vgv * percentualComissao;
-  const valorParceiroRaw = comissaoBrutaRaw * percentualParceiro;
-  const saldoPosParceiroRaw = comissaoBrutaRaw - valorParceiroRaw;
-  const valorImpostoRaw = saldoPosParceiroRaw * percentualImpostoImobiliaria;
-  const liquidoZeferRaw = saldoPosParceiroRaw - valorImpostoRaw;
+  const valorParceriaRaw = possuiParceria ? comissaoBrutaRaw * percentualParceria : 0;
+  const liquidoPosParceriaRaw = comissaoBrutaRaw - valorParceriaRaw;
+  const valorImpostoRaw = liquidoPosParceriaRaw * percentualImpostoImobiliaria;
+  const liquidoZeferRaw = liquidoPosParceriaRaw - valorImpostoRaw;
 
-  // Cadeia do corretor (comissão é sobre o VGV, não sobre a comissão bruta).
+  // Cadeia do corretor (comissão sobre o VGV; desconto opcional quando há parceria).
   const comissaoCorretorBrutoRaw = vgv * percentualCorretor;
-  const valorImpostoNfRaw = comissaoCorretorBrutoRaw * percentualImpostoNf;
-  const liquidoCorretorRaw = comissaoCorretorBrutoRaw - valorImpostoNfRaw;
+  const descontoCorretorRaw = possuiParceria
+    ? comissaoCorretorBrutoRaw * percentualDescontoParceiro
+    : 0;
+  const comissaoCorretorAjustadaRaw = comissaoCorretorBrutoRaw - descontoCorretorRaw;
+  const valorImpostoNfRaw = comissaoCorretorAjustadaRaw * percentualImpostoNf;
+  const liquidoCorretorRaw = comissaoCorretorAjustadaRaw - valorImpostoNfRaw;
 
-  // Resultado da imobiliária.
   const lucroLiquidoRaw = liquidoZeferRaw - liquidoCorretorRaw;
 
   return {
     comissaoBruta: round2(comissaoBrutaRaw),
-    valorParceiro: round2(valorParceiroRaw),
-    saldoPosParceiro: round2(saldoPosParceiroRaw),
+    valorParceria: round2(valorParceriaRaw),
+    liquidoPosParceria: round2(liquidoPosParceriaRaw),
     valorImposto: round2(valorImpostoRaw),
     liquidoZefer: round2(liquidoZeferRaw),
     comissaoCorretorBruto: round2(comissaoCorretorBrutoRaw),
+    descontoCorretor: round2(descontoCorretorRaw),
+    comissaoCorretorAjustada: round2(comissaoCorretorAjustadaRaw),
     valorImpostoNf: round2(valorImpostoNfRaw),
     liquidoCorretor: round2(liquidoCorretorRaw),
     lucroLiquido: round2(lucroLiquidoRaw),
   };
+}
+
+/**
+ * Wrapper retrocompatível (mantém a assinatura antiga usada em telas ainda não
+ * migradas). Delega para `calcularVenda`.
+ */
+export function calcularComissao(input: ComissaoInput): ComissaoResultado {
+  const r = calcularVenda({
+    vgv: input.vgv,
+    percentualComissao: input.percentualComissao,
+    possuiParceria: (input.percentualParceiro ?? 0) > 0,
+    percentualParceria: input.percentualParceiro ?? 0,
+    percentualImpostoImobiliaria: input.percentualImpostoImobiliaria,
+    percentualCorretor: input.percentualCorretor,
+    percentualDescontoParceiro: 0,
+    percentualImpostoNf: input.percentualImpostoNf,
+  });
+  return {
+    comissaoBruta: r.comissaoBruta,
+    valorParceiro: r.valorParceria,
+    saldoPosParceiro: r.liquidoPosParceria,
+    valorImposto: r.valorImposto,
+    liquidoZefer: r.liquidoZefer,
+    comissaoCorretorBruto: r.comissaoCorretorBruto,
+    valorImpostoNf: r.valorImpostoNf,
+    liquidoCorretor: r.liquidoCorretor,
+    lucroLiquido: r.lucroLiquido,
+  };
+}
+
+/** Líquido para pagamento do corretor = líquido do corretor − adiantamentos. */
+export function resumoCorretor(
+  liquidoCorretor: number,
+  totalAdiantamentos: number,
+): number {
+  return round2(liquidoCorretor - totalAdiantamentos);
 }
 
 export interface DistribuicaoInput {

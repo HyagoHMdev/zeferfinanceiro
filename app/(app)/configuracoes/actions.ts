@@ -72,8 +72,6 @@ const parametrosSchema = z.object({
   percentual_imposto_nf_corretor: z.number().min(0).max(1),
   percentual_comissao_corretor_padrao: z.number().min(0).max(1),
   percentual_dizimo: z.number().min(0).max(1),
-  percentual_distribuicao_empresa: z.number().min(0).max(1),
-  percentual_distribuicao_pessoal: z.number().min(0).max(1),
 });
 
 export async function salvarParametros(

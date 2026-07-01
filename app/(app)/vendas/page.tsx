@@ -9,6 +9,7 @@ import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { VendaStatusBadge } from "@/components/vendas/status-badge";
+import { VendaStatusSelect } from "@/components/vendas/venda-status-select";
 import {
   Table,
   TableBody,
@@ -75,7 +76,6 @@ export default async function VendasPage() {
                 <TableRow>
                   <TableHead>Data</TableHead>
                   <TableHead>Empreendimento</TableHead>
-                  <TableHead>Cliente</TableHead>
                   <TableHead>Corretor</TableHead>
                   <TableHead className="text-right">VGV</TableHead>
                   <TableHead className="text-right">Líquido Zefer</TableHead>
@@ -100,7 +100,6 @@ export default async function VendasPage() {
                           .join(" · ") || "—"}
                       </div>
                     </TableCell>
-                    <TableCell>{v.cliente ?? "—"}</TableCell>
                     <TableCell>{v.corretores?.nome ?? "—"}</TableCell>
                     <TableCell className="text-right tabular-nums">
                       {formatBRL(v.vgv)}
@@ -112,7 +111,11 @@ export default async function VendasPage() {
                       {formatBRL(v.lucro_liquido)}
                     </TableCell>
                     <TableCell>
-                      <VendaStatusBadge status={v.status} />
+                      {podeEditar ? (
+                        <VendaStatusSelect id={v.id} status={v.status} />
+                      ) : (
+                        <VendaStatusBadge status={v.status} />
+                      )}
                     </TableCell>
                     {podeEditar ? (
                       <TableCell className="text-right">
@@ -128,7 +131,7 @@ export default async function VendasPage() {
               </TableBody>
               <TableFooter>
                 <TableRow>
-                  <TableCell colSpan={4}>Total</TableCell>
+                  <TableCell colSpan={3}>Total</TableCell>
                   <TableCell className="text-right tabular-nums">
                     {formatBRL(totalVgv)}
                   </TableCell>

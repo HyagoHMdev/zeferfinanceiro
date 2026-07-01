@@ -6,7 +6,13 @@
 
 export type AppRole = "admin" | "financeiro" | "diretor" | "corretor";
 export type VendaStatus = "aguardando_recebimento" | "recebido" | "pago";
-export type EntradaTipo = "comissao" | "bonificacao" | "premiacao" | "outras";
+export type StatusPagamentoCorretor = "aguardando_liberacao" | "pago";
+export type EntradaTipo =
+  | "comissao"
+  | "bonificacao"
+  | "premiacao"
+  | "investidor"
+  | "outras";
 export type PagamentoStatus = "pendente" | "pago" | "cancelado";
 export type LancamentoEscopo = "empresa" | "pessoal";
 export type LancamentoNatureza =
@@ -28,8 +34,6 @@ export interface Configuracoes {
   percentual_imposto_nf_corretor: number;
   percentual_comissao_corretor_padrao: number;
   percentual_dizimo: number;
-  percentual_distribuicao_empresa: number;
-  percentual_distribuicao_pessoal: number;
   updated_at: string;
 }
 
@@ -138,6 +142,15 @@ export interface Venda {
   status: VendaStatus;
   pagamento_id: string | null;
   observacoes: string | null;
+  // Parceria (modelo manual)
+  possui_parceria: boolean;
+  empresa_parceira: string | null;
+  percentual_parceria: number;
+  valor_parceria: number;
+  liquido_pos_parceria: number;
+  percentual_desconto_parceiro: number;
+  // Pagamento do corretor (por venda)
+  status_pagamento_corretor: StatusPagamentoCorretor;
   created_at: string;
   updated_at: string;
 }
@@ -159,9 +172,11 @@ export interface PagamentoCorretor {
 export interface Adiantamento {
   id: string;
   corretor_id: string;
+  venda_id: string | null;
   data: string;
   valor: number;
   descricao: string | null;
+  observacoes: string | null;
   recibo_url: string | null;
   pagamento_id: string | null;
   created_at: string;
@@ -232,7 +247,16 @@ export const ENTRADA_TIPO_LABEL: Record<EntradaTipo, string> = {
   comissao: "Comissão",
   bonificacao: "Bonificação",
   premiacao: "Premiação",
+  investidor: "Investidor",
   outras: "Outras receitas",
+};
+
+export const STATUS_PAGAMENTO_CORRETOR_LABEL: Record<
+  StatusPagamentoCorretor,
+  string
+> = {
+  aguardando_liberacao: "Aguardando liberação",
+  pago: "Pago",
 };
 
 export const LANCAMENTO_STATUS_LABEL: Record<LancamentoStatus, string> = {

@@ -6,7 +6,7 @@ import Link from "next/link";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 
-import { calcularComissao } from "@/lib/calculos";
+import { calcularVenda } from "@/lib/calculos";
 import { parseNumeroBR, formatBRL } from "@/lib/format";
 import { percentualComFallback } from "@/lib/percentuais";
 import { criarVenda, atualizarVenda } from "@/app/(app)/vendas/actions";
@@ -17,7 +17,6 @@ import type {
   Construtora,
   Empreendimento,
   Corretor,
-  Parceiro,
   PercentualMensal,
 } from "@/lib/types";
 import { Button } from "@/components/ui/button";
@@ -31,6 +30,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { ResumoLinha } from "@/components/resumo-linha";
 
 const NONE = "__none__";
 
@@ -38,7 +38,6 @@ function fracaoParaPctStr(f: number | null | undefined): string {
   if (f === null || f === undefined) return "";
   return (Math.round(f * 1e6) / 1e4).toString();
 }
-
 function pctToFrac(str: string): number {
   return parseNumeroBR(str) / 100;
 }
@@ -49,7 +48,6 @@ interface VendaFormProps {
   construtoras: Construtora[];
   empreendimentos: Empreendimento[];
   corretores: Corretor[];
-  parceiros: Parceiro[];
   percentuaisMensais?: PercentualMensal[];
   venda?: Venda;
 }
@@ -60,7 +58,6 @@ export function VendaForm({
   construtoras,
   empreendimentos,
   corretores,
-  parceiros,
   percentuaisMensais = [],
   venda,
 }: VendaFormProps) {
@@ -74,30 +71,24 @@ export function VendaForm({
   const [unidade, setUnidade] = useState(venda?.unidade ?? "");
   const [cliente, setCliente] = useState(venda?.cliente ?? "");
   const [corretorId, setCorretorId] = useState(venda?.corretor_id ?? NONE);
-  const [parceiroId, setParceiroId] = useState(venda?.parceiro_id ?? NONE);
-
   const [vgv, setVgv] = useState(venda ? String(venda.vgv) : "");
+
+  const [possuiParceria, setPossuiParceria] = useState(
+    venda?.possui_parceria ?? false,
+  );
+  const [empresaParceira, setEmpresaParceira] = useState(
+    venda?.empresa_parceira ?? "",
+  );
+  const [pctParceria, setPctParceria] = useState(
+    fracaoParaPctStr(venda?.percentual_parceria ?? 0),
+  );
+
   const [pctComissao, setPctComissao] = useState(
     fracaoParaPctStr(venda?.percentual_comissao ?? config.percentual_comissao_padrao),
-  );
-  const [pctParceiro, setPctParceiro] = useState(
-    fracaoParaPctStr(
-      venda?.percentual_parceiro ?? config.percentual_parceiro_padrao,
-    ),
   );
   const [pctImpostoImob, setPctImpostoImob] = useState(
     fracaoParaPctStr(
       venda?.percentual_imposto_imobiliaria ?? config.percentual_imposto_imobiliaria,
-    ),
-  );
-  const [pctCorretor, setPctCorretor] = useState(
-    fracaoParaPctStr(
-      venda?.percentual_corretor ?? config.percentual_comissao_corretor_padrao,
-    ),
-  );
-  const [pctImpostoNf, setPctImpostoNf] = useState(
-    fracaoParaPctStr(
-      venda?.percentual_imposto_nf ?? config.percentual_imposto_nf_corretor,
     ),
   );
   const [observacoes, setObservacoes] = useState(venda?.observacoes ?? "");
@@ -111,23 +102,48 @@ export function VendaForm({
     [empreendimentos, construtoraId],
   );
 
-  const temParceiro = parceiroId !== NONE;
+  // Percentuais do corretor (geridos no módulo Corretores) — usados só para
+  // pré-visualizar o resultado. Na edição preserva os valores salvos, a menos
+  // que o corretor tenha sido trocado.
+  const corretorSel = corretores.find((c) => c.id === corretorId);
+  const corretorMudou = venda ? corretorId !== (venda.corretor_id ?? NONE) : true;
+  const pctCorretorPreview =
+    venda && !corretorMudou
+      ? venda.percentual_corretor
+      : (corretorSel?.percentual_comissao_padrao ??
+        config.percentual_comissao_corretor_padrao);
+  const pctImpostoNfPreview =
+    venda && !corretorMudou
+      ? venda.percentual_imposto_nf
+      : (corretorSel?.percentual_imposto_nf ??
+        config.percentual_imposto_nf_corretor);
+  const pctDescontoPreview =
+    venda && !corretorMudou ? venda.percentual_desconto_parceiro : 0;
 
   const calc = useMemo(
     () =>
-      calcularComissao({
+      calcularVenda({
         vgv: parseNumeroBR(vgv),
         percentualComissao: pctToFrac(pctComissao),
-        percentualParceiro: temParceiro ? pctToFrac(pctParceiro) : 0,
+        possuiParceria,
+        percentualParceria: possuiParceria ? pctToFrac(pctParceria) : 0,
         percentualImpostoImobiliaria: pctToFrac(pctImpostoImob),
-        percentualCorretor: pctToFrac(pctCorretor),
-        percentualImpostoNf: pctToFrac(pctImpostoNf),
+        percentualCorretor: pctCorretorPreview,
+        percentualDescontoParceiro: pctDescontoPreview,
+        percentualImpostoNf: pctImpostoNfPreview,
       }),
-    [vgv, pctComissao, pctParceiro, pctImpostoImob, pctCorretor, pctImpostoNf, temParceiro],
+    [
+      vgv,
+      pctComissao,
+      possuiParceria,
+      pctParceria,
+      pctImpostoImob,
+      pctCorretorPreview,
+      pctDescontoPreview,
+      pctImpostoNfPreview,
+    ],
   );
 
-  // Resolve o percentual aplicável (mês → padrão do cadastro → padrão global)
-  // e preenche o campo. Os valores continuam editáveis manualmente.
   function aplicarComissao(cId: string, d: string) {
     const c = construtoras.find((x) => x.id === cId);
     setPctComissao(
@@ -143,7 +159,6 @@ export function VendaForm({
       ),
     );
   }
-
   function aplicarImpostoImob(d: string) {
     setPctImpostoImob(
       fracaoParaPctStr(
@@ -158,72 +173,15 @@ export function VendaForm({
     );
   }
 
-  function aplicarCorretor(coId: string, d: string) {
-    const c = corretores.find((x) => x.id === coId);
-    setPctCorretor(
-      fracaoParaPctStr(
-        percentualComFallback(
-          percentuaisMensais,
-          "comissao_corretor",
-          coId === NONE ? null : coId,
-          d,
-          c?.percentual_comissao_padrao,
-          config.percentual_comissao_corretor_padrao,
-        ),
-      ),
-    );
-    setPctImpostoNf(
-      fracaoParaPctStr(
-        percentualComFallback(
-          percentuaisMensais,
-          "imposto_nf_corretor",
-          coId === NONE ? null : coId,
-          d,
-          c?.percentual_imposto_nf,
-          config.percentual_imposto_nf_corretor,
-        ),
-      ),
-    );
-  }
-
-  function aplicarParceiro(pId: string, d: string) {
-    const p = parceiros.find((x) => x.id === pId);
-    setPctParceiro(
-      fracaoParaPctStr(
-        percentualComFallback(
-          percentuaisMensais,
-          "repasse_parceiro",
-          pId === NONE ? null : pId,
-          d,
-          p?.percentual_padrao,
-          config.percentual_parceiro_padrao,
-        ),
-      ),
-    );
-  }
-
   function onSelectConstrutora(value: string) {
     setConstrutoraId(value);
     setEmpreendimentoId(NONE);
     aplicarComissao(value, dataVenda);
   }
-
-  function onSelectCorretor(value: string) {
-    setCorretorId(value);
-    aplicarCorretor(value, dataVenda);
-  }
-
-  function onSelectParceiro(value: string) {
-    setParceiroId(value);
-    aplicarParceiro(value, dataVenda);
-  }
-
   function onChangeData(value: string) {
     setDataVenda(value);
     aplicarComissao(construtoraId, value);
     aplicarImpostoImob(value);
-    aplicarCorretor(corretorId, value);
-    if (parceiroId !== NONE) aplicarParceiro(parceiroId, value);
   }
 
   async function onSubmit(e: React.FormEvent) {
@@ -236,13 +194,12 @@ export function VendaForm({
       unidade: unidade.trim() || null,
       cliente: cliente.trim() || null,
       corretor_id: corretorId === NONE ? null : corretorId,
-      parceiro_id: parceiroId === NONE ? null : parceiroId,
+      possui_parceria: possuiParceria,
+      empresa_parceira: possuiParceria ? empresaParceira.trim() || null : null,
+      percentual_parceria: possuiParceria ? pctToFrac(pctParceria) : 0,
       vgv: parseNumeroBR(vgv),
       percentual_comissao: pctToFrac(pctComissao),
-      percentual_parceiro: temParceiro ? pctToFrac(pctParceiro) : 0,
       percentual_imposto_imobiliaria: pctToFrac(pctImpostoImob),
-      percentual_corretor: pctToFrac(pctCorretor),
-      percentual_imposto_nf: pctToFrac(pctImpostoNf),
       observacoes: observacoes.trim() || null,
     };
 
@@ -250,7 +207,6 @@ export function VendaForm({
       mode === "create"
         ? await criarVenda(input)
         : await atualizarVenda(venda!.id, input);
-
     if (res?.error) {
       toast.error("Erro ao salvar a venda", { description: res.error });
       setSaving(false);
@@ -259,8 +215,8 @@ export function VendaForm({
 
   return (
     <form onSubmit={onSubmit} className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-      {/* Coluna de dados */}
       <div className="space-y-6 lg:col-span-2">
+        {/* CARD 1 — Dados da venda */}
         <Card>
           <CardHeader>
             <CardTitle>Dados da venda</CardTitle>
@@ -327,7 +283,7 @@ export function VendaForm({
             </div>
             <div className="space-y-2">
               <Label>Corretor responsável</Label>
-              <Select value={corretorId} onValueChange={onSelectCorretor}>
+              <Select value={corretorId} onValueChange={setCorretorId}>
                 <SelectTrigger>
                   <SelectValue placeholder="Selecione" />
                 </SelectTrigger>
@@ -341,31 +297,7 @@ export function VendaForm({
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-2">
-              <Label>Parceiro (opcional)</Label>
-              <Select value={parceiroId} onValueChange={onSelectParceiro}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Sem parceiro" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value={NONE}>Sem parceiro</SelectItem>
-                  {parceiros.map((p) => (
-                    <SelectItem key={p.id} value={p.id}>
-                      {p.nome}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Valores e percentuais</CardTitle>
-          </CardHeader>
-          <CardContent className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <div className="space-y-2">
+            <div className="space-y-2 sm:col-span-2">
               <Label htmlFor="vgv">Valor do imóvel (VGV)</Label>
               <Input
                 id="vgv"
@@ -376,8 +308,72 @@ export function VendaForm({
                 required
               />
             </div>
+          </CardContent>
+        </Card>
+
+        {/* CARD 2 — Parceria */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Parceria</CardTitle>
+          </CardHeader>
+          <CardContent className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="space-y-2">
-              <Label htmlFor="pctComissao">% Comissão construtora</Label>
+              <Label>Possui parceria?</Label>
+              <Select
+                value={possuiParceria ? "sim" : "nao"}
+                onValueChange={(v) => setPossuiParceria(v === "sim")}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="nao">Não</SelectItem>
+                  <SelectItem value="sim">Sim</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            {possuiParceria ? (
+              <>
+                <div className="space-y-2">
+                  <Label htmlFor="empresa-parceira">Empresa parceira</Label>
+                  <Input
+                    id="empresa-parceira"
+                    value={empresaParceira}
+                    onChange={(e) => setEmpresaParceira(e.target.value)}
+                    placeholder="Nome da empresa parceira"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="pct-parceria">% da parceria</Label>
+                  <Input
+                    id="pct-parceria"
+                    inputMode="decimal"
+                    value={pctParceria}
+                    onChange={(e) => setPctParceria(e.target.value)}
+                    placeholder="17,5"
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-4 sm:col-span-2">
+                  <Calculado label="Valor da parceria" valor={calc.valorParceria} />
+                  <Calculado
+                    label="Líquido pós-parceria"
+                    valor={calc.liquidoPosParceria}
+                  />
+                </div>
+              </>
+            ) : null}
+          </CardContent>
+        </Card>
+
+        {/* CARD 3 — Valores e percentuais */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Valores e percentuais</CardTitle>
+          </CardHeader>
+          <CardContent className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <Calculado label="VGV" valor={parseNumeroBR(vgv)} />
+            <div className="space-y-2">
+              <Label htmlFor="pctComissao">% pago pela construtora</Label>
               <Input
                 id="pctComissao"
                 inputMode="decimal"
@@ -387,18 +383,7 @@ export function VendaForm({
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="pctParceiro">% Parceiro</Label>
-              <Input
-                id="pctParceiro"
-                inputMode="decimal"
-                value={pctParceiro}
-                onChange={(e) => setPctParceiro(e.target.value)}
-                disabled={!temParceiro}
-                placeholder="17,5"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="pctImpostoImob">% Imposto imobiliária</Label>
+              <Label htmlFor="pctImpostoImob">% imposto a reter</Label>
               <Input
                 id="pctImpostoImob"
                 inputMode="decimal"
@@ -407,26 +392,8 @@ export function VendaForm({
                 placeholder="11,9"
               />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="pctCorretor">% Comissão corretor (sobre VGV)</Label>
-              <Input
-                id="pctCorretor"
-                inputMode="decimal"
-                value={pctCorretor}
-                onChange={(e) => setPctCorretor(e.target.value)}
-                placeholder="1,75"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="pctImpostoNf">% Imposto NF corretor</Label>
-              <Input
-                id="pctImpostoNf"
-                inputMode="decimal"
-                value={pctImpostoNf}
-                onChange={(e) => setPctImpostoNf(e.target.value)}
-                placeholder="11,9"
-              />
-            </div>
+            <Calculado label="R$ imposto" valor={calc.valorImposto} />
+            <Calculado label="Líquido pós imposto" valor={calc.liquidoZefer} />
             <div className="space-y-2 sm:col-span-2">
               <Label htmlFor="obs">Observações</Label>
               <Input
@@ -439,26 +406,26 @@ export function VendaForm({
         </Card>
       </div>
 
-      {/* Coluna de resultado (cálculo ao vivo) */}
+      {/* PAINEL RESULTADO */}
       <div className="lg:col-span-1">
         <Card className="lg:sticky lg:top-6">
           <CardHeader>
             <CardTitle>Resultado</CardTitle>
           </CardHeader>
           <CardContent className="space-y-1.5 text-sm">
-            <Linha label="Comissão bruta" valor={calc.comissaoBruta} />
-            <Linha
+            <ResumoLinha label="Comissão bruta" valor={calc.comissaoBruta} />
+            <ResumoLinha
               label="(−) Parceiro"
-              valor={-calc.valorParceiro}
-              muted={!temParceiro}
+              valor={-calc.valorParceria}
+              muted={!possuiParceria}
             />
-            <Linha label="Saldo pós-parceria" valor={calc.saldoPosParceiro} divider />
-            <Linha label="(−) Imposto imobiliária" valor={-calc.valorImposto} />
-            <Linha label="Líquido Zefer" valor={calc.liquidoZefer} strong divider />
-            <Linha label="Comissão corretor (bruto)" valor={calc.comissaoCorretorBruto} />
-            <Linha label="(−) Imposto NF" valor={-calc.valorImpostoNf} />
-            <Linha label="Líquido corretor" valor={calc.liquidoCorretor} strong divider />
-            <Linha label="Lucro líquido Zefer" valor={calc.lucroLiquido} highlight />
+            <ResumoLinha label="Líquido pós-parceria" valor={calc.liquidoPosParceria} divider />
+            <ResumoLinha label="(−) Imposto" valor={-calc.valorImposto} />
+            <ResumoLinha label="Líquido Zefer" valor={calc.liquidoZefer} strong divider />
+            <ResumoLinha label="Comissão corretor" valor={calc.comissaoCorretorAjustada} />
+            <ResumoLinha label="(−) Imposto NF" valor={-calc.valorImpostoNf} />
+            <ResumoLinha label="Líquido corretor" valor={calc.liquidoCorretor} strong divider />
+            <ResumoLinha label="Lucro Zefer" valor={calc.lucroLiquido} highlight />
 
             <div className="pt-4">
               <Button type="submit" className="w-full" disabled={saving}>
@@ -469,6 +436,9 @@ export function VendaForm({
                 <Link href="/vendas">Cancelar</Link>
               </Button>
             </div>
+            <p className="pt-2 text-xs text-muted-foreground">
+              A comissão do corretor é gerida no módulo Corretores.
+            </p>
           </CardContent>
         </Card>
       </div>
@@ -476,41 +446,14 @@ export function VendaForm({
   );
 }
 
-function Linha({
-  label,
-  valor,
-  strong,
-  highlight,
-  muted,
-  divider,
-}: {
-  label: string;
-  valor: number;
-  strong?: boolean;
-  highlight?: boolean;
-  muted?: boolean;
-  divider?: boolean;
-}) {
+function Calculado({ label, valor }: { label: string; valor: number }) {
   return (
-    <div
-      className={[
-        "flex items-center justify-between gap-2 py-1",
-        divider ? "border-t pt-2 mt-1" : "",
-        muted ? "text-muted-foreground" : "",
-      ].join(" ")}
-    >
-      <span className={highlight ? "font-semibold" : strong ? "font-medium" : ""}>
-        {label}
-      </span>
-      <span
-        className={[
-          "tabular-nums",
-          highlight ? "text-base font-bold text-success" : "",
-          strong ? "font-semibold" : "",
-        ].join(" ")}
-      >
+    <div className="space-y-2">
+      <Label>{label}</Label>
+      <div className="flex h-9 items-center rounded-md border bg-muted/40 px-3 text-sm tabular-nums">
         {formatBRL(valor)}
-      </span>
+      </div>
     </div>
   );
 }
+

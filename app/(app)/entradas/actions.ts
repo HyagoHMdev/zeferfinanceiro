@@ -4,7 +4,6 @@ import { revalidatePath } from "next/cache";
 
 import { createClient } from "@/lib/supabase/server";
 import { requireRole, ADMIN_FIN_ROLES } from "@/lib/auth";
-import { getConfig } from "@/lib/data/cadastros";
 import { calcularDistribuicao } from "@/lib/calculos";
 import { entradaSchema, type EntradaInput } from "@/lib/schemas/entrada";
 
@@ -47,11 +46,10 @@ export async function criarEntrada(input: EntradaInput): Promise<ActionResult> {
   if (!parsed.success) return { error: "Dados inválidos. Revise o formulário." };
   const e = parsed.data;
 
-  const config = await getConfig();
   const dist = calcularDistribuicao({
     valor: e.valor,
     percentualDizimo: e.percentual_dizimo,
-    percentualEmpresa: config.percentual_distribuicao_empresa,
+    percentualEmpresa: e.percentual_empresa,
   });
 
   const supabase = await createClient();
@@ -77,8 +75,8 @@ export async function criarEntrada(input: EntradaInput): Promise<ActionResult> {
     dist.liquido,
     e.percentual_dizimo,
     e.valor,
-    config.percentual_distribuicao_empresa,
-    config.percentual_distribuicao_pessoal,
+    e.percentual_empresa,
+    e.percentual_pessoal,
   );
   if (distErr) return { error: distErr.message };
 
@@ -106,11 +104,10 @@ export async function atualizarEntrada(
   if (!parsed.success) return { error: "Dados inválidos. Revise o formulário." };
   const e = parsed.data;
 
-  const config = await getConfig();
   const dist = calcularDistribuicao({
     valor: e.valor,
     percentualDizimo: e.percentual_dizimo,
-    percentualEmpresa: config.percentual_distribuicao_empresa,
+    percentualEmpresa: e.percentual_empresa,
   });
 
   const supabase = await createClient();
@@ -137,8 +134,8 @@ export async function atualizarEntrada(
     dist.liquido,
     e.percentual_dizimo,
     e.valor,
-    config.percentual_distribuicao_empresa,
-    config.percentual_distribuicao_pessoal,
+    e.percentual_empresa,
+    e.percentual_pessoal,
   );
   if (distErr) return { error: distErr.message };
 

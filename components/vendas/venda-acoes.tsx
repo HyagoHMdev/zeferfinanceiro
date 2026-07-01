@@ -26,7 +26,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 
-const STATUS: VendaStatus[] = ["aguardando_recebimento", "recebido", "pago"];
+const STATUS: VendaStatus[] = ["aguardando_recebimento", "recebido"];
 
 export function VendaAcoes({ id, status }: { id: string; status: VendaStatus }) {
   const [st, setSt] = useState<VendaStatus>(status);

@@ -1,17 +1,16 @@
 import { createClient } from "@/lib/supabase/server";
 import { round2 } from "@/lib/calculos";
-import type { VendaStatus } from "@/lib/types";
+import type { StatusPagamentoCorretor } from "@/lib/types";
 
 interface VendaRelatorio {
   vgv: number;
   comissao_bruta: number;
   liquido_zefer: number;
-  valor_parceiro: number;
+  valor_parceria: number;
   valor_imposto: number;
   liquido_corretor: number;
   lucro_liquido: number;
-  status: VendaStatus;
-  pagamento_id: string | null;
+  status_pagamento_corretor: StatusPagamentoCorretor;
   data_venda: string;
   corretores: { nome: string } | null;
   construtoras: { nome: string } | null;
@@ -23,7 +22,7 @@ async function fetchVendas(): Promise<VendaRelatorio[]> {
   const { data } = await supabase
     .from("vendas")
     .select(
-      "vgv, comissao_bruta, liquido_zefer, valor_parceiro, valor_imposto, liquido_corretor, lucro_liquido, status, pagamento_id, data_venda, corretores(nome), construtoras(nome), empreendimentos(nome)",
+      "vgv, comissao_bruta, liquido_zefer, valor_parceria, valor_imposto, liquido_corretor, lucro_liquido, status_pagamento_corretor, data_venda, corretores(nome), construtoras(nome), empreendimentos(nome)",
     );
   return (data ?? []) as unknown as VendaRelatorio[];
 }
@@ -46,8 +45,9 @@ export async function relatorioPorCorretor(): Promise<LinhaCorretor[]> {
     l.vendas += 1;
     l.vgv += Number(v.vgv);
     l.comissao += Number(v.liquido_corretor);
-    if (v.status === "pago") l.pago += Number(v.liquido_corretor);
-    else if (v.status === "recebido") l.pendencias += Number(v.liquido_corretor);
+    if (v.status_pagamento_corretor === "pago")
+      l.pago += Number(v.liquido_corretor);
+    else l.pendencias += Number(v.liquido_corretor);
     map.set(nome, l);
   }
   return [...map.values()]
@@ -133,7 +133,7 @@ export async function relatorioDRE(ano: number): Promise<DRE> {
   const doAno = vendas.filter((v) => new Date(v.data_venda).getUTCFullYear() === ano);
 
   const receitaBruta = round2(doAno.reduce((s, v) => s + Number(v.comissao_bruta), 0));
-  const parceiros = round2(doAno.reduce((s, v) => s + Number(v.valor_parceiro), 0));
+  const parceiros = round2(doAno.reduce((s, v) => s + Number(v.valor_parceria), 0));
   const impostos = round2(doAno.reduce((s, v) => s + Number(v.valor_imposto), 0));
   const receitaLiquida = round2(doAno.reduce((s, v) => s + Number(v.liquido_zefer), 0));
   const comissaoCorretores = round2(

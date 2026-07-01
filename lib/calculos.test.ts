@@ -2,6 +2,8 @@ import { describe, it, expect } from "vitest";
 import {
   round2,
   calcularComissao,
+  calcularVenda,
+  resumoCorretor,
   calcularDistribuicao,
   calcularSaldoCorretor,
 } from "./calculos";
@@ -50,6 +52,72 @@ describe("calcularComissao — sem parceiro", () => {
     expect(r.comissaoBruta).toBe(5000);
     expect(r.valorParceiro).toBe(0);
     expect(r.saldoPosParceiro).toBe(5000);
+  });
+});
+
+describe("calcularVenda — Rogga via nova função (fonte única)", () => {
+  const r = calcularVenda({
+    vgv: 431790,
+    percentualComissao: 0.05,
+    possuiParceria: true,
+    percentualParceria: 0.175,
+    percentualImpostoImobiliaria: 0.119,
+    percentualCorretor: 0.0175,
+    percentualDescontoParceiro: 0,
+    percentualImpostoNf: 0.119,
+  });
+  it("reproduz a cadeia ao centavo", () => {
+    expect(r.comissaoBruta).toBe(21589.5);
+    expect(r.valorParceria).toBe(3778.16);
+    expect(r.liquidoPosParceria).toBe(17811.34);
+    expect(r.valorImposto).toBe(2119.55);
+    expect(r.liquidoZefer).toBe(15691.79);
+    expect(r.comissaoCorretorBruto).toBe(7556.33);
+    expect(r.liquidoCorretor).toBe(6657.12);
+    expect(r.lucroLiquido).toBe(9034.67);
+  });
+});
+
+describe("calcularVenda — sem parceria e com desconto do corretor", () => {
+  it("sem parceria: líquido pós-parceria = comissão bruta", () => {
+    const r = calcularVenda({
+      vgv: 100000,
+      percentualComissao: 0.05,
+      possuiParceria: false,
+      percentualParceria: 0.3,
+      percentualImpostoImobiliaria: 0.119,
+      percentualCorretor: 0.0175,
+      percentualImpostoNf: 0.119,
+    });
+    expect(r.valorParceria).toBe(0);
+    expect(r.liquidoPosParceria).toBe(5000);
+    expect(r.comissaoCorretorBruto).toBe(1750);
+    expect(r.descontoCorretor).toBe(0);
+  });
+
+  it("com parceria: desconto reduz a comissão do corretor", () => {
+    const r = calcularVenda({
+      vgv: 100000,
+      percentualComissao: 0.05,
+      possuiParceria: true,
+      percentualParceria: 0.2,
+      percentualImpostoImobiliaria: 0.119,
+      percentualCorretor: 0.02,
+      percentualDescontoParceiro: 0.5,
+      percentualImpostoNf: 0.1,
+    });
+    // comissão corretor bruta = 2000; desconto 50% = 1000; ajustada = 1000
+    expect(r.comissaoCorretorBruto).toBe(2000);
+    expect(r.descontoCorretor).toBe(1000);
+    expect(r.comissaoCorretorAjustada).toBe(1000);
+    expect(r.valorImpostoNf).toBe(100);
+    expect(r.liquidoCorretor).toBe(900);
+  });
+});
+
+describe("resumoCorretor", () => {
+  it("desconta adiantamentos do líquido do corretor", () => {
+    expect(resumoCorretor(6657.12, 1075.42)).toBe(5581.7);
   });
 });
 

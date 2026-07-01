@@ -65,6 +65,22 @@ export function parseNumeroBR(input: string | number | null | undefined): number
   return Number.isFinite(n) ? n : 0;
 }
 
+/**
+ * Data de vencimento de uma competência, mantendo o dia base e clampando ao
+ * último dia válido do mês (ex.: dia 31 em fevereiro → 28/29). Recebe a
+ * competência como 'YYYY-MM' ou 'YYYY-MM-DD' e devolve 'YYYY-MM-DD'.
+ */
+export function vencimentoDaCompetencia(
+  diaBase: number,
+  competencia: string,
+): string {
+  const [y, m] = competencia.split("-").map(Number);
+  const ultimoDia = new Date(Date.UTC(y, m, 0)).getUTCDate();
+  const dia = Math.min(Math.max(Math.trunc(diaBase) || 1, 1), ultimoDia);
+  const p = (n: number, l = 2) => String(n).padStart(l, "0");
+  return `${p(y, 4)}-${p(m)}-${p(dia)}`;
+}
+
 /** Converte uma fração (0.119) no texto de um input de percentual ("11.9"). */
 export function fracaoParaInputPct(f: number | null | undefined): string {
   if (f === null || f === undefined) return "";

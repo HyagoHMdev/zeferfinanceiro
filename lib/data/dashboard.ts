@@ -31,24 +31,27 @@ export async function carregarDashboard(): Promise<DashboardData> {
   const ano = agora.getUTCFullYear();
   const mesAtual = agora.getUTCMonth();
 
-  const [entradasRes, vendasRes, pagamentosRes, lancamentosRes, distRes] =
-    await Promise.all([
-      supabase.from("entradas").select("data, valor"),
-      supabase.from("vendas").select("liquido_zefer, lucro_liquido, status"),
-      supabase.from("pagamentos_corretor").select("valor_liquido"),
-      supabase
-        .from("lancamentos")
-        .select("escopo, natureza, valor, status, competencia"),
-      supabase.from("distribuicoes").select("destino, valor"),
-    ]);
+  const [entradasRes, vendasRes, lancamentosRes, distRes] = await Promise.all([
+    supabase.from("entradas").select("data, valor"),
+    supabase
+      .from("vendas")
+      .select(
+        "liquido_zefer, lucro_liquido, status, liquido_corretor, status_pagamento_corretor",
+      ),
+    supabase
+      .from("lancamentos")
+      .select("escopo, natureza, valor, status, competencia"),
+    supabase.from("distribuicoes").select("destino, valor"),
+  ]);
 
   const entradas = (entradasRes.data ?? []) as { data: string; valor: number }[];
   const vendas = (vendasRes.data ?? []) as {
     liquido_zefer: number;
     lucro_liquido: number;
     status: VendaStatus;
+    liquido_corretor: number;
+    status_pagamento_corretor: "aguardando_liberacao" | "pago";
   }[];
-  const pagamentos = (pagamentosRes.data ?? []) as { valor_liquido: number }[];
   const lancamentos = (lancamentosRes.data ?? []) as {
     escopo: LancamentoEscopo;
     natureza: string;
@@ -98,7 +101,9 @@ export async function carregarDashboard(): Promise<DashboardData> {
       .reduce((s, v) => s + Number(v.liquido_zefer), 0),
   );
   const pagoCorretores = round2(
-    pagamentos.reduce((s, p) => s + Number(p.valor_liquido), 0),
+    vendas
+      .filter((v) => v.status_pagamento_corretor === "pago")
+      .reduce((s, v) => s + Number(v.liquido_corretor), 0),
   );
   const lucroVendas = round2(
     vendas.reduce((s, v) => s + Number(v.lucro_liquido), 0),
