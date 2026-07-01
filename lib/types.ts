@@ -121,7 +121,10 @@ export interface Venda {
   construtora_id: string | null;
   empreendimento_id: string | null;
   unidade: string | null;
+  torre: string | null;
   cliente: string | null;
+  cliente_nascimento: string | null;
+  cliente_telefone: string | null;
   corretor_id: string | null;
   parceiro_id: string | null;
   vgv: number;

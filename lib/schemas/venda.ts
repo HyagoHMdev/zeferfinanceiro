@@ -10,7 +10,10 @@ export const vendaSchema = z.object({
   construtora_id: z.string().uuid().nullable(),
   empreendimento_id: z.string().uuid().nullable(),
   unidade: z.string().trim().max(120).nullable(),
+  torre: z.string().trim().max(80).nullable(),
   cliente: z.string().trim().max(200).nullable(),
+  cliente_nascimento: z.string().nullable(),
+  cliente_telefone: z.string().trim().max(40).nullable(),
   corretor_id: z.string().uuid().nullable(),
   // Parceria (modelo manual)
   possui_parceria: z.boolean(),

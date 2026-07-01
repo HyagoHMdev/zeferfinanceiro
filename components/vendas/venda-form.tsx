@@ -69,7 +69,14 @@ export function VendaForm({
     venda?.empreendimento_id ?? NONE,
   );
   const [unidade, setUnidade] = useState(venda?.unidade ?? "");
+  const [torre, setTorre] = useState(venda?.torre ?? "");
   const [cliente, setCliente] = useState(venda?.cliente ?? "");
+  const [clienteNascimento, setClienteNascimento] = useState(
+    venda?.cliente_nascimento ?? "",
+  );
+  const [clienteTelefone, setClienteTelefone] = useState(
+    venda?.cliente_telefone ?? "",
+  );
   const [corretorId, setCorretorId] = useState(venda?.corretor_id ?? NONE);
   const [vgv, setVgv] = useState(venda ? String(venda.vgv) : "");
 
@@ -192,7 +199,10 @@ export function VendaForm({
       construtora_id: construtoraId === NONE ? null : construtoraId,
       empreendimento_id: empreendimentoId === NONE ? null : empreendimentoId,
       unidade: unidade.trim() || null,
+      torre: torre.trim() || null,
       cliente: cliente.trim() || null,
+      cliente_nascimento: clienteNascimento || null,
+      cliente_telefone: clienteTelefone.trim() || null,
       corretor_id: corretorId === NONE ? null : corretorId,
       possui_parceria: possuiParceria,
       empresa_parceira: possuiParceria ? empresaParceira.trim() || null : null,
@@ -274,11 +284,39 @@ export function VendaForm({
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="cliente">Cliente</Label>
+              <Label htmlFor="torre">Torre</Label>
+              <Input
+                id="torre"
+                value={torre}
+                onChange={(e) => setTorre(e.target.value)}
+                placeholder="Ex.: Torre A"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="cliente">Nome completo do cliente</Label>
               <Input
                 id="cliente"
                 value={cliente}
                 onChange={(e) => setCliente(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="cliente-nasc">Data de nascimento</Label>
+              <Input
+                id="cliente-nasc"
+                type="date"
+                value={clienteNascimento}
+                onChange={(e) => setClienteNascimento(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="cliente-tel">Telefone do cliente</Label>
+              <Input
+                id="cliente-tel"
+                inputMode="tel"
+                value={clienteTelefone}
+                onChange={(e) => setClienteTelefone(e.target.value)}
+                placeholder="(47) 90000-0000"
               />
             </div>
             <div className="space-y-2">
@@ -298,7 +336,7 @@ export function VendaForm({
               </Select>
             </div>
             <div className="space-y-2 sm:col-span-2">
-              <Label htmlFor="vgv">Valor do imóvel (VGV)</Label>
+              <Label htmlFor="vgv">Valor do contrato (VGV)</Label>
               <Input
                 id="vgv"
                 inputMode="decimal"

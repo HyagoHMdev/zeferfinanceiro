@@ -1,7 +1,7 @@
--- Zefer Financeiro — setup completo (SQL Editor do Supabase)
+-- Zefer Financeiro — setup completo
 
 
--- >>>>>>>>>> migrations/0001_schema.sql <<<<<<<<<<
+-- >>> migrations/0001_schema.sql
 -- =============================================================================
 -- Sistema Financeiro Zefer — Schema inicial
 -- Enums, funções auxiliares (RLS), tabelas, índices e triggers.
@@ -318,7 +318,7 @@ create trigger on_auth_user_created
   for each row execute function public.handle_new_user();
 
 
--- >>>>>>>>>> migrations/0002_rls.sql <<<<<<<<<<
+-- >>> migrations/0002_rls.sql
 -- =============================================================================
 -- Sistema Financeiro Zefer — Row Level Security
 -- Funções auxiliares (SECURITY DEFINER, evitam recursão de RLS) e políticas.
@@ -498,7 +498,7 @@ create policy lancamentos_write on public.lancamentos
   for all using (public.is_admin_fin()) with check (public.is_admin_fin());
 
 
--- >>>>>>>>>> migrations/0003_storage.sql <<<<<<<<<<
+-- >>> migrations/0003_storage.sql
 -- =============================================================================
 -- Storage — bucket de anexos e recibos
 -- Guarda comprovantes de despesas e recibos de adiantamento.
@@ -528,7 +528,7 @@ create policy "anexos_delete"
   using (bucket_id = 'anexos' and auth.uid() is not null);
 
 
--- >>>>>>>>>> migrations/0004_percentuais_mensais.sql <<<<<<<<<<
+-- >>> migrations/0004_percentuais_mensais.sql
 -- =============================================================================
 -- Percentuais por mês (variam de um mês para o outro).
 -- chave = qual percentual; entidade_id = corretor/parceiro/construtora
@@ -572,7 +572,7 @@ create policy pm_write on public.percentuais_mensais
   for all using (public.is_admin_fin()) with check (public.is_admin_fin());
 
 
--- >>>>>>>>>> migrations/0005_refatoracao_financeiro.sql <<<<<<<<<<
+-- >>> migrations/0005_refatoracao_financeiro.sql
 -- =============================================================================
 -- Refatoração do módulo financeiro
 -- Parceria manual na venda, status de pagamento do corretor por venda,
@@ -653,7 +653,19 @@ where l.recorrencia_grupo = base.recorrencia_grupo
   and base.data_vencimento is not null;
 
 
--- >>>>>>>>>> seed.sql <<<<<<<<<<
+-- >>> migrations/0006_venda_cliente.sql
+-- =============================================================================
+-- Venda: campos adicionais (torre e dados do cliente).
+-- Somente adição de colunas — não quebra o código atual.
+-- =============================================================================
+
+alter table public.vendas
+  add column if not exists torre text,
+  add column if not exists cliente_nascimento date,
+  add column if not exists cliente_telefone text;
+
+
+-- >>> seed.sql
 -- =============================================================================
 -- Sistema Financeiro Zefer — Seed mínimo (sem dados históricos)
 -- Apenas a configuração padrão e a taxonomia de categorias do documento.

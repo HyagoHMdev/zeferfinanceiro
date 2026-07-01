@@ -59,7 +59,10 @@ function montarLinha(input: VendaInput, corr: CorretorDefaults) {
     construtora_id: input.construtora_id,
     empreendimento_id: input.empreendimento_id,
     unidade: input.unidade,
+    torre: input.torre,
     cliente: input.cliente,
+    cliente_nascimento: input.cliente_nascimento || null,
+    cliente_telefone: input.cliente_telefone,
     corretor_id: input.corretor_id,
     // Parceria (modelo novo)
     possui_parceria: possui,
