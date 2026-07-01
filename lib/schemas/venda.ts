@@ -15,8 +15,9 @@ export const vendaSchema = z.object({
   cliente_nascimento: z.string().nullable(),
   cliente_telefone: z.string().trim().max(40).nullable(),
   corretor_id: z.string().uuid().nullable(),
-  // Parceria (modelo manual)
+  // Parceria (parceiro do cadastro)
   possui_parceria: z.boolean(),
+  parceiro_id: z.string().uuid().nullable(),
   empresa_parceira: z.string().trim().max(200).nullable(),
   percentual_parceria: z.number().min(0).max(1),
   // Valores / imobiliária

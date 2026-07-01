@@ -70,8 +70,8 @@ function montarLinha(input: VendaInput, corr: CorretorDefaults) {
     percentual_parceria: percParceria,
     valor_parceria: r.valorParceria,
     liquido_pos_parceria: r.liquidoPosParceria,
+    parceiro_id: possui ? input.parceiro_id : null,
     // Colunas legadas sincronizadas (compatibilidade)
-    parceiro_id: null,
     percentual_parceiro: percParceria,
     valor_parceiro: r.valorParceria,
     saldo_pos_parceiro: r.liquidoPosParceria,

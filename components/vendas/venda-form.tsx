@@ -17,6 +17,7 @@ import type {
   Construtora,
   Empreendimento,
   Corretor,
+  Parceiro,
   PercentualMensal,
 } from "@/lib/types";
 import { Button } from "@/components/ui/button";
@@ -48,6 +49,7 @@ interface VendaFormProps {
   construtoras: Construtora[];
   empreendimentos: Empreendimento[];
   corretores: Corretor[];
+  parceiros: Parceiro[];
   percentuaisMensais?: PercentualMensal[];
   venda?: Venda;
 }
@@ -58,6 +60,7 @@ export function VendaForm({
   construtoras,
   empreendimentos,
   corretores,
+  parceiros,
   percentuaisMensais = [],
   venda,
 }: VendaFormProps) {
@@ -83,6 +86,7 @@ export function VendaForm({
   const [possuiParceria, setPossuiParceria] = useState(
     venda?.possui_parceria ?? false,
   );
+  const [parceiroId, setParceiroId] = useState(venda?.parceiro_id ?? NONE);
   const [empresaParceira, setEmpresaParceira] = useState(
     venda?.empresa_parceira ?? "",
   );
@@ -185,10 +189,34 @@ export function VendaForm({
     setEmpreendimentoId(NONE);
     aplicarComissao(value, dataVenda);
   }
+  function aplicarParceiro(pId: string, d: string) {
+    const p = parceiros.find((x) => x.id === pId);
+    setPctParceria(
+      fracaoParaPctStr(
+        percentualComFallback(
+          percentuaisMensais,
+          "repasse_parceiro",
+          pId === NONE ? null : pId,
+          d,
+          p?.percentual_padrao,
+          config.percentual_parceiro_padrao,
+        ),
+      ),
+    );
+  }
+
+  function onSelectParceiro(value: string) {
+    setParceiroId(value);
+    const p = parceiros.find((x) => x.id === value);
+    setEmpresaParceira(p?.nome ?? "");
+    if (value !== NONE) aplicarParceiro(value, dataVenda);
+  }
+
   function onChangeData(value: string) {
     setDataVenda(value);
     aplicarComissao(construtoraId, value);
     aplicarImpostoImob(value);
+    if (parceiroId !== NONE) aplicarParceiro(parceiroId, value);
   }
 
   async function onSubmit(e: React.FormEvent) {
@@ -205,6 +233,7 @@ export function VendaForm({
       cliente_telefone: clienteTelefone.trim() || null,
       corretor_id: corretorId === NONE ? null : corretorId,
       possui_parceria: possuiParceria,
+      parceiro_id: possuiParceria && parceiroId !== NONE ? parceiroId : null,
       empresa_parceira: possuiParceria ? empresaParceira.trim() || null : null,
       percentual_parceria: possuiParceria ? pctToFrac(pctParceria) : 0,
       vgv: parseNumeroBR(vgv),
@@ -373,13 +402,20 @@ export function VendaForm({
             {possuiParceria ? (
               <>
                 <div className="space-y-2">
-                  <Label htmlFor="empresa-parceira">Empresa parceira</Label>
-                  <Input
-                    id="empresa-parceira"
-                    value={empresaParceira}
-                    onChange={(e) => setEmpresaParceira(e.target.value)}
-                    placeholder="Nome da empresa parceira"
-                  />
+                  <Label>Parceiro</Label>
+                  <Select value={parceiroId} onValueChange={onSelectParceiro}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione o parceiro" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={NONE}>—</SelectItem>
+                      {parceiros.map((p) => (
+                        <SelectItem key={p.id} value={p.id}>
+                          {p.nome}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="pct-parceria">% da parceria</Label>
