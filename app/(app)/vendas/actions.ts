@@ -6,7 +6,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { requireRole, ADMIN_FIN_ROLES } from "@/lib/auth";
 import { getConfig } from "@/lib/data/cadastros";
-import { calcularVenda } from "@/lib/calculos";
+import { calcularVenda, calcularDistribuicao } from "@/lib/calculos";
 import { vendaSchema, type VendaInput } from "@/lib/schemas/venda";
 import type { Configuracoes, VendaStatus } from "@/lib/types";
 
@@ -110,10 +110,47 @@ export async function criarVenda(input: VendaInput): Promise<ActionResult> {
   const config = await getConfig();
   const corr = await defaultsCorretor(supabase, parsed.data.corretor_id, config);
 
-  const { error } = await supabase.from("vendas").insert(montarLinha(parsed.data, corr));
-  if (error) return { error: error.message };
+  const row = montarLinha(parsed.data, corr);
+  const { data: nova, error } = await supabase
+    .from("vendas")
+    .insert(row)
+    .select("id")
+    .single();
+  if (error || !nova) return { error: error?.message ?? "Falha ao salvar a venda." };
+
+  // A venda já cai em Entradas com o valor líquido (pós imposto e pós comissão).
+  const lucro = Number(row.lucro_liquido);
+  if (lucro > 0) {
+    const dist = calcularDistribuicao({
+      valor: lucro,
+      percentualDizimo: 0,
+      percentualEmpresa: 0,
+    });
+    const { data: entrada } = await supabase
+      .from("entradas")
+      .insert({
+        data: row.data_venda,
+        tipo: "comissao",
+        descricao: row.cliente ? `Comissão — ${row.cliente}` : "Comissão da venda",
+        valor: lucro,
+        percentual_dizimo: 0,
+        valor_dizimo: 0,
+        liquido: dist.liquido,
+        venda_id: nova.id,
+      })
+      .select("id")
+      .single();
+    if (entrada) {
+      await supabase.from("distribuicoes").insert([
+        { entrada_id: entrada.id, destino: "empresa", percentual: 0, valor: dist.valorEmpresa },
+        { entrada_id: entrada.id, destino: "pessoal", percentual: 1, valor: dist.valorPessoal },
+      ]);
+    }
+    await supabase.from("vendas").update({ status: "recebido" }).eq("id", nova.id);
+  }
 
   revalidar();
+  revalidatePath("/entradas");
   redirect("/vendas");
 }
 
