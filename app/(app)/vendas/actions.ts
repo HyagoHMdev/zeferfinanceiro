@@ -118,11 +118,11 @@ export async function criarVenda(input: VendaInput): Promise<ActionResult> {
     .single();
   if (error || !nova) return { error: error?.message ?? "Falha ao salvar a venda." };
 
-  // A venda já cai em Entradas com o valor líquido (pós imposto e pós comissão).
-  const lucro = Number(row.lucro_liquido);
-  if (lucro > 0) {
+  // A venda já cai em Entradas com o valor líquido (líquido Zefer, após imposto).
+  const valorEntrada = Number(row.liquido_zefer);
+  if (valorEntrada > 0) {
     const dist = calcularDistribuicao({
-      valor: lucro,
+      valor: valorEntrada,
       percentualDizimo: 0,
       percentualEmpresa: 0,
     });
@@ -132,7 +132,7 @@ export async function criarVenda(input: VendaInput): Promise<ActionResult> {
         data: row.data_venda,
         tipo: "comissao",
         descricao: row.cliente ? `Comissão — ${row.cliente}` : "Comissão da venda",
-        valor: lucro,
+        valor: valorEntrada,
         percentual_dizimo: 0,
         valor_dizimo: 0,
         liquido: dist.liquido,
