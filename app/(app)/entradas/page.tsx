@@ -35,6 +35,11 @@ interface EntradaRow extends Entrada {
     valor: number;
     percentual: number;
   }[];
+  vendas: {
+    comissao_bruta: number;
+    liquido_zefer: number;
+    lucro_liquido: number;
+  } | null;
 }
 
 interface VendaDispRow {
@@ -68,7 +73,9 @@ export default async function EntradasPage({
   const supabase = await createClient();
   let entradasQuery = supabase
     .from("entradas")
-    .select("*, distribuicoes(destino, valor, percentual)")
+    .select(
+      "*, distribuicoes(destino, valor, percentual), vendas(comissao_bruta, liquido_zefer, lucro_liquido)",
+    )
     .order("data", { ascending: false });
   if (tipoFiltro) entradasQuery = entradasQuery.eq("tipo", tipoFiltro);
 
@@ -140,6 +147,9 @@ export default async function EntradasPage({
                   <TableHead>Data</TableHead>
                   <TableHead>Tipo</TableHead>
                   <TableHead>Descrição</TableHead>
+                  <TableHead className="text-right">Venda bruta</TableHead>
+                  <TableHead className="text-right">Pós imposto</TableHead>
+                  <TableHead className="text-right">Pós corr.+imp.</TableHead>
                   <TableHead className="text-right">Valor</TableHead>
                   <TableHead className="text-right">Dízimo</TableHead>
                   <TableHead className="text-right">Líquido</TableHead>
@@ -156,6 +166,15 @@ export default async function EntradasPage({
                     </TableCell>
                     <TableCell>{ENTRADA_TIPO_LABEL[e.tipo]}</TableCell>
                     <TableCell>{e.descricao ?? "—"}</TableCell>
+                    <TableCell className="text-right tabular-nums text-muted-foreground">
+                      {e.vendas ? formatBRL(e.vendas.comissao_bruta) : "—"}
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums text-muted-foreground">
+                      {e.vendas ? formatBRL(e.vendas.liquido_zefer) : "—"}
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums text-muted-foreground">
+                      {e.vendas ? formatBRL(e.vendas.lucro_liquido) : "—"}
+                    </TableCell>
                     <TableCell className="text-right tabular-nums">
                       {formatBRL(e.valor)}
                     </TableCell>
@@ -196,7 +215,7 @@ export default async function EntradasPage({
               </TableBody>
               <TableFooter>
                 <TableRow>
-                  <TableCell colSpan={3}>Total</TableCell>
+                  <TableCell colSpan={6}>Total</TableCell>
                   <TableCell className="text-right tabular-nums">
                     {formatBRL(totalValor)}
                   </TableCell>
