@@ -49,8 +49,8 @@ export async function listarLancamentos(filtro: {
     .select("*, categorias_financeiras(nome), contas_bancarias(nome)")
     .eq("escopo", filtro.escopo)
     .in("natureza", filtro.naturezas)
-    .order("competencia", { ascending: false })
-    .order("created_at", { ascending: false });
+    .order("competencia", { ascending: true })
+    .order("created_at", { ascending: true });
   return (data ?? []) as unknown as LancamentoRow[];
 }
 
