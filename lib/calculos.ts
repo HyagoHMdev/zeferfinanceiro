@@ -33,34 +33,6 @@ export function fracaoParaPercent(fracao: number): number {
   return fracao * 100;
 }
 
-export interface ComissaoInput {
-  /** Valor Geral de Venda (valor do imóvel). */
-  vgv: number;
-  /** % de comissão da construtora, em fração (ex.: 0.05 para 5%). */
-  percentualComissao: number;
-  /** % de repasse ao parceiro, em fração (0 quando não há parceiro). */
-  percentualParceiro?: number;
-  /** % de imposto da imobiliária sobre a nota, em fração (ex.: 0.119). */
-  percentualImpostoImobiliaria: number;
-  /** % de comissão do corretor sobre o VGV, em fração (ex.: 0.0175). */
-  percentualCorretor: number;
-  /** % de imposto retido na NF do corretor, em fração (ex.: 0.119). */
-  percentualImpostoNf: number;
-}
-
-export interface ComissaoResultado {
-  comissaoBruta: number;
-  valorParceiro: number;
-  saldoPosParceiro: number;
-  valorImposto: number;
-  liquidoZefer: number;
-  comissaoCorretorBruto: number;
-  valorImpostoNf: number;
-  liquidoCorretor: number;
-  /** Lucro líquido da imobiliária = líquido Zefer − líquido do corretor. */
-  lucroLiquido: number;
-}
-
 // ---------------------------------------------------------------------------
 // FONTE ÚNICA DE VERDADE da cadeia financeira de uma venda.
 // ---------------------------------------------------------------------------
@@ -72,7 +44,7 @@ export interface VendaCalcInput {
   percentualComissao: number;
   /** Se há parceria nesta venda. */
   possuiParceria?: boolean;
-  /** % da parceria sobre a comissão bruta, em fração. Só aplica se possuiParceria. */
+  /** % da parceria sobre o VGV, em fração. Só aplica se possuiParceria. */
   percentualParceria?: number;
   /** % de imposto da imobiliária, em fração (incide sobre o líquido pós-parceria). */
   percentualImpostoImobiliaria: number;
@@ -117,8 +89,9 @@ export function calcularVenda(input: VendaCalcInput): VendaCalcResultado {
   } = input;
 
   // Cadeia da imobiliária (precisão total).
+  // O valor da parceria incide sobre o VGV (não sobre a comissão bruta).
   const comissaoBrutaRaw = vgv * percentualComissao;
-  const valorParceriaRaw = possuiParceria ? comissaoBrutaRaw * percentualParceria : 0;
+  const valorParceriaRaw = possuiParceria ? vgv * percentualParceria : 0;
   const liquidoPosParceriaRaw = comissaoBrutaRaw - valorParceriaRaw;
   const valorImpostoRaw = liquidoPosParceriaRaw * percentualImpostoImobiliaria;
   const liquidoZeferRaw = liquidoPosParceriaRaw - valorImpostoRaw;
@@ -146,34 +119,6 @@ export function calcularVenda(input: VendaCalcInput): VendaCalcResultado {
     valorImpostoNf: round2(valorImpostoNfRaw),
     liquidoCorretor: round2(liquidoCorretorRaw),
     lucroLiquido: round2(lucroLiquidoRaw),
-  };
-}
-
-/**
- * Wrapper retrocompatível (mantém a assinatura antiga usada em telas ainda não
- * migradas). Delega para `calcularVenda`.
- */
-export function calcularComissao(input: ComissaoInput): ComissaoResultado {
-  const r = calcularVenda({
-    vgv: input.vgv,
-    percentualComissao: input.percentualComissao,
-    possuiParceria: (input.percentualParceiro ?? 0) > 0,
-    percentualParceria: input.percentualParceiro ?? 0,
-    percentualImpostoImobiliaria: input.percentualImpostoImobiliaria,
-    percentualCorretor: input.percentualCorretor,
-    percentualDescontoParceiro: 0,
-    percentualImpostoNf: input.percentualImpostoNf,
-  });
-  return {
-    comissaoBruta: r.comissaoBruta,
-    valorParceiro: r.valorParceria,
-    saldoPosParceiro: r.liquidoPosParceria,
-    valorImposto: r.valorImposto,
-    liquidoZefer: r.liquidoZefer,
-    comissaoCorretorBruto: r.comissaoCorretorBruto,
-    valorImpostoNf: r.valorImpostoNf,
-    liquidoCorretor: r.liquidoCorretor,
-    lucroLiquido: r.lucroLiquido,
   };
 }
 

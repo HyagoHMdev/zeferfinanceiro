@@ -1,7 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
   round2,
-  calcularComissao,
   calcularVenda,
   resumoCorretor,
   calcularDistribuicao,
@@ -17,64 +16,27 @@ describe("round2", () => {
   });
 });
 
-describe("calcularComissao — venda Rogga/Evolution (teste de aceite das planilhas)", () => {
-  const resultado = calcularComissao({
-    vgv: 431790,
-    percentualComissao: 0.05,
-    percentualParceiro: 0.175,
-    percentualImpostoImobiliaria: 0.119,
-    percentualCorretor: 0.0175,
-    percentualImpostoNf: 0.119,
-  });
-
-  it("reproduz toda a cadeia ao centavo", () => {
-    expect(resultado.comissaoBruta).toBe(21589.5);
-    expect(resultado.valorParceiro).toBe(3778.16);
-    expect(resultado.saldoPosParceiro).toBe(17811.34);
-    expect(resultado.valorImposto).toBe(2119.55);
-    expect(resultado.liquidoZefer).toBe(15691.79);
-    expect(resultado.comissaoCorretorBruto).toBe(7556.33);
-    expect(resultado.valorImpostoNf).toBe(899.2);
-    expect(resultado.liquidoCorretor).toBe(6657.12);
-    expect(resultado.lucroLiquido).toBe(9034.67);
-  });
-});
-
-describe("calcularComissao — sem parceiro", () => {
-  it("zera o repasse e mantém o saldo igual à comissão bruta", () => {
-    const r = calcularComissao({
-      vgv: 100000,
-      percentualComissao: 0.05,
-      percentualImpostoImobiliaria: 0.119,
-      percentualCorretor: 0.0175,
-      percentualImpostoNf: 0.119,
-    });
-    expect(r.comissaoBruta).toBe(5000);
-    expect(r.valorParceiro).toBe(0);
-    expect(r.saldoPosParceiro).toBe(5000);
-  });
-});
-
-describe("calcularVenda — Rogga via nova função (fonte única)", () => {
+describe("calcularVenda — parceria sobre o VGV (base = VGV)", () => {
   const r = calcularVenda({
     vgv: 431790,
     percentualComissao: 0.05,
     possuiParceria: true,
-    percentualParceria: 0.175,
+    percentualParceria: 0.01, // 1% do VGV
     percentualImpostoImobiliaria: 0.119,
     percentualCorretor: 0.0175,
     percentualDescontoParceiro: 0,
     percentualImpostoNf: 0.119,
   });
-  it("reproduz a cadeia ao centavo", () => {
+  it("calcula o valor da parceria sobre o VGV e a cadeia ao centavo", () => {
     expect(r.comissaoBruta).toBe(21589.5);
-    expect(r.valorParceria).toBe(3778.16);
-    expect(r.liquidoPosParceria).toBe(17811.34);
-    expect(r.valorImposto).toBe(2119.55);
-    expect(r.liquidoZefer).toBe(15691.79);
+    expect(r.valorParceria).toBe(4317.9); // 431790 × 1%
+    expect(r.liquidoPosParceria).toBe(17271.6);
+    expect(r.valorImposto).toBe(2055.32);
+    expect(r.liquidoZefer).toBe(15216.28);
     expect(r.comissaoCorretorBruto).toBe(7556.33);
+    expect(r.valorImpostoNf).toBe(899.2);
     expect(r.liquidoCorretor).toBe(6657.12);
-    expect(r.lucroLiquido).toBe(9034.67);
+    expect(r.lucroLiquido).toBe(8559.16);
   });
 });
 

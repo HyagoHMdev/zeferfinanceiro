@@ -418,7 +418,7 @@ export function VendaForm({
                   </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="pct-parceria">% da parceria</Label>
+                  <Label htmlFor="pct-parceria">% da parceria (sobre o VGV)</Label>
                   <Input
                     id="pct-parceria"
                     inputMode="decimal"
