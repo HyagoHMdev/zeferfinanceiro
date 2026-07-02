@@ -66,6 +66,21 @@ export function parseNumeroBR(input: string | number | null | undefined): number
 }
 
 /**
+ * Status efetivo de um lançamento: um "pendente" com vencimento já passado é
+ * considerado "atrasado" automaticamente (derivado, sem gravar no banco).
+ */
+export function statusLancamentoEfetivo(
+  status: "pago" | "pendente" | "atrasado",
+  dataVencimento: string | null | undefined,
+): "pago" | "pendente" | "atrasado" {
+  if (status === "pendente" && dataVencimento) {
+    const hoje = new Date().toISOString().slice(0, 10);
+    if (dataVencimento.slice(0, 10) < hoje) return "atrasado";
+  }
+  return status;
+}
+
+/**
  * Data de vencimento de uma competência, mantendo o dia base e clampando ao
  * último dia válido do mês (ex.: dia 31 em fevereiro → 28/29). Recebe a
  * competência como 'YYYY-MM' ou 'YYYY-MM-DD' e devolve 'YYYY-MM-DD'.

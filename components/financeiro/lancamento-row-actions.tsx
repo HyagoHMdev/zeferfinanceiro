@@ -16,6 +16,8 @@ import {
   type LancamentoNatureza,
   type LancamentoStatus,
 } from "@/lib/types";
+import { statusLancamentoEfetivo } from "@/lib/format";
+import { cn } from "@/lib/utils";
 import type { CadastrosLancamento } from "@/lib/data/financeiro";
 import { Button } from "@/components/ui/button";
 import {
@@ -39,6 +41,12 @@ import { LancamentoFormDialog } from "@/components/financeiro/lancamento-form-di
 
 const STATUS: LancamentoStatus[] = ["pendente", "pago", "atrasado"];
 
+const STATUS_COR: Record<LancamentoStatus, string> = {
+  pago: "border-success/60 text-success",
+  pendente: "border-warning/60 text-warning",
+  atrasado: "border-destructive/60 text-destructive",
+};
+
 export function LancamentoRowActions({
   lancamento,
   escopoFixo,
@@ -51,7 +59,9 @@ export function LancamentoRowActions({
   cadastros: CadastrosLancamento;
 }) {
   const router = useRouter();
-  const [status, setStatus] = useState<LancamentoStatus>(lancamento.status);
+  const [status, setStatus] = useState<LancamentoStatus>(
+    statusLancamentoEfetivo(lancamento.status, lancamento.data_vencimento),
+  );
   const [busy, setBusy] = useState(false);
   const [openDel, setOpenDel] = useState(false);
   const isGrupo = Boolean(lancamento.recorrencia_grupo);
@@ -87,7 +97,7 @@ export function LancamentoRowActions({
   return (
     <div className="flex items-center justify-end gap-1">
       <Select value={status} onValueChange={mudarStatus} disabled={busy}>
-        <SelectTrigger size="sm" className="w-32">
+        <SelectTrigger size="sm" className={cn("w-32 font-medium", STATUS_COR[status])}>
           <SelectValue />
         </SelectTrigger>
         <SelectContent>

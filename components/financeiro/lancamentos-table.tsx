@@ -3,7 +3,12 @@
 import { useMemo, useState } from "react";
 import { Search, X } from "lucide-react";
 
-import { formatBRL, formatData, mesAbrev } from "@/lib/format";
+import {
+  formatBRL,
+  formatData,
+  mesAbrev,
+  statusLancamentoEfetivo,
+} from "@/lib/format";
 import type { LancamentoRow, CadastrosLancamento } from "@/lib/data/financeiro";
 import {
   LANCAMENTO_STATUS_LABEL,
@@ -221,7 +226,9 @@ export function LancamentosTable({
                       cadastros={cadastros}
                     />
                   ) : (
-                    <LancamentoStatusBadge status={l.status} />
+                    <LancamentoStatusBadge
+                      status={statusLancamentoEfetivo(l.status, l.data_vencimento)}
+                    />
                   )}
                 </TableCell>
               </TableRow>
