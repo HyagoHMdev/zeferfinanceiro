@@ -40,7 +40,7 @@ interface EntradaRow extends Entrada {
 interface VendaDispRow {
   id: string;
   cliente: string | null;
-  liquido_zefer: number;
+  lucro_liquido: number;
   empreendimentos: { nome: string } | null;
 }
 
@@ -77,7 +77,7 @@ export default async function EntradasPage({
     entradasQuery,
     supabase
       .from("vendas")
-      .select("id, cliente, liquido_zefer, empreendimentos(nome)")
+      .select("id, cliente, lucro_liquido, empreendimentos(nome)")
       .eq("status", "aguardando_recebimento")
       .order("data_venda", { ascending: false }),
     supabase.from("percentuais_mensais").select("*"),
@@ -89,8 +89,8 @@ export default async function EntradasPage({
 
   const vendas: VendaDisponivel[] = vendasDisp.map((v) => ({
     id: v.id,
-    valor: Number(v.liquido_zefer),
-    label: `${v.empreendimentos?.nome ?? "Venda"}${v.cliente ? " — " + v.cliente : ""} (${formatBRL(v.liquido_zefer)})`,
+    valor: Number(v.lucro_liquido),
+    label: `${v.empreendimentos?.nome ?? "Venda"}${v.cliente ? " — " + v.cliente : ""} (${formatBRL(v.lucro_liquido)})`,
   }));
 
   const distDe = (e: EntradaRow, destino: "empresa" | "pessoal") =>
