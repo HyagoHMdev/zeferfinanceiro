@@ -77,57 +77,92 @@ export interface ResumoCaixa {
   saldoPrevisto: number;
 }
 
+export type CaixaModo = "movimento" | "acumulado";
+
 export interface CaixaData {
   empresa: ResumoCaixa;
   pessoal: ResumoCaixa;
+  /** Meses (YYYY-MM) com movimento, em ordem decrescente. */
+  meses: string[];
 }
 
-export async function carregarCaixa(): Promise<CaixaData> {
+export async function carregarCaixa(opts?: {
+  /** YYYY-MM; ausente = todos os meses. */
+  mes?: string;
+  /** "movimento" = só o mês; "acumulado" = tudo até o fim do mês. */
+  modo?: CaixaModo;
+}): Promise<CaixaData> {
   const supabase = await createClient();
   const [distRes, lancRes] = await Promise.all([
-    supabase.from("distribuicoes").select("destino, valor"),
-    supabase.from("lancamentos").select("escopo, natureza, valor, status"),
+    supabase.from("distribuicoes").select("destino, valor, entradas(data)"),
+    supabase
+      .from("lancamentos")
+      .select("escopo, natureza, valor, status, competencia"),
   ]);
 
-  const dist = (distRes.data ?? []) as { destino: "empresa" | "pessoal"; valor: number }[];
+  const dist = (distRes.data ?? []) as unknown as {
+    destino: "empresa" | "pessoal";
+    valor: number;
+    entradas: { data: string } | null;
+  }[];
   const lanc = (lancRes.data ?? []) as {
     escopo: LancamentoEscopo;
     natureza: LancamentoNatureza;
     valor: number;
     status: string;
+    competencia: string;
   }[];
+
+  // Meses disponíveis: união das datas de entrada e das competências.
+  const mesesSet = new Set<string>();
+  for (const d of dist) if (d.entradas?.data) mesesSet.add(d.entradas.data.slice(0, 7));
+  for (const l of lanc) mesesSet.add(l.competencia.slice(0, 7));
+  const meses = [...mesesSet].sort((a, b) => b.localeCompare(a));
+
+  // Filtro por mês: "movimento" pega só o mês; "acumulado" pega tudo até ele.
+  // Mês inexistente é ignorado (equivale a "todos os meses").
+  const mes = opts?.mes && meses.includes(opts.mes) ? opts.mes : undefined;
+  const modo = opts?.modo ?? "movimento";
+  const inclui = (mk: string | null): boolean => {
+    if (!mes) return true;
+    if (!mk) return false;
+    return modo === "acumulado" ? mk <= mes : mk === mes;
+  };
+  const distF = dist.filter((d) => inclui(d.entradas?.data?.slice(0, 7) ?? null));
+  const lancF = lanc.filter((l) => inclui(l.competencia.slice(0, 7)));
 
   const soma = <T,>(arr: T[], pred: (x: T) => boolean, val: (x: T) => number) =>
     round2(arr.reduce((s, x) => s + (pred(x) ? val(x) : 0), 0));
 
-  const entradasEmpresa = soma(dist, (d) => d.destino === "empresa", (d) => Number(d.valor));
+  const entradasEmpresa = soma(distF, (d) => d.destino === "empresa", (d) => Number(d.valor));
   const entradasPessoal = round2(
-    soma(dist, (d) => d.destino === "pessoal", (d) => Number(d.valor)) +
-      soma(lanc, (l) => l.natureza === "entrada_pessoal", (l) => Number(l.valor)),
+    soma(distF, (d) => d.destino === "pessoal", (d) => Number(d.valor)) +
+      soma(lancF, (l) => l.natureza === "entrada_pessoal", (l) => Number(l.valor)),
   );
 
   const empresaPagas = soma(
-    lanc,
+    lancF,
     (l) => l.escopo === "empresa" && l.status === "pago",
     (l) => Number(l.valor),
   );
   const empresaPrevistas = soma(
-    lanc,
+    lancF,
     (l) => l.escopo === "empresa" && l.status !== "pago",
     (l) => Number(l.valor),
   );
   const pessoalPagas = soma(
-    lanc,
+    lancF,
     (l) => l.natureza === "saida_pessoal" && l.status === "pago",
     (l) => Number(l.valor),
   );
   const pessoalPrevistas = soma(
-    lanc,
+    lancF,
     (l) => l.natureza === "saida_pessoal" && l.status !== "pago",
     (l) => Number(l.valor),
   );
 
   return {
+    meses,
     empresa: {
       entradas: entradasEmpresa,
       saidasPagas: empresaPagas,
