@@ -49,9 +49,24 @@ export async function listarLancamentos(filtro: {
     .select("*, categorias_financeiras(nome), contas_bancarias(nome)")
     .eq("escopo", filtro.escopo)
     .in("natureza", filtro.naturezas)
-    .order("competencia", { ascending: false })
     .order("created_at", { ascending: true });
-  return (data ?? []) as unknown as LancamentoRow[];
+  const rows = (data ?? []) as unknown as LancamentoRow[];
+
+  // Ordenação relativa a hoje: mês atual e futuros em ordem crescente no topo;
+  // meses já passados vão para o fim (mais recente primeiro). Empate = created_at
+  // (sort estável preserva a ordem vinda do banco).
+  const agora = new Date();
+  const mesAtual = `${agora.getFullYear()}-${String(agora.getMonth() + 1).padStart(2, "0")}`;
+  const passou = (comp: string) => comp.slice(0, 7) < mesAtual;
+  return rows.sort((a, b) => {
+    const pa = passou(a.competencia);
+    const pb = passou(b.competencia);
+    if (pa !== pb) return pa ? 1 : -1; // passados sempre depois
+    if (a.competencia === b.competencia) return 0;
+    // futuros/atual: crescente · passados: decrescente (mais recente primeiro)
+    const asc = a.competencia < b.competencia ? -1 : 1;
+    return pa ? -asc : asc;
+  });
 }
 
 export interface ResumoCaixa {
