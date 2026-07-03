@@ -11,41 +11,47 @@ export interface ResumoMensal {
 }
 
 export interface DashboardData {
+  /** Anos com movimento, em ordem decrescente. */
+  anos: number[];
   ano: number;
-  receitaMes: number;
-  receitaAno: number;
+  /** Mês selecionado (1-12) ou null = ano todo. */
+  mes: number | null;
+  receita: number;
   comissoesRecebidas: number;
   comissoesPendentes: number;
   pagoCorretores: number;
   despesasFixas: number;
   despesasVariaveis: number;
-  lucroVendas: number;
   resultadoLiquido: number;
   saldoCaixaEmpresa: number;
+  /** Sempre o ano inteiro (Jan–Dez) para o gráfico. */
   mensal: ResumoMensal[];
 }
 
-export async function carregarDashboard(): Promise<DashboardData> {
+export async function carregarDashboard(opts?: {
+  ano?: number;
+  /** 1-12; ausente = ano todo. */
+  mes?: number;
+}): Promise<DashboardData> {
   const supabase = await createClient();
-  const agora = new Date();
-  const ano = agora.getUTCFullYear();
-  const mesAtual = agora.getUTCMonth();
+  const anoAtual = new Date().getUTCFullYear();
 
   const [entradasRes, vendasRes, lancamentosRes, distRes] = await Promise.all([
     supabase.from("entradas").select("data, valor"),
     supabase
       .from("vendas")
       .select(
-        "liquido_zefer, lucro_liquido, status, liquido_corretor, status_pagamento_corretor",
+        "data_venda, liquido_zefer, lucro_liquido, status, liquido_corretor, status_pagamento_corretor",
       ),
     supabase
       .from("lancamentos")
       .select("escopo, natureza, valor, status, competencia"),
-    supabase.from("distribuicoes").select("destino, valor"),
+    supabase.from("distribuicoes").select("destino, valor, entradas(data)"),
   ]);
 
   const entradas = (entradasRes.data ?? []) as { data: string; valor: number }[];
   const vendas = (vendasRes.data ?? []) as {
+    data_venda: string;
     liquido_zefer: number;
     lucro_liquido: number;
     status: VendaStatus;
@@ -59,97 +65,122 @@ export async function carregarDashboard(): Promise<DashboardData> {
     status: string;
     competencia: string;
   }[];
-  const distribuicoes = (distRes.data ?? []) as {
+  const distribuicoes = (distRes.data ?? []) as unknown as {
     destino: "empresa" | "pessoal";
     valor: number;
+    entradas: { data: string } | null;
   }[];
 
-  // Receita por mês (entradas) e despesa por mês (todos os lançamentos do ano).
+  // Anos disponíveis (união de entradas, vendas e lançamentos).
+  const anosSet = new Set<number>();
+  for (const e of entradas) anosSet.add(Number(e.data.slice(0, 4)));
+  for (const v of vendas) anosSet.add(Number(v.data_venda.slice(0, 4)));
+  for (const l of lancamentos) anosSet.add(Number(l.competencia.slice(0, 4)));
+  if (anosSet.size === 0) anosSet.add(anoAtual);
+  const anos = [...anosSet].sort((a, b) => b - a);
+
+  const ano =
+    opts?.ano && anos.includes(opts.ano)
+      ? opts.ano
+      : anos.includes(anoAtual)
+        ? anoAtual
+        : anos[0];
+  const mes = opts?.mes && opts.mes >= 1 && opts.mes <= 12 ? opts.mes : null;
+
+  const anoStr = String(ano);
+  const mesKey = mes ? `${anoStr}-${String(mes).padStart(2, "0")}` : null;
+
+  // Dentro do período selecionado (ano, ou ano+mês).
+  const noPeriodo = (data: string) => {
+    if (data.slice(0, 4) !== anoStr) return false;
+    if (mesKey && data.slice(0, 7) !== mesKey) return false;
+    return true;
+  };
+  // Acumulado até o fim do período (para o saldo em caixa, que é corrente).
+  const fimPeriodo = mesKey ?? `${anoStr}-12`;
+  const ateFimPeriodo = (data: string) => data.slice(0, 7) <= fimPeriodo;
+
+  const somar = <T,>(arr: T[], pred: (x: T) => boolean, val: (x: T) => number) =>
+    round2(arr.reduce((s, x) => s + (pred(x) ? val(x) : 0), 0));
+
+  // Gráfico: sempre o ano inteiro, mês a mês.
   const receitaPorMes = new Array(12).fill(0);
   const despesaPorMes = new Array(12).fill(0);
-  let receitaMes = 0;
-  let receitaAno = 0;
-
   for (const e of entradas) {
-    const d = new Date(e.data);
-    if (d.getUTCFullYear() === ano) {
-      receitaPorMes[d.getUTCMonth()] += Number(e.valor);
-      receitaAno += Number(e.valor);
-      if (d.getUTCMonth() === mesAtual) receitaMes += Number(e.valor);
+    if (e.data.slice(0, 4) === anoStr) {
+      receitaPorMes[Number(e.data.slice(5, 7)) - 1] += Number(e.valor);
     }
   }
   for (const l of lancamentos) {
-    const d = new Date(l.competencia);
-    if (d.getUTCFullYear() === ano) despesaPorMes[d.getUTCMonth()] += Number(l.valor);
+    if (l.competencia.slice(0, 4) === anoStr) {
+      despesaPorMes[Number(l.competencia.slice(5, 7)) - 1] += Number(l.valor);
+    }
   }
-
-  const mensal: ResumoMensal[] = MESES.map((mes, i) => ({
-    mes,
+  const mensal: ResumoMensal[] = MESES.map((mesNome, i) => ({
+    mes: mesNome,
     receita: round2(receitaPorMes[i]),
     despesa: round2(despesaPorMes[i]),
     lucro: round2(receitaPorMes[i] - despesaPorMes[i]),
   }));
 
-  const comissoesRecebidas = round2(
-    vendas
-      .filter((v) => v.status === "recebido" || v.status === "pago")
-      .reduce((s, v) => s + Number(v.liquido_zefer), 0),
+  const receita = somar(entradas, (e) => noPeriodo(e.data), (e) => Number(e.valor));
+
+  const comissoesRecebidas = somar(
+    vendas,
+    (v) => (v.status === "recebido" || v.status === "pago") && noPeriodo(v.data_venda),
+    (v) => Number(v.liquido_zefer),
   );
-  const comissoesPendentes = round2(
-    vendas
-      .filter((v) => v.status === "aguardando_recebimento")
-      .reduce((s, v) => s + Number(v.liquido_zefer), 0),
+  const comissoesPendentes = somar(
+    vendas,
+    (v) => v.status === "aguardando_recebimento" && noPeriodo(v.data_venda),
+    (v) => Number(v.liquido_zefer),
   );
-  const pagoCorretores = round2(
-    vendas
-      .filter((v) => v.status_pagamento_corretor === "pago")
-      .reduce((s, v) => s + Number(v.liquido_corretor), 0),
-  );
-  const lucroVendas = round2(
-    vendas.reduce((s, v) => s + Number(v.lucro_liquido), 0),
+  const pagoCorretores = somar(
+    vendas,
+    (v) => v.status_pagamento_corretor === "pago" && noPeriodo(v.data_venda),
+    (v) => Number(v.liquido_corretor),
   );
 
-  const noAno = (competencia: string) =>
-    new Date(competencia).getUTCFullYear() === ano;
-
-  const despesasFixas = round2(
-    lancamentos
-      .filter((l) => l.escopo === "empresa" && l.natureza === "custo_fixo" && noAno(l.competencia))
-      .reduce((s, l) => s + Number(l.valor), 0),
+  const despesasFixas = somar(
+    lancamentos,
+    (l) => l.escopo === "empresa" && l.natureza === "custo_fixo" && noPeriodo(l.competencia),
+    (l) => Number(l.valor),
   );
-  const despesasVariaveis = round2(
-    lancamentos
-      .filter((l) => l.escopo === "empresa" && l.natureza === "despesa_variavel" && noAno(l.competencia))
-      .reduce((s, l) => s + Number(l.valor), 0),
+  const despesasVariaveis = somar(
+    lancamentos,
+    (l) =>
+      l.escopo === "empresa" && l.natureza === "despesa_variavel" && noPeriodo(l.competencia),
+    (l) => Number(l.valor),
   );
-  const despesasEmpresaAno = round2(
-    lancamentos
-      .filter((l) => l.escopo === "empresa" && noAno(l.competencia))
-      .reduce((s, l) => s + Number(l.valor), 0),
+  const despesasEmpresa = somar(
+    lancamentos,
+    (l) => l.escopo === "empresa" && noPeriodo(l.competencia),
+    (l) => Number(l.valor),
   );
 
-  const entradasEmpresa = round2(
-    distribuicoes
-      .filter((d) => d.destino === "empresa")
-      .reduce((s, d) => s + Number(d.valor), 0),
+  // Saldo em caixa: corrente, acumulado até o fim do período.
+  const entradasEmpresa = somar(
+    distribuicoes,
+    (d) => d.destino === "empresa" && !!d.entradas?.data && ateFimPeriodo(d.entradas.data),
+    (d) => Number(d.valor),
   );
-  const saidasEmpresaPagas = round2(
-    lancamentos
-      .filter((l) => l.escopo === "empresa" && l.status === "pago")
-      .reduce((s, l) => s + Number(l.valor), 0),
+  const saidasEmpresaPagas = somar(
+    lancamentos,
+    (l) => l.escopo === "empresa" && l.status === "pago" && ateFimPeriodo(l.competencia),
+    (l) => Number(l.valor),
   );
 
   return {
+    anos,
     ano,
-    receitaMes: round2(receitaMes),
-    receitaAno: round2(receitaAno),
+    mes,
+    receita,
     comissoesRecebidas,
     comissoesPendentes,
     pagoCorretores,
     despesasFixas,
     despesasVariaveis,
-    lucroVendas,
-    resultadoLiquido: round2(receitaAno - despesasEmpresaAno),
+    resultadoLiquido: round2(receita - despesasEmpresa),
     saldoCaixaEmpresa: round2(entradasEmpresa - saidasEmpresaPagas),
     mensal,
   };
