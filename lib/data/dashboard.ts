@@ -17,7 +17,7 @@ export interface DashboardData {
   /** Mês selecionado (1-12) ou null = ano todo. */
   mes: number | null;
   receita: number;
-  receitaInvestidor: number;
+  investimentos: number;
   comissoesRecebidas: number;
   comissoesPendentes: number;
   pagoCorretores: number;
@@ -129,7 +129,7 @@ export async function carregarDashboard(opts?: {
   }));
 
   const receita = somar(entradas, (e) => noPeriodo(e.data), (e) => Number(e.valor));
-  const receitaInvestidor = somar(
+  const investimentos = somar(
     entradas,
     (e) => e.tipo === "investidor" && noPeriodo(e.data),
     (e) => Number(e.valor),
@@ -185,7 +185,7 @@ export async function carregarDashboard(opts?: {
     ano,
     mes,
     receita,
-    receitaInvestidor,
+    investimentos,
     comissoesRecebidas,
     comissoesPendentes,
     pagoCorretores,
