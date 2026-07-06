@@ -4,6 +4,7 @@ import { round2 } from "@/lib/calculos";
 import { formatBRL, formatData } from "@/lib/format";
 import { STATUS_PAGAMENTO_CORRETOR_LABEL } from "@/lib/types";
 import { PageHeader } from "@/components/page-header";
+import { OnboardingHelp } from "@/components/onboarding/onboarding-help";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { KpiCard } from "@/components/kpi-card";
@@ -47,6 +48,7 @@ export default async function MeuExtratoPage() {
       <PageHeader
         title="Meu extrato"
         description="Suas comissões por venda e status de pagamento."
+        help={<OnboardingHelp screen="meu-extrato" />}
       />
 
       <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-3">

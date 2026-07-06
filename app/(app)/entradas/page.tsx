@@ -11,6 +11,7 @@ import {
   type PercentualMensal,
 } from "@/lib/types";
 import { PageHeader } from "@/components/page-header";
+import { OnboardingHelp } from "@/components/onboarding/onboarding-help";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -117,6 +118,7 @@ export default async function EntradasPage({
       <PageHeader
         title="Entradas e Distribuições"
         description="Toda entrada financeira, com dízimo e distribuição empresa/pessoal."
+        help={<OnboardingHelp screen="entradas" />}
       >
         <EntradaTipoFiltro atual={tipoFiltro ?? "todos"} />
         {podeEditar ? (

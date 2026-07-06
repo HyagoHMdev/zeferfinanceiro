@@ -7,6 +7,7 @@ import {
 } from "@/lib/data/financeiro";
 import type { LancamentoEscopo, LancamentoNatureza } from "@/lib/types";
 import { PageHeader } from "@/components/page-header";
+import { OnboardingHelp } from "@/components/onboarding/onboarding-help";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { LancamentosTable } from "@/components/financeiro/lancamentos-table";
@@ -35,7 +36,7 @@ export async function ModuloLancamentos({
 
   return (
     <div>
-      <PageHeader title={titulo} description={descricao}>
+      <PageHeader title={titulo} description={descricao} help={<OnboardingHelp screen="financeiro-lancamentos" />}>
         {podeEditar ? (
           <LancamentoFormDialog
             escopoFixo={escopo}

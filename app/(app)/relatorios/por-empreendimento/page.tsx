@@ -1,6 +1,7 @@
 import { relatorioPorEmpreendimento } from "@/lib/data/relatorios";
 import { formatBRL } from "@/lib/format";
 import { PageHeader } from "@/components/page-header";
+import { OnboardingHelp } from "@/components/onboarding/onboarding-help";
 import { Card, CardContent } from "@/components/ui/card";
 import {
   Table,
@@ -24,6 +25,7 @@ export default async function RelatorioPorEmpreendimentoPage() {
       <PageHeader
         title="Comissão por empreendimento"
         description="Unidades vendidas, comissão e ticket médio."
+        help={<OnboardingHelp screen="relatorios" />}
       />
       <Card>
         <CardContent className="px-0">

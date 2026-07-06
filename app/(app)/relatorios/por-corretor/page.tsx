@@ -1,6 +1,7 @@
 import { relatorioPorCorretor } from "@/lib/data/relatorios";
 import { formatBRL } from "@/lib/format";
 import { PageHeader } from "@/components/page-header";
+import { OnboardingHelp } from "@/components/onboarding/onboarding-help";
 import { Card, CardContent } from "@/components/ui/card";
 import {
   Table,
@@ -27,7 +28,7 @@ export default async function RelatorioPorCorretorPage() {
 
   return (
     <div>
-      <PageHeader title="Comissão por corretor" description="Vendas, VGV e comissões por corretor." />
+      <PageHeader title="Comissão por corretor" description="Vendas, VGV e comissões por corretor." help={<OnboardingHelp screen="relatorios" />} />
       <Card>
         <CardContent className="px-0">
           {linhas.length === 0 ? (

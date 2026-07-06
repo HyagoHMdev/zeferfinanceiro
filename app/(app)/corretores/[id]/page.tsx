@@ -5,6 +5,7 @@ import { ArrowLeft } from "lucide-react";
 import { requireRole, STAFF_ROLES, ADMIN_FIN_ROLES } from "@/lib/auth";
 import { carregarProcessamentoVenda } from "@/lib/data/corretores";
 import { PageHeader } from "@/components/page-header";
+import { OnboardingHelp } from "@/components/onboarding/onboarding-help";
 import { Button } from "@/components/ui/button";
 import { ProcessamentoCorretor } from "@/components/corretores/processamento-corretor";
 import { CorretorStatusSelect } from "@/components/corretores/corretor-status-select";
@@ -26,6 +27,7 @@ export default async function CorretorVendaPage({
       <PageHeader
         title={dados.venda.corretores?.nome ?? "Corretor"}
         description={`Processamento da comissão — ${dados.venda.empreendimentos?.nome ?? "venda"}`}
+        help={<OnboardingHelp screen="corretores-processar" />}
       >
         <div className="flex items-center gap-2">
           {podeEditar ? (

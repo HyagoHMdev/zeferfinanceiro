@@ -1,6 +1,7 @@
 import { carregarFluxoAnual } from "@/lib/data/financeiro";
 import { formatBRL } from "@/lib/format";
 import { PageHeader } from "@/components/page-header";
+import { OnboardingHelp } from "@/components/onboarding/onboarding-help";
 import { Card, CardContent } from "@/components/ui/card";
 import {
   Table,
@@ -25,6 +26,7 @@ export default async function FluxoPage() {
       <PageHeader
         title="Fluxo de Caixa"
         description={`Entradas e saídas da empresa, mês a mês — ${ano}.`}
+        help={<OnboardingHelp screen="financeiro-fluxo" />}
       />
       <Card>
         <CardContent className="px-0">

@@ -1,6 +1,7 @@
 import { relatorioPorConstrutora } from "@/lib/data/relatorios";
 import { formatBRL } from "@/lib/format";
 import { PageHeader } from "@/components/page-header";
+import { OnboardingHelp } from "@/components/onboarding/onboarding-help";
 import { Card, CardContent } from "@/components/ui/card";
 import {
   Table,
@@ -21,7 +22,7 @@ export default async function RelatorioPorConstrutoraPage() {
 
   return (
     <div>
-      <PageHeader title="Comissão por construtora" description="Vendas, VGV e comissão total por construtora." />
+      <PageHeader title="Comissão por construtora" description="Vendas, VGV e comissão total por construtora." help={<OnboardingHelp screen="relatorios" />} />
       <Card>
         <CardContent className="px-0">
           {linhas.length === 0 ? (

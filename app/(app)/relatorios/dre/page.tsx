@@ -1,6 +1,7 @@
 import { relatorioDRE } from "@/lib/data/relatorios";
 import { formatBRL } from "@/lib/format";
 import { PageHeader } from "@/components/page-header";
+import { OnboardingHelp } from "@/components/onboarding/onboarding-help";
 import { Card, CardContent } from "@/components/ui/card";
 
 function Linha({
@@ -43,7 +44,7 @@ export default async function DREPage() {
 
   return (
     <div>
-      <PageHeader title="DRE Simplificado" description={`Demonstração do resultado — ${ano}.`} />
+      <PageHeader title="DRE Simplificado" description={`Demonstração do resultado — ${ano}.`} help={<OnboardingHelp screen="relatorios" />} />
       <Card className="max-w-2xl">
         <CardContent>
           <Linha label="Receita Bruta" valor={dre.receitaBruta} />

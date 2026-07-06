@@ -7,6 +7,7 @@ import { createClient } from "@/lib/supabase/server";
 import { carregarCadastrosVenda } from "@/lib/data/cadastros";
 import type { Venda } from "@/lib/types";
 import { PageHeader } from "@/components/page-header";
+import { OnboardingHelp } from "@/components/onboarding/onboarding-help";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { VendaForm } from "@/components/vendas/venda-form";
@@ -32,6 +33,7 @@ export default async function EditarVendaPage({
       <PageHeader
         title="Editar venda"
         description={[venda.cliente, venda.unidade].filter(Boolean).join(" · ") || "Detalhes da venda"}
+        help={<OnboardingHelp screen="vendas-form" />}
       >
         <Button asChild variant="outline">
           <Link href="/vendas">

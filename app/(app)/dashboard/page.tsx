@@ -2,6 +2,7 @@ import { requireRole, STAFF_ROLES } from "@/lib/auth";
 import { carregarDashboard } from "@/lib/data/dashboard";
 import { MESES } from "@/lib/format";
 import { PageHeader } from "@/components/page-header";
+import { OnboardingHelp } from "@/components/onboarding/onboarding-help";
 import { KpiCard } from "@/components/kpi-card";
 import {
   Card,
@@ -31,6 +32,7 @@ export default async function DashboardPage({
       <PageHeader
         title="Dashboard"
         description={`Visão geral financeira da Zefer — ${periodo}.`}
+        help={<OnboardingHelp screen="dashboard" />}
       >
         <DashboardFiltro anos={d.anos} ano={d.ano} mes={d.mes} />
       </PageHeader>

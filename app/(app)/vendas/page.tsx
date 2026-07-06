@@ -6,6 +6,7 @@ import { requireRole, STAFF_ROLES, ADMIN_FIN_ROLES } from "@/lib/auth";
 import { formatBRL, formatData } from "@/lib/format";
 import type { VendaStatus } from "@/lib/types";
 import { PageHeader } from "@/components/page-header";
+import { OnboardingHelp } from "@/components/onboarding/onboarding-help";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { VendaStatusBadge } from "@/components/vendas/status-badge";
@@ -53,7 +54,7 @@ export default async function VendasPage() {
 
   return (
     <div>
-      <PageHeader title="Vendas" description="Comissões de cada venda registrada.">
+      <PageHeader title="Vendas" description="Comissões de cada venda registrada." help={<OnboardingHelp screen="vendas" />}>
         {podeEditar ? (
           <Button asChild>
             <Link href="/vendas/nova">

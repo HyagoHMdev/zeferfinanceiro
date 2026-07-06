@@ -1,5 +1,6 @@
 import { requireRole, ADMIN_FIN_ROLES } from "@/lib/auth";
 import { PageHeader } from "@/components/page-header";
+import { OnboardingHelp } from "@/components/onboarding/onboarding-help";
 import { ConfiguracoesNav } from "@/components/configuracoes/configuracoes-nav";
 
 export default async function ConfiguracoesLayout({
@@ -13,6 +14,7 @@ export default async function ConfiguracoesLayout({
       <PageHeader
         title="Configurações"
         description="Parâmetros, cadastros e usuários do sistema."
+        help={<OnboardingHelp screen="configuracoes" />}
       />
       <ConfiguracoesNav isAdmin={profile.role === "admin"} />
       {children}

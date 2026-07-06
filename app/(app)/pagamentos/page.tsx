@@ -9,6 +9,7 @@ import {
 import { round2 } from "@/lib/calculos";
 import { formatBRL, formatData } from "@/lib/format";
 import { PageHeader } from "@/components/page-header";
+import { OnboardingHelp } from "@/components/onboarding/onboarding-help";
 import { KpiCard } from "@/components/kpi-card";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -38,6 +39,7 @@ export default async function PagamentosPage() {
       <PageHeader
         title="Pagamentos"
         description="Pague as comissões dos corretores e gere os recibos."
+        help={<OnboardingHelp screen="pagamentos" />}
       />
 
       <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-3">

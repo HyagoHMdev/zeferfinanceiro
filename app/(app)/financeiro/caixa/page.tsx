@@ -6,6 +6,7 @@ import {
 import { PageHeader } from "@/components/page-header";
 import { KpiCard } from "@/components/kpi-card";
 import { CaixaFiltro } from "@/components/financeiro/caixa-filtro";
+import { OnboardingHelp } from "@/components/onboarding/onboarding-help";
 
 function Bloco({ titulo, resumo }: { titulo: string; resumo: ResumoCaixa }) {
   return (
@@ -52,7 +53,7 @@ export default async function CaixaPage({
 
   return (
     <div className="space-y-8">
-      <PageHeader title="Caixa" description={descricao}>
+      <PageHeader title="Caixa" description={descricao} help={<OnboardingHelp screen="financeiro-caixa" />}>
         <CaixaFiltro meses={caixa.meses} mesAtual={mes} modoAtual={modo} />
       </PageHeader>
       <Bloco titulo="Empresa (Zefer)" resumo={caixa.empresa} />
