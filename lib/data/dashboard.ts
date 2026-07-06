@@ -17,6 +17,7 @@ export interface DashboardData {
   /** Mês selecionado (1-12) ou null = ano todo. */
   mes: number | null;
   receita: number;
+  receitaInvestidor: number;
   comissoesRecebidas: number;
   comissoesPendentes: number;
   pagoCorretores: number;
@@ -37,7 +38,7 @@ export async function carregarDashboard(opts?: {
   const anoAtual = new Date().getUTCFullYear();
 
   const [entradasRes, vendasRes, lancamentosRes, distRes] = await Promise.all([
-    supabase.from("entradas").select("data, valor"),
+    supabase.from("entradas").select("data, valor, tipo"),
     supabase
       .from("vendas")
       .select(
@@ -49,7 +50,11 @@ export async function carregarDashboard(opts?: {
     supabase.from("distribuicoes").select("destino, valor, entradas(data)"),
   ]);
 
-  const entradas = (entradasRes.data ?? []) as { data: string; valor: number }[];
+  const entradas = (entradasRes.data ?? []) as {
+    data: string;
+    valor: number;
+    tipo: string;
+  }[];
   const vendas = (vendasRes.data ?? []) as {
     data_venda: string;
     liquido_zefer: number;
@@ -124,6 +129,11 @@ export async function carregarDashboard(opts?: {
   }));
 
   const receita = somar(entradas, (e) => noPeriodo(e.data), (e) => Number(e.valor));
+  const receitaInvestidor = somar(
+    entradas,
+    (e) => e.tipo === "investidor" && noPeriodo(e.data),
+    (e) => Number(e.valor),
+  );
 
   const comissoesRecebidas = somar(
     vendas,
@@ -175,6 +185,7 @@ export async function carregarDashboard(opts?: {
     ano,
     mes,
     receita,
+    receitaInvestidor,
     comissoesRecebidas,
     comissoesPendentes,
     pagoCorretores,
