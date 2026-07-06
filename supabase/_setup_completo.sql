@@ -255,6 +255,7 @@ create table public.lancamentos (
   conta_id uuid references public.contas_bancarias (id) on delete set null,
   status public.lancamento_status not null default 'pendente',
   anexo_url text,
+  observacoes text,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );

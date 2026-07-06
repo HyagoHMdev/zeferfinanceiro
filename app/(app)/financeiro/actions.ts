@@ -62,6 +62,7 @@ export async function criarLancamento(
       centro_custo_id: e.centro_custo_id,
       fornecedor_id: e.fornecedor_id,
       anexo_url: e.anexo_url,
+      observacoes: e.observacoes,
     };
   });
 
@@ -97,6 +98,7 @@ export async function atualizarLancamento(
     centro_custo_id: e.centro_custo_id,
     fornecedor_id: e.fornecedor_id,
     anexo_url: e.anexo_url,
+    observacoes: e.observacoes,
   };
 
   // Descobre o grupo (se houver) para o escopo "grupo".

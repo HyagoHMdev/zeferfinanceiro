@@ -209,7 +209,14 @@ export function LancamentosTable({
                 <TableCell className="whitespace-nowrap">
                   {competenciaLabel(l.competencia)}
                 </TableCell>
-                <TableCell className="font-medium">{l.descricao}</TableCell>
+                <TableCell className="font-medium">
+                  {l.descricao}
+                  {l.observacoes ? (
+                    <span className="block text-xs font-normal text-muted-foreground">
+                      {l.observacoes}
+                    </span>
+                  ) : null}
+                </TableCell>
                 <TableCell>{l.categorias_financeiras?.nome ?? "—"}</TableCell>
                 <TableCell className="whitespace-nowrap">
                   {l.data_vencimento ? formatData(l.data_vencimento) : "—"}

@@ -108,6 +108,7 @@ export function LancamentoFormDialog({
   const [anexoUrl, setAnexoUrl] = useState<string | null>(
     lancamento?.anexo_url ?? null,
   );
+  const [observacoes, setObservacoes] = useState(lancamento?.observacoes ?? "");
   const [escopoEdicao, setEscopoEdicao] = useState<"este" | "grupo">("este");
 
   const isGrupo = isEdit && Boolean(lancamento?.recorrencia_grupo);
@@ -134,6 +135,7 @@ export function LancamentoFormDialog({
       centro_custo_id: centroId === NONE ? null : centroId,
       fornecedor_id: fornecedorId === NONE ? null : fornecedorId,
       anexo_url: anexoUrl,
+      observacoes: observacoes.trim() || null,
     };
 
     const res = lancamento
@@ -299,6 +301,16 @@ export function LancamentoFormDialog({
                 </SelectContent>
               </Select>
             </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="l-obs">Observações</Label>
+            <Input
+              id="l-obs"
+              value={observacoes}
+              onChange={(e) => setObservacoes(e.target.value)}
+              placeholder="Ex.: chave PIX, instruções de pagamento…"
+            />
           </div>
 
           {!isEdit ? (

@@ -236,6 +236,7 @@ export interface Lancamento {
   conta_id: string | null;
   status: LancamentoStatus;
   anexo_url: string | null;
+  observacoes: string | null;
   created_at: string;
   updated_at: string;
 }

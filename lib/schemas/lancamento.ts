@@ -23,6 +23,7 @@ export const lancamentoSchema = z.object({
   centro_custo_id: z.string().uuid().nullable(),
   fornecedor_id: z.string().uuid().nullable(),
   anexo_url: z.string().nullable(),
+  observacoes: z.string().trim().max(500).nullable(),
 });
 
 export type LancamentoInput = z.infer<typeof lancamentoSchema>;
