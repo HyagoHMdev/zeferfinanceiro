@@ -4,6 +4,7 @@ import { requireProfile, STAFF_ROLES } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { formatBRL, formatData } from "@/lib/format";
 import { PrintButton } from "@/components/recibo/print-button";
+import { WhatsappButton } from "@/components/recibo/whatsapp-button";
 
 interface PagamentoRecibo {
   id: string;
@@ -67,7 +68,11 @@ export default async function ReciboPagamentoPage({
 
   return (
     <div className="mx-auto max-w-3xl p-6 md:p-10 print:p-0">
-      <div className="mb-6 flex items-center justify-end print:hidden">
+      <div className="mb-6 flex items-center justify-end gap-2 print:hidden">
+        <WhatsappButton
+          corretorNome={pagamento.corretores?.nome ?? ""}
+          valor={pagamento.valor_liquido}
+        />
         <PrintButton />
       </div>
 
