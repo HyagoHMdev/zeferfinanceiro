@@ -59,6 +59,17 @@ export function ContasAPagarTable({
   const [busca, setBusca] = useState("");
   const [mes, setMes] = useState(TODOS);
   const [dia, setDia] = useState(TODOS);
+  const [categoriaId, setCategoriaId] = useState(TODOS);
+
+  // Categorias realmente presentes nas contas a pagar.
+  const categoriasOpts = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const l of lancamentos) {
+      if (l.categoria_id && l.categorias_financeiras?.nome)
+        m.set(l.categoria_id, l.categorias_financeiras.nome);
+    }
+    return [...m.entries()].sort((a, b) => a[1].localeCompare(b[1]));
+  }, [lancamentos]);
 
   // Meses de vencimento presentes, mais próximos primeiro.
   const mesesOpts = useMemo(() => {
@@ -95,18 +106,21 @@ export function ContasAPagarTable({
           if (!l.data_vencimento || l.data_vencimento.slice(8, 10) !== dia)
             return false;
         }
+        if (categoriaId !== TODOS && l.categoria_id !== categoriaId) return false;
         return true;
       }),
-    [lancamentos, busca, mes, dia],
+    [lancamentos, busca, mes, dia, categoriaId],
   );
 
   const total = filtrados.reduce((s, l) => s + Number(l.valor), 0);
-  const temFiltro = busca !== "" || mes !== TODOS || dia !== TODOS;
+  const temFiltro =
+    busca !== "" || mes !== TODOS || dia !== TODOS || categoriaId !== TODOS;
 
   function limpar() {
     setBusca("");
     setMes(TODOS);
     setDia(TODOS);
+    setCategoriaId(TODOS);
   }
 
   function onMes(v: string) {
@@ -159,6 +173,20 @@ export function ContasAPagarTable({
             {diasOpts.map((d) => (
               <SelectItem key={d} value={d}>
                 Dia {Number(d)}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        <Select value={categoriaId} onValueChange={setCategoriaId}>
+          <SelectTrigger size="sm" className="w-44">
+            <SelectValue placeholder="Categoria" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value={TODOS}>Todas as categorias</SelectItem>
+            {categoriasOpts.map(([id, nome]) => (
+              <SelectItem key={id} value={id}>
+                {nome}
               </SelectItem>
             ))}
           </SelectContent>
