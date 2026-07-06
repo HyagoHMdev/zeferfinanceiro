@@ -1,7 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { Search, X, Pencil } from "lucide-react";
+import { Fragment, useMemo, useState } from "react";
+import { Search, X, Pencil, ChevronDown, ChevronRight } from "lucide-react";
 
 import { formatBRL, formatData, mesAbrev } from "@/lib/format";
 import {
@@ -57,9 +57,26 @@ const TIPOS: EntradaTipo[] = [
   "outras",
 ];
 
+type Agrupamento = "nenhum" | "tipo" | "mes";
+
 function mesLabel(ym: string): string {
   const [ano] = ym.split("-");
   return `${mesAbrev(`${ym}-01`)}/${ano}`;
+}
+
+interface Totais {
+  valor: number;
+  dizimo: number;
+  liquido: number;
+  empresa: number;
+  pessoal: number;
+}
+
+interface Grupo {
+  chave: string;
+  rotulo: string;
+  linhas: EntradaRow[];
+  totais: Totais;
 }
 
 export function EntradasTable({
@@ -78,6 +95,23 @@ export function EntradasTable({
   const [busca, setBusca] = useState("");
   const [tipo, setTipo] = useState(TODOS);
   const [mes, setMes] = useState(TODOS);
+  const [agrupar, setAgrupar] = useState<Agrupamento>("nenhum");
+  const [colapsados, setColapsados] = useState<Set<string>>(new Set());
+
+  const distDe = (e: EntradaRow, destino: "empresa" | "pessoal") =>
+    e.distribuicoes?.find((d) => d.destino === destino);
+  const valorDe = (e: EntradaRow, destino: "empresa" | "pessoal") =>
+    Number(distDe(e, destino)?.valor ?? 0);
+  const percDe = (e: EntradaRow, destino: "empresa" | "pessoal") =>
+    Number(distDe(e, destino)?.percentual ?? 0);
+
+  const somar = (linhas: EntradaRow[]): Totais => ({
+    valor: linhas.reduce((s, e) => s + Number(e.valor), 0),
+    dizimo: linhas.reduce((s, e) => s + Number(e.valor_dizimo), 0),
+    liquido: linhas.reduce((s, e) => s + Number(e.liquido), 0),
+    empresa: linhas.reduce((s, e) => s + valorDe(e, "empresa"), 0),
+    pessoal: linhas.reduce((s, e) => s + valorDe(e, "pessoal"), 0),
+  });
 
   // Só os tipos e meses realmente presentes.
   const tiposOpts = useMemo(() => {
@@ -104,24 +138,114 @@ export function EntradasTable({
     [entradas, busca, tipo, mes],
   );
 
-  const distDe = (e: EntradaRow, destino: "empresa" | "pessoal") =>
-    e.distribuicoes?.find((d) => d.destino === destino);
-  const valorDe = (e: EntradaRow, destino: "empresa" | "pessoal") =>
-    Number(distDe(e, destino)?.valor ?? 0);
-  const percDe = (e: EntradaRow, destino: "empresa" | "pessoal") =>
-    Number(distDe(e, destino)?.percentual ?? 0);
+  // Agrupamento (tabela dinâmica): quebra as linhas filtradas em grupos com subtotal.
+  const grupos = useMemo<Grupo[]>(() => {
+    if (agrupar === "nenhum") return [];
+    const mapa = new Map<string, EntradaRow[]>();
+    for (const e of filtradas) {
+      const chave = agrupar === "tipo" ? e.tipo : e.data.slice(0, 7);
+      const atual = mapa.get(chave) ?? [];
+      atual.push(e);
+      mapa.set(chave, atual);
+    }
+    const lista: Grupo[] = [...mapa.entries()].map(([chave, linhas]) => ({
+      chave,
+      rotulo:
+        agrupar === "tipo"
+          ? ENTRADA_TIPO_LABEL[chave as EntradaTipo]
+          : mesLabel(chave),
+      linhas,
+      totais: somar(linhas),
+    }));
+    // Tipo: por rótulo. Mês: mais recente primeiro.
+    lista.sort((a, b) =>
+      agrupar === "mes"
+        ? b.chave.localeCompare(a.chave)
+        : a.rotulo.localeCompare(b.rotulo),
+    );
+    return lista;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filtradas, agrupar]);
 
-  const totalValor = filtradas.reduce((s, e) => s + Number(e.valor), 0);
-  const totalLiquido = filtradas.reduce((s, e) => s + Number(e.liquido), 0);
-  const totalEmpresa = filtradas.reduce((s, e) => s + valorDe(e, "empresa"), 0);
-  const totalPessoal = filtradas.reduce((s, e) => s + valorDe(e, "pessoal"), 0);
-
+  const totalGeral = somar(filtradas);
   const temFiltro = busca !== "" || tipo !== TODOS || mes !== TODOS;
 
   function limpar() {
     setBusca("");
     setTipo(TODOS);
     setMes(TODOS);
+  }
+
+  function toggleGrupo(chave: string) {
+    setColapsados((prev) => {
+      const n = new Set(prev);
+      if (n.has(chave)) n.delete(chave);
+      else n.add(chave);
+      return n;
+    });
+  }
+
+  function linha(e: EntradaRow) {
+    return (
+      <TableRow key={e.id}>
+        <TableCell className="whitespace-nowrap">{formatData(e.data)}</TableCell>
+        <TableCell>{ENTRADA_TIPO_LABEL[e.tipo]}</TableCell>
+        <TableCell>{e.descricao ?? "—"}</TableCell>
+        <TableCell className="text-right tabular-nums text-muted-foreground">
+          {e.vendas ? formatBRL(e.vendas.comissao_bruta) : "—"}
+        </TableCell>
+        <TableCell className="text-right tabular-nums text-muted-foreground">
+          {e.vendas ? formatBRL(e.vendas.liquido_zefer) : "—"}
+        </TableCell>
+        <TableCell className="text-right tabular-nums text-muted-foreground">
+          {e.vendas ? formatBRL(e.vendas.lucro_liquido) : "—"}
+        </TableCell>
+        <TableCell className="text-right tabular-nums">{formatBRL(e.valor)}</TableCell>
+        <TableCell className="text-right tabular-nums text-muted-foreground">
+          {formatBRL(e.valor_dizimo)}
+        </TableCell>
+        <TableCell className="text-right tabular-nums">{formatBRL(e.liquido)}</TableCell>
+        <TableCell className="text-right tabular-nums">
+          {formatBRL(valorDe(e, "empresa"))}
+        </TableCell>
+        <TableCell className="text-right tabular-nums">
+          {formatBRL(valorDe(e, "pessoal"))}
+        </TableCell>
+        {podeEditar ? (
+          <TableCell>
+            <div className="flex justify-end">
+              <EntradaFormDialog
+                config={config}
+                vendas={vendas}
+                entrada={e}
+                percentuaisMensais={percentuaisMensais}
+                percentualEmpresaInicial={percDe(e, "empresa")}
+                percentualPessoalInicial={percDe(e, "pessoal")}
+                trigger={
+                  <Button variant="ghost" size="icon" aria-label="Editar">
+                    <Pencil className="size-4" />
+                  </Button>
+                }
+              />
+              <EntradaDelete id={e.id} />
+            </div>
+          </TableCell>
+        ) : null}
+      </TableRow>
+    );
+  }
+
+  function subtotais(t: Totais) {
+    return (
+      <>
+        <TableCell className="text-right tabular-nums">{formatBRL(t.valor)}</TableCell>
+        <TableCell className="text-right tabular-nums">{formatBRL(t.dizimo)}</TableCell>
+        <TableCell className="text-right tabular-nums">{formatBRL(t.liquido)}</TableCell>
+        <TableCell className="text-right tabular-nums">{formatBRL(t.empresa)}</TableCell>
+        <TableCell className="text-right tabular-nums">{formatBRL(t.pessoal)}</TableCell>
+        {podeEditar ? <TableCell></TableCell> : null}
+      </>
+    );
   }
 
   if (entradas.length === 0) {
@@ -134,7 +258,7 @@ export function EntradasTable({
 
   return (
     <div>
-      {/* Barra de filtros */}
+      {/* Barra de filtros (estilo tabela dinâmica) */}
       <div className="flex flex-wrap items-center gap-2 px-4 pb-3">
         <div className="relative">
           <Search className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
@@ -174,6 +298,17 @@ export function EntradasTable({
           </SelectContent>
         </Select>
 
+        <Select value={agrupar} onValueChange={(v) => setAgrupar(v as Agrupamento)}>
+          <SelectTrigger size="sm" className="w-40">
+            <SelectValue placeholder="Agrupar por" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="nenhum">Sem agrupamento</SelectItem>
+            <SelectItem value="tipo">Agrupar por tipo</SelectItem>
+            <SelectItem value="mes">Agrupar por mês</SelectItem>
+          </SelectContent>
+        </Select>
+
         {temFiltro ? (
           <Button variant="ghost" size="sm" onClick={limpar}>
             <X className="size-4" />
@@ -209,59 +344,35 @@ export function EntradasTable({
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filtradas.map((e) => (
-              <TableRow key={e.id}>
-                <TableCell className="whitespace-nowrap">
-                  {formatData(e.data)}
-                </TableCell>
-                <TableCell>{ENTRADA_TIPO_LABEL[e.tipo]}</TableCell>
-                <TableCell>{e.descricao ?? "—"}</TableCell>
-                <TableCell className="text-right tabular-nums text-muted-foreground">
-                  {e.vendas ? formatBRL(e.vendas.comissao_bruta) : "—"}
-                </TableCell>
-                <TableCell className="text-right tabular-nums text-muted-foreground">
-                  {e.vendas ? formatBRL(e.vendas.liquido_zefer) : "—"}
-                </TableCell>
-                <TableCell className="text-right tabular-nums text-muted-foreground">
-                  {e.vendas ? formatBRL(e.vendas.lucro_liquido) : "—"}
-                </TableCell>
-                <TableCell className="text-right tabular-nums">
-                  {formatBRL(e.valor)}
-                </TableCell>
-                <TableCell className="text-right tabular-nums text-muted-foreground">
-                  {formatBRL(e.valor_dizimo)}
-                </TableCell>
-                <TableCell className="text-right tabular-nums">
-                  {formatBRL(e.liquido)}
-                </TableCell>
-                <TableCell className="text-right tabular-nums">
-                  {formatBRL(valorDe(e, "empresa"))}
-                </TableCell>
-                <TableCell className="text-right tabular-nums">
-                  {formatBRL(valorDe(e, "pessoal"))}
-                </TableCell>
-                {podeEditar ? (
-                  <TableCell>
-                    <div className="flex justify-end">
-                      <EntradaFormDialog
-                        config={config}
-                        vendas={vendas}
-                        entrada={e}
-                        percentuaisMensais={percentuaisMensais}
-                        percentualEmpresaInicial={percDe(e, "empresa")}
-                        percentualPessoalInicial={percDe(e, "pessoal")}
-                        trigger={
-                          <Button variant="ghost" size="icon" aria-label="Editar">
-                            <Pencil className="size-4" />
-                          </Button>
-                        }
-                      />
-                      <EntradaDelete id={e.id} />
-                    </div>
-                  </TableCell>
-                ) : null}
-              </TableRow>
-            ))}
+            {agrupar === "nenhum"
+              ? filtradas.map((e) => linha(e))
+              : grupos.map((g) => {
+                  const aberto = !colapsados.has(g.chave);
+                  return (
+                    <Fragment key={`grp-${g.chave}`}>
+                      <TableRow
+                        className="cursor-pointer bg-muted/50 font-medium hover:bg-muted"
+                        onClick={() => toggleGrupo(g.chave)}
+                      >
+                        <TableCell colSpan={6}>
+                          <span className="inline-flex items-center gap-1.5">
+                            {aberto ? (
+                              <ChevronDown className="size-4" />
+                            ) : (
+                              <ChevronRight className="size-4" />
+                            )}
+                            {g.rotulo}
+                            <span className="text-xs font-normal text-muted-foreground">
+                              ({g.linhas.length})
+                            </span>
+                          </span>
+                        </TableCell>
+                        {subtotais(g.totais)}
+                      </TableRow>
+                      {aberto ? g.linhas.map((e) => linha(e)) : null}
+                    </Fragment>
+                  );
+                })}
           </TableBody>
           <TableFooter>
             <TableRow>
@@ -269,17 +380,19 @@ export function EntradasTable({
                 Total{temFiltro ? " (filtrado)" : ""}
               </TableCell>
               <TableCell className="text-right tabular-nums">
-                {formatBRL(totalValor)}
-              </TableCell>
-              <TableCell></TableCell>
-              <TableCell className="text-right tabular-nums">
-                {formatBRL(totalLiquido)}
+                {formatBRL(totalGeral.valor)}
               </TableCell>
               <TableCell className="text-right tabular-nums">
-                {formatBRL(totalEmpresa)}
+                {formatBRL(totalGeral.dizimo)}
               </TableCell>
               <TableCell className="text-right tabular-nums">
-                {formatBRL(totalPessoal)}
+                {formatBRL(totalGeral.liquido)}
+              </TableCell>
+              <TableCell className="text-right tabular-nums">
+                {formatBRL(totalGeral.empresa)}
+              </TableCell>
+              <TableCell className="text-right tabular-nums">
+                {formatBRL(totalGeral.pessoal)}
               </TableCell>
               {podeEditar ? <TableCell></TableCell> : null}
             </TableRow>
