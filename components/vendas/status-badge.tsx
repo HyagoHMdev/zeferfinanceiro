@@ -3,11 +3,11 @@ import { STATUS_VENDA_LABEL, type VendaStatus } from "@/lib/types";
 
 const VARIANT: Record<
   VendaStatus,
-  "warning" | "secondary" | "success"
+  "warning" | "success" | "default"
 > = {
   aguardando_recebimento: "warning",
-  recebido: "secondary",
-  pago: "success",
+  recebido: "success",
+  pago: "default",
 };
 
 export function VendaStatusBadge({ status }: { status: VendaStatus }) {

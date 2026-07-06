@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
 import { alterarStatusVenda } from "@/app/(app)/vendas/actions";
+import { cn } from "@/lib/utils";
 import { STATUS_VENDA_LABEL, type VendaStatus } from "@/lib/types";
 import {
   Select,
@@ -15,6 +16,14 @@ import {
 } from "@/components/ui/select";
 
 const OPCOES: VendaStatus[] = ["aguardando_recebimento", "recebido"];
+
+// Mesmas cores do badge de status (âmbar → verde → dourado).
+// dark:bg-* explícito para sobrepor o dark:bg-input/30 padrão do SelectTrigger.
+const COR: Record<VendaStatus, string> = {
+  aguardando_recebimento: "bg-warning text-black border-transparent dark:bg-warning",
+  recebido: "bg-success text-white border-transparent dark:bg-success",
+  pago: "bg-primary text-primary-foreground border-transparent dark:bg-primary",
+};
 
 export function VendaStatusSelect({
   id,
@@ -46,7 +55,10 @@ export function VendaStatusSelect({
 
   return (
     <Select value={st} onValueChange={onChange} disabled={busy}>
-      <SelectTrigger size="sm" className="w-48">
+      <SelectTrigger
+        size="sm"
+        className={cn("w-48 font-medium", COR[st])}
+      >
         <SelectValue />
       </SelectTrigger>
       <SelectContent>
