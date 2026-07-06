@@ -95,6 +95,7 @@ export function EntradasTable({
   const [busca, setBusca] = useState("");
   const [tipo, setTipo] = useState(TODOS);
   const [mes, setMes] = useState(TODOS);
+  const [descricao, setDescricao] = useState(TODOS);
   const [agrupar, setAgrupar] = useState<Agrupamento>("nenhum");
   const [colapsados, setColapsados] = useState<Set<string>>(new Set());
 
@@ -126,6 +127,13 @@ export function EntradasTable({
     return [...s].sort((a, b) => b.localeCompare(a));
   }, [entradas]);
 
+  // Descrições distintas presentes (para o filtro por descrição exata).
+  const descricoesOpts = useMemo(() => {
+    const s = new Set<string>();
+    for (const e of entradas) if (e.descricao) s.add(e.descricao);
+    return [...s].sort((a, b) => a.localeCompare(b));
+  }, [entradas]);
+
   const filtradas = useMemo(
     () =>
       entradas.filter(
@@ -133,9 +141,10 @@ export function EntradasTable({
           (busca === "" ||
             (e.descricao ?? "").toLowerCase().includes(busca.toLowerCase())) &&
           (tipo === TODOS || e.tipo === tipo) &&
-          (mes === TODOS || e.data.slice(0, 7) === mes),
+          (mes === TODOS || e.data.slice(0, 7) === mes) &&
+          (descricao === TODOS || e.descricao === descricao),
       ),
-    [entradas, busca, tipo, mes],
+    [entradas, busca, tipo, mes, descricao],
   );
 
   // Agrupamento (tabela dinâmica): quebra as linhas filtradas em grupos com subtotal.
@@ -168,12 +177,14 @@ export function EntradasTable({
   }, [filtradas, agrupar]);
 
   const totalGeral = somar(filtradas);
-  const temFiltro = busca !== "" || tipo !== TODOS || mes !== TODOS;
+  const temFiltro =
+    busca !== "" || tipo !== TODOS || mes !== TODOS || descricao !== TODOS;
 
   function limpar() {
     setBusca("");
     setTipo(TODOS);
     setMes(TODOS);
+    setDescricao(TODOS);
   }
 
   function toggleGrupo(chave: string) {
@@ -297,6 +308,22 @@ export function EntradasTable({
             ))}
           </SelectContent>
         </Select>
+
+        {descricoesOpts.length > 0 ? (
+          <Select value={descricao} onValueChange={setDescricao}>
+            <SelectTrigger size="sm" className="w-52">
+              <SelectValue placeholder="Descrição" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={TODOS}>Todas as descrições</SelectItem>
+              {descricoesOpts.map((d) => (
+                <SelectItem key={d} value={d}>
+                  {d}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        ) : null}
 
         <Select value={agrupar} onValueChange={(v) => setAgrupar(v as Agrupamento)}>
           <SelectTrigger size="sm" className="w-40">
