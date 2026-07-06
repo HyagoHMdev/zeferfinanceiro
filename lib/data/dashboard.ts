@@ -38,7 +38,7 @@ export async function carregarDashboard(opts?: {
   const anoAtual = new Date().getUTCFullYear();
 
   const [entradasRes, vendasRes, lancamentosRes, distRes] = await Promise.all([
-    supabase.from("entradas").select("data, valor, tipo"),
+    supabase.from("entradas").select("data, valor"),
     supabase
       .from("vendas")
       .select(
@@ -50,11 +50,7 @@ export async function carregarDashboard(opts?: {
     supabase.from("distribuicoes").select("destino, valor, entradas(data)"),
   ]);
 
-  const entradas = (entradasRes.data ?? []) as {
-    data: string;
-    valor: number;
-    tipo: string;
-  }[];
+  const entradas = (entradasRes.data ?? []) as { data: string; valor: number }[];
   const vendas = (vendasRes.data ?? []) as {
     data_venda: string;
     liquido_zefer: number;
@@ -112,8 +108,7 @@ export async function carregarDashboard(opts?: {
   const receitaPorMes = new Array(12).fill(0);
   const despesaPorMes = new Array(12).fill(0);
   for (const e of entradas) {
-    // Receita operacional: investidor é capital, não entra no gráfico de receita.
-    if (e.tipo !== "investidor" && e.data.slice(0, 4) === anoStr) {
+    if (e.data.slice(0, 4) === anoStr) {
       receitaPorMes[Number(e.data.slice(5, 7)) - 1] += Number(e.valor);
     }
   }
@@ -129,16 +124,15 @@ export async function carregarDashboard(opts?: {
     lucro: round2(receitaPorMes[i] - despesaPorMes[i]),
   }));
 
-  // Receita operacional: exclui o capital de investidor (que tem card próprio).
-  const receita = somar(
-    entradas,
-    (e) => e.tipo !== "investidor" && noPeriodo(e.data),
-    (e) => Number(e.valor),
-  );
+  const receita = somar(entradas, (e) => noPeriodo(e.data), (e) => Number(e.valor));
+  // Investimentos: lançamentos do cadastro de Investimentos (Financeiro).
   const investimentos = somar(
-    entradas,
-    (e) => e.tipo === "investidor" && noPeriodo(e.data),
-    (e) => Number(e.valor),
+    lancamentos,
+    (l) =>
+      l.escopo === "empresa" &&
+      l.natureza === "investimento" &&
+      noPeriodo(l.competencia),
+    (l) => Number(l.valor),
   );
 
   const comissoesRecebidas = somar(
