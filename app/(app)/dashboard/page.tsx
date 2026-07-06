@@ -41,7 +41,6 @@ export default async function DashboardPage({
         <KpiCard label={`Receita (${periodo})`} value={d.receita} />
         <KpiCard label="Comissões recebidas" value={d.comissoesRecebidas} />
         <KpiCard label="Comissões pendentes" value={d.comissoesPendentes} />
-        <KpiCard label="Pago aos corretores" value={d.pagoCorretores} />
         <KpiCard label="Despesas fixas" value={d.despesasFixas} />
         <KpiCard label="Despesas variáveis" value={d.despesasVariaveis} />
         <KpiCard
