@@ -349,8 +349,13 @@ export function LancamentoFormDialog({
           ) : null}
 
           <div className="space-y-2">
-            <Label>Comprovante / Anexo</Label>
-            <AnexoUpload value={anexoUrl} onChange={setAnexoUrl} pasta="lancamentos" />
+            <Label>Recibo / Comprovante</Label>
+            <AnexoUpload
+              value={anexoUrl}
+              onChange={setAnexoUrl}
+              pasta="lancamentos"
+              label="Recibo"
+            />
           </div>
 
           {isGrupo ? (

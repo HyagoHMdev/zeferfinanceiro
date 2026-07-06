@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Search, X } from "lucide-react";
+import { Search, X, Paperclip } from "lucide-react";
 
 import {
   formatBRL,
@@ -215,6 +215,17 @@ export function LancamentosTable({
                     <span className="block text-xs font-normal text-muted-foreground">
                       {l.observacoes}
                     </span>
+                  ) : null}
+                  {l.anexo_url ? (
+                    <a
+                      href={l.anexo_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="mt-0.5 inline-flex items-center gap-1 text-xs font-normal text-primary hover:underline"
+                    >
+                      <Paperclip className="size-3" />
+                      Recibo
+                    </a>
                   ) : null}
                 </TableCell>
                 <TableCell>{l.categorias_financeiras?.nome ?? "—"}</TableCell>
