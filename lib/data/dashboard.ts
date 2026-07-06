@@ -112,7 +112,8 @@ export async function carregarDashboard(opts?: {
   const receitaPorMes = new Array(12).fill(0);
   const despesaPorMes = new Array(12).fill(0);
   for (const e of entradas) {
-    if (e.data.slice(0, 4) === anoStr) {
+    // Receita operacional: investidor é capital, não entra no gráfico de receita.
+    if (e.tipo !== "investidor" && e.data.slice(0, 4) === anoStr) {
       receitaPorMes[Number(e.data.slice(5, 7)) - 1] += Number(e.valor);
     }
   }
@@ -128,7 +129,12 @@ export async function carregarDashboard(opts?: {
     lucro: round2(receitaPorMes[i] - despesaPorMes[i]),
   }));
 
-  const receita = somar(entradas, (e) => noPeriodo(e.data), (e) => Number(e.valor));
+  // Receita operacional: exclui o capital de investidor (que tem card próprio).
+  const receita = somar(
+    entradas,
+    (e) => e.tipo !== "investidor" && noPeriodo(e.data),
+    (e) => Number(e.valor),
+  );
   const investimentos = somar(
     entradas,
     (e) => e.tipo === "investidor" && noPeriodo(e.data),
