@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Search, X } from "lucide-react";
+import { Search, X, ChevronDown } from "lucide-react";
 
 import {
   formatBRL,
@@ -29,6 +29,13 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { LancamentoStatusBadge } from "@/components/financeiro/lancamento-status-badge";
 import { LancamentoRowActions } from "@/components/financeiro/lancamento-row-actions";
 
@@ -58,8 +65,17 @@ export function ContasAPagarTable({
 }) {
   const [busca, setBusca] = useState("");
   const [mes, setMes] = useState(TODOS);
-  const [dia, setDia] = useState(TODOS);
+  const [dias, setDias] = useState<Set<string>>(new Set()); // vazio = todos os dias
   const [categoriaId, setCategoriaId] = useState(TODOS);
+
+  function toggleDia(d: string) {
+    setDias((prev) => {
+      const n = new Set(prev);
+      if (n.has(d)) n.delete(d);
+      else n.add(d);
+      return n;
+    });
+  }
 
   // Categorias realmente presentes nas contas a pagar.
   const categoriasOpts = useMemo(() => {
@@ -102,30 +118,30 @@ export function ContasAPagarTable({
           if (!l.data_vencimento || l.data_vencimento.slice(0, 7) !== mes)
             return false;
         }
-        if (dia !== TODOS) {
-          if (!l.data_vencimento || l.data_vencimento.slice(8, 10) !== dia)
+        if (dias.size > 0) {
+          if (!l.data_vencimento || !dias.has(l.data_vencimento.slice(8, 10)))
             return false;
         }
         if (categoriaId !== TODOS && l.categoria_id !== categoriaId) return false;
         return true;
       }),
-    [lancamentos, busca, mes, dia, categoriaId],
+    [lancamentos, busca, mes, dias, categoriaId],
   );
 
   const total = filtrados.reduce((s, l) => s + Number(l.valor), 0);
   const temFiltro =
-    busca !== "" || mes !== TODOS || dia !== TODOS || categoriaId !== TODOS;
+    busca !== "" || mes !== TODOS || dias.size > 0 || categoriaId !== TODOS;
 
   function limpar() {
     setBusca("");
     setMes(TODOS);
-    setDia(TODOS);
+    setDias(new Set());
     setCategoriaId(TODOS);
   }
 
   function onMes(v: string) {
     setMes(v);
-    setDia(TODOS); // dias dependem do mês
+    setDias(new Set()); // dias dependem do mês
   }
 
   if (lancamentos.length === 0) {
@@ -164,19 +180,43 @@ export function ContasAPagarTable({
           </SelectContent>
         </Select>
 
-        <Select value={dia} onValueChange={setDia}>
-          <SelectTrigger size="sm" className="w-28">
-            <SelectValue placeholder="Dia" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value={TODOS}>Todos os dias</SelectItem>
-            {diasOpts.map((d) => (
-              <SelectItem key={d} value={d}>
-                Dia {Number(d)}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8 w-32 justify-between font-normal"
+            >
+              {dias.size === 0
+                ? "Todos os dias"
+                : dias.size === 1
+                  ? `Dia ${Number([...dias][0])}`
+                  : `${dias.size} dias`}
+              <ChevronDown className="size-4 opacity-50" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" className="max-h-72 overflow-y-auto">
+            {diasOpts.length === 0 ? (
+              <div className="px-2 py-1.5 text-xs text-muted-foreground">
+                Sem vencimentos
+              </div>
+            ) : (
+              diasOpts.map((d) => (
+                <DropdownMenuItem
+                  key={d}
+                  onSelect={(e) => {
+                    e.preventDefault(); // mantém o menu aberto para marcar vários
+                    toggleDia(d);
+                  }}
+                  className="gap-2"
+                >
+                  <Checkbox checked={dias.has(d)} className="pointer-events-none" />
+                  Dia {Number(d)}
+                </DropdownMenuItem>
+              ))
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
 
         <Select value={categoriaId} onValueChange={setCategoriaId}>
           <SelectTrigger size="sm" className="w-44">
