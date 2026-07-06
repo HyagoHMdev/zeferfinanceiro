@@ -80,6 +80,7 @@ create table public.corretores (
   forma_pagamento text,
   chave_pix text,
   dados_bancarios text,
+  telefone text,
   ativo boolean not null default true,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()

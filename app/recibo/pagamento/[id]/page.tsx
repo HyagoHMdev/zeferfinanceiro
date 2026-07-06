@@ -14,7 +14,7 @@ interface PagamentoRecibo {
   total_bonificacoes: number;
   total_adiantamentos: number;
   valor_liquido: number;
-  corretores: { nome: string } | null;
+  corretores: { nome: string; telefone: string | null } | null;
 }
 
 export default async function ReciboPagamentoPage({
@@ -28,7 +28,7 @@ export default async function ReciboPagamentoPage({
 
   const { data } = await supabase
     .from("pagamentos_corretor")
-    .select("*, corretores(nome)")
+    .select("*, corretores(nome, telefone)")
     .eq("id", id)
     .single();
   if (!data) notFound();
@@ -68,12 +68,19 @@ export default async function ReciboPagamentoPage({
 
   return (
     <div className="mx-auto max-w-3xl p-6 md:p-10 print:p-0">
-      <div className="mb-6 flex items-center justify-end gap-2 print:hidden">
-        <WhatsappButton
-          corretorNome={pagamento.corretores?.nome ?? ""}
-          valor={pagamento.valor_liquido}
-        />
-        <PrintButton />
+      <div className="mb-6 print:hidden">
+        <div className="flex items-center justify-end gap-2">
+          <WhatsappButton
+            corretorNome={pagamento.corretores?.nome ?? ""}
+            telefone={pagamento.corretores?.telefone ?? null}
+            valor={pagamento.valor_liquido}
+          />
+          <PrintButton />
+        </div>
+        <p className="mt-2 text-right text-xs text-muted-foreground">
+          Para anexar o recibo em PDF, gere-o com &quot;Imprimir / Salvar PDF&quot;
+          e anexe na conversa do WhatsApp.
+        </p>
       </div>
 
       <div className="rounded-lg border bg-white p-8 text-zinc-900 print:border-0 print:p-0">

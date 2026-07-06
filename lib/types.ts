@@ -61,6 +61,7 @@ export interface Corretor {
   forma_pagamento: string | null;
   chave_pix: string | null;
   dados_bancarios: string | null;
+  telefone: string | null;
   ativo: boolean;
   created_at: string;
   updated_at: string;

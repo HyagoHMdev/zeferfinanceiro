@@ -117,6 +117,7 @@ export default async function CadastrosPage() {
             { name: "forma_pagamento", label: "Forma de pagamento", tipo: "text" },
             { name: "chave_pix", label: "Chave PIX", tipo: "text" },
             { name: "dados_bancarios", label: "Dados bancários", tipo: "text" },
+            { name: "telefone", label: "Telefone / WhatsApp", tipo: "text" },
             { name: "ativo", label: "Ativo", tipo: "switch" },
           ]}
           colunas={[
