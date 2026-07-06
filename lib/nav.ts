@@ -93,6 +93,7 @@ export function navParaPerfil(role: Role): NavItem[] {
 /** Sub-navegação do módulo Financeiro. */
 export const FINANCEIRO_SUBNAV = [
   { label: "Caixa", href: "/financeiro/caixa" },
+  { label: "A Pagar", href: "/financeiro/a-pagar" },
   { label: "Fluxo de Caixa", href: "/financeiro/fluxo" },
   { label: "Custos Fixos", href: "/financeiro/custos-fixos" },
   { label: "Despesas Variáveis", href: "/financeiro/despesas-variaveis" },

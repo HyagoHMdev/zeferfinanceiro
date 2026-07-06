@@ -27,6 +27,7 @@ export type OnboardingScreen =
   | "pagamentos"
   | "entradas"
   | "financeiro-caixa"
+  | "financeiro-a-pagar"
   | "financeiro-fluxo"
   | "financeiro-lancamentos"
   | "meu-extrato"
@@ -207,6 +208,28 @@ export const ONBOARDING: Record<OnboardingScreen, OnboardingConteudo> = {
         titulo: "Acumulado até o mês",
         texto:
           "Mostra o saldo corrente considerando tudo até o fim do mês escolhido.",
+      },
+    ],
+  },
+  "financeiro-a-pagar": {
+    titulo: "A Pagar",
+    intro:
+      "Tudo que ainda está pendente de pagamento, reunido num lugar só e ordenado pelo vencimento mais próximo.",
+    topicos: [
+      {
+        titulo: "Filtrar por mês e dia",
+        texto:
+          "Escolha o mês do vencimento e, se quiser, um dia específico para ver só o que vence naquela data.",
+      },
+      {
+        titulo: "Vencido x A vencer",
+        texto:
+          "Os cards no topo mostram o total a pagar, o que já venceu (atrasado) e o que ainda está por vencer.",
+      },
+      {
+        titulo: "Marcar como pago",
+        texto:
+          "No status de cada linha você pode marcar como pago, editar ou excluir — some da lista assim que quitar.",
       },
     ],
   },

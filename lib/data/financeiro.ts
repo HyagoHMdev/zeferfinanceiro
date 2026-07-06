@@ -69,6 +69,21 @@ export async function listarLancamentos(filtro: {
   });
 }
 
+/**
+ * Contas a pagar: todas as saídas ainda não pagas (qualquer escopo/natureza,
+ * menos entradas), ordenadas pelo vencimento mais próximo primeiro.
+ */
+export async function listarContasAPagar(): Promise<LancamentoRow[]> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("lancamentos")
+    .select("*, categorias_financeiras(nome), contas_bancarias(nome)")
+    .neq("status", "pago")
+    .neq("natureza", "entrada_pessoal")
+    .order("data_vencimento", { ascending: true, nullsFirst: false });
+  return (data ?? []) as unknown as LancamentoRow[];
+}
+
 export interface ResumoCaixa {
   entradas: number;
   saidasPagas: number;
