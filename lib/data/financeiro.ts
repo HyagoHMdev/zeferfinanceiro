@@ -53,8 +53,9 @@ export async function listarLancamentos(filtro: {
   const rows = (data ?? []) as unknown as LancamentoRow[];
 
   // Ordenação relativa a hoje: mês atual e futuros em ordem crescente no topo;
-  // meses já passados vão para o fim (mais recente primeiro). Empate = created_at
-  // (sort estável preserva a ordem vinda do banco).
+  // meses já passados vão para o fim (mais recente primeiro). Dentro do mesmo
+  // mês, ordena por data de vencimento (mais próximo primeiro; sem data por
+  // último). Empate final = created_at (sort estável preserva a ordem do banco).
   const agora = new Date();
   const mesAtual = `${agora.getFullYear()}-${String(agora.getMonth() + 1).padStart(2, "0")}`;
   const passou = (comp: string) => comp.slice(0, 7) < mesAtual;
@@ -62,7 +63,15 @@ export async function listarLancamentos(filtro: {
     const pa = passou(a.competencia);
     const pb = passou(b.competencia);
     if (pa !== pb) return pa ? 1 : -1; // passados sempre depois
-    if (a.competencia === b.competencia) return 0;
+    if (a.competencia === b.competencia) {
+      // Mesmo mês: por vencimento crescente; lançamentos sem vencimento por último.
+      const va = a.data_vencimento ?? "";
+      const vb = b.data_vencimento ?? "";
+      if (va === vb) return 0;
+      if (!va) return 1;
+      if (!vb) return -1;
+      return va < vb ? -1 : 1;
+    }
     // futuros/atual: crescente · passados: decrescente (mais recente primeiro)
     const asc = a.competencia < b.competencia ? -1 : 1;
     return pa ? -asc : asc;
