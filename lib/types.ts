@@ -62,6 +62,8 @@ export interface Corretor {
   chave_pix: string | null;
   dados_bancarios: string | null;
   telefone: string | null;
+  creci: string | null;
+  email: string | null;
   ativo: boolean;
   created_at: string;
   updated_at: string;

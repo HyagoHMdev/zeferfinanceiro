@@ -81,6 +81,8 @@ create table public.corretores (
   chave_pix text,
   dados_bancarios text,
   telefone text,
+  creci text,
+  email text,
   ativo boolean not null default true,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
