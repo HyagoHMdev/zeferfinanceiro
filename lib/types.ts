@@ -64,6 +64,7 @@ export interface Corretor {
   telefone: string | null;
   creci: string | null;
   email: string | null;
+  cpf: string | null;
   ativo: boolean;
   created_at: string;
   updated_at: string;

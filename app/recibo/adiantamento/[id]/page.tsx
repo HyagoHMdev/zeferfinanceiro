@@ -2,9 +2,12 @@ import { notFound } from "next/navigation";
 
 import { requireProfile, STAFF_ROLES } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
-import { formatBRL, formatData } from "@/lib/format";
+import { formatBRL, formatData, valorPorExtenso } from "@/lib/format";
 import { PrintButton } from "@/components/recibo/print-button";
 import { WhatsappButton } from "@/components/recibo/whatsapp-button";
+
+const EMPRESA_NOME = "ZEFER INVESTIMENTOS IMOBILIARIOS LTDA";
+const EMPRESA_CNPJ = "55.901.792/0001-67";
 
 interface AdiantamentoRecibo {
   id: string;
@@ -12,7 +15,12 @@ interface AdiantamentoRecibo {
   data: string;
   valor: number;
   descricao: string | null;
-  corretores: { nome: string; telefone: string | null } | null;
+  corretores: {
+    nome: string;
+    telefone: string | null;
+    cpf: string | null;
+    creci: string | null;
+  } | null;
 }
 
 export default async function ReciboAdiantamentoPage({
@@ -26,7 +34,9 @@ export default async function ReciboAdiantamentoPage({
 
   const { data } = await supabase
     .from("adiantamentos")
-    .select("id, corretor_id, data, valor, descricao, corretores(nome, telefone)")
+    .select(
+      "id, corretor_id, data, valor, descricao, corretores(nome, telefone, cpf, creci)",
+    )
     .eq("id", id)
     .single();
   if (!data) notFound();
@@ -37,6 +47,8 @@ export default async function ReciboAdiantamentoPage({
   if (!ehStaff && profile.corretor_id !== adiantamento.corretor_id) notFound();
 
   const nome = adiantamento.corretores?.nome ?? "Corretor";
+  const cpf = adiantamento.corretores?.cpf?.trim() || "________________";
+  const creci = adiantamento.corretores?.creci?.trim() || "________";
 
   return (
     <div className="mx-auto max-w-3xl p-6 md:p-10 print:p-0">
@@ -51,7 +63,7 @@ export default async function ReciboAdiantamentoPage({
       </div>
 
       <div className="rounded-lg border bg-white p-8 text-zinc-900 print:border-0 print:p-0">
-        <div className="mb-6 flex items-center justify-between border-b pb-4">
+        <div className="mb-8 flex items-center justify-between border-b pb-4">
           <div>
             <div className="text-xl font-bold">Zefer Imóveis</div>
             <div className="text-sm text-zinc-500">Recibo de Adiantamento (Vale)</div>
@@ -62,27 +74,23 @@ export default async function ReciboAdiantamentoPage({
           </div>
         </div>
 
-        <p className="mb-6 text-sm leading-relaxed">
-          Recebi da <strong>Zefer Imóveis</strong> a importância de{" "}
-          <strong>{formatBRL(adiantamento.valor)}</strong> a título de
-          adiantamento
-          {adiantamento.descricao ? ` (${adiantamento.descricao})` : ""}, a ser
-          descontada das minhas comissões a receber, dando plena quitação deste
-          valor no acerto futuro.
+        <p className="text-justify text-sm leading-7">
+          Eu, <strong>{nome.toUpperCase()}</strong>, inscrito no CPF sob nº {cpf} e
+          CRECI {creci}, declaro ter recebido da empresa{" "}
+          <strong>{EMPRESA_NOME}</strong>, pessoa jurídica de direito privado,
+          inscrita no CNPJ sob nº {EMPRESA_CNPJ}, nesta data, a quantia de{" "}
+          <strong>{formatBRL(adiantamento.valor)}</strong> (
+          {valorPorExtenso(adiantamento.valor)}), a título de adiantamento.
+          Declaro ainda estar ciente e de acordo que referido valor será
+          descontado integralmente da próxima comissão que eu venha a receber. Por
+          ser verdade, firmo o presente recibo.
         </p>
 
-        <div className="mb-4">
-          <div className="text-sm font-semibold">Corretor</div>
-          <div>{nome}</div>
-        </div>
-
-        <div className="mt-6 flex justify-between border-t pt-4 text-base font-bold">
-          <span>Valor do adiantamento</span>
-          <span className="tabular-nums">{formatBRL(adiantamento.valor)}</span>
-        </div>
-
         <div className="mt-16 text-center text-sm">
-          <div className="mx-auto w-64 border-t border-zinc-400 pt-1">{nome}</div>
+          <div className="mx-auto w-72 border-t border-zinc-400 pt-1">
+            {nome.toUpperCase()}
+            <div className="text-xs text-zinc-500">CPF {cpf}</div>
+          </div>
         </div>
       </div>
     </div>

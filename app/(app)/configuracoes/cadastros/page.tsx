@@ -118,6 +118,7 @@ export default async function CadastrosPage() {
             { name: "chave_pix", label: "Chave PIX", tipo: "text" },
             { name: "dados_bancarios", label: "Dados bancários", tipo: "text" },
             { name: "telefone", label: "WhatsApp", tipo: "text" },
+            { name: "cpf", label: "CPF", tipo: "text" },
             { name: "creci", label: "CRECI", tipo: "text" },
             { name: "email", label: "E-mail", tipo: "text" },
             { name: "ativo", label: "Ativo", tipo: "switch" },
