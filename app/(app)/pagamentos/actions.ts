@@ -49,14 +49,27 @@ export async function registrarPagamento(
   }
   const vendaIds = vendas.map((v) => v.id);
 
-  // Adiantamentos ainda não vinculados, das vendas que serão pagas.
-  const { data: adiData, error: aErr } = await supabase
-    .from("adiantamentos")
-    .select("id, valor")
-    .in("venda_id", vendaIds)
-    .is("pagamento_id", null);
-  if (aErr) return { error: aErr.message };
-  const adiantamentos = (adiData ?? []) as { id: string; valor: number }[];
+  // Adiantamentos ainda não vinculados a descontar: os das vendas que serão
+  // pagas (por venda_id) + os vales avulsos do corretor (venda_id nulo).
+  const [adiVendaRes, adiAvulsoRes] = await Promise.all([
+    supabase
+      .from("adiantamentos")
+      .select("id, valor")
+      .in("venda_id", vendaIds)
+      .is("pagamento_id", null),
+    supabase
+      .from("adiantamentos")
+      .select("id, valor")
+      .eq("corretor_id", corretorId)
+      .is("venda_id", null)
+      .is("pagamento_id", null),
+  ]);
+  if (adiVendaRes.error) return { error: adiVendaRes.error.message };
+  if (adiAvulsoRes.error) return { error: adiAvulsoRes.error.message };
+  const adiantamentos = [
+    ...((adiVendaRes.data ?? []) as { id: string; valor: number }[]),
+    ...((adiAvulsoRes.data ?? []) as { id: string; valor: number }[]),
+  ];
 
   const valorBruto = round2(vendas.reduce((s, v) => s + Number(v.liquido_corretor), 0));
   const totalAdiantamentos = round2(

@@ -108,6 +108,34 @@ export async function listarPagamentosPendentes(): Promise<CorretorPendente[]> {
     });
   }
 
+  // Vales avulsos (venda_id nulo) do corretor, ainda não descontados.
+  const corretorIds = [...mapa.keys()];
+  if (corretorIds.length > 0) {
+    const { data: avulsoData } = await supabase
+      .from("adiantamentos")
+      .select("id, corretor_id, data, descricao, valor")
+      .is("venda_id", null)
+      .is("pagamento_id", null)
+      .in("corretor_id", corretorIds);
+    const avulsos = (avulsoData ?? []) as {
+      id: string;
+      corretor_id: string;
+      data: string;
+      descricao: string | null;
+      valor: number;
+    }[];
+    for (const a of avulsos) {
+      const atual = mapa.get(a.corretor_id);
+      if (!atual) continue;
+      atual.adiantamentos.push({
+        id: a.id,
+        data: a.data,
+        descricao: a.descricao ?? "Adiantamento",
+        valor: Number(a.valor),
+      });
+    }
+  }
+
   const lista = [...mapa.values()];
   for (const c of lista) {
     c.totalBruto = round2(c.comissoes.reduce((s, x) => s + x.liquidoCorretor, 0));

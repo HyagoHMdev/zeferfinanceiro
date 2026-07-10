@@ -24,6 +24,7 @@ export type OnboardingScreen =
   | "vendas-form"
   | "corretores"
   | "corretores-processar"
+  | "adiantamentos"
   | "pagamentos"
   | "entradas"
   | "financeiro-caixa"
@@ -142,6 +143,28 @@ export const ONBOARDING: Record<OnboardingScreen, OnboardingConteudo> = {
         titulo: "Líquido para pagamento",
         texto:
           "É o que o corretor tem a receber nesta venda: Líquido do corretor − adiantamentos.",
+      },
+    ],
+  },
+  adiantamentos: {
+    titulo: "Adiantamentos",
+    intro:
+      "Os vales que você adianta aos corretores. Ficam registrados aqui e são descontados quando o corretor tiver comissões a receber.",
+    topicos: [
+      {
+        titulo: "Novo adiantamento",
+        texto:
+          "Informe corretor, data, valor e uma descrição. Marque \"Recibo assinado recebido\" quando tiver o vale assinado em mãos.",
+      },
+      {
+        titulo: "Desconto automático",
+        texto:
+          "Ao registrar o pagamento do corretor em Pagamentos, estes vales entram como desconto no líquido e no recibo.",
+      },
+      {
+        titulo: "Status",
+        texto:
+          '"A descontar" = ainda não entrou num pagamento; "Descontado" = já foi abatido de uma comissão.',
       },
     ],
   },

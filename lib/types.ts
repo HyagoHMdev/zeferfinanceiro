@@ -184,6 +184,7 @@ export interface Adiantamento {
   descricao: string | null;
   observacoes: string | null;
   recibo_url: string | null;
+  recibo_ok: boolean;
   pagamento_id: string | null;
   created_at: string;
 }

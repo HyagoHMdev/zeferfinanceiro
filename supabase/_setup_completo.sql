@@ -197,6 +197,7 @@ create table public.adiantamentos (
   valor numeric(14,2) not null,
   descricao text,
   recibo_url text,
+  recibo_ok boolean not null default false,
   pagamento_id uuid references public.pagamentos_corretor (id) on delete set null,
   created_at timestamptz not null default now()
 );

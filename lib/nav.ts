@@ -4,6 +4,7 @@ import {
   Users,
   Wallet,
   HandCoins,
+  Receipt,
   Landmark,
   BarChart3,
   Settings,
@@ -51,6 +52,12 @@ export const NAV_ITEMS: NavItem[] = [
     label: "Entradas",
     href: "/entradas",
     icon: Wallet,
+    roles: ["admin", "financeiro"],
+  },
+  {
+    label: "Adiantamentos",
+    href: "/adiantamentos",
+    icon: Receipt,
     roles: ["admin", "financeiro"],
   },
   {
