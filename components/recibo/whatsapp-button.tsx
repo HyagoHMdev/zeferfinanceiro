@@ -24,16 +24,19 @@ export function WhatsappButton({
   corretorNome,
   telefone,
   valor,
+  assunto = "pagamento",
 }: {
   corretorNome: string;
   telefone?: string | null;
   valor: number;
+  /** Palavra usada na mensagem: "pagamento" (padrão) ou "adiantamento". */
+  assunto?: string;
 }) {
   function enviar() {
     const primeiroNome = corretorNome.trim().split(/\s+/)[0] ?? "";
     const saudacao = primeiroNome ? `Olá ${primeiroNome}! ` : "Olá! ";
     const mensagem =
-      `${saudacao}Segue o recibo do seu pagamento no valor de ${formatBRL(valor)}.\n\n` +
+      `${saudacao}Segue o recibo do seu ${assunto} no valor de ${formatBRL(valor)}.\n\n` +
       `Acesse aqui: ${window.location.href}`;
     const texto = encodeURIComponent(mensagem);
     const num = numeroWhatsapp(telefone);

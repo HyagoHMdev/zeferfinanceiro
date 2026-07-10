@@ -1,9 +1,10 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Pencil, Trash2, X } from "lucide-react";
+import { FileText, Pencil, Trash2, X } from "lucide-react";
 
 import { formatBRL, formatData, mesAbrev } from "@/lib/format";
 import type {
@@ -208,7 +209,21 @@ export function AdiantamentosManager({
                 </TableCell>
                 {podeEditar ? (
                   <TableCell>
-                    <div className="flex justify-end">
+                    <div className="flex items-center justify-end">
+                      <Button
+                        asChild
+                        variant="ghost"
+                        size="icon"
+                        aria-label="Recibo do adiantamento"
+                        title="Recibo (imprimir / WhatsApp)"
+                      >
+                        <Link
+                          href={`/recibo/adiantamento/${a.id}`}
+                          target="_blank"
+                        >
+                          <FileText className="size-4" />
+                        </Link>
+                      </Button>
                       <AdiantamentoFormDialog
                         corretores={corretores}
                         adiantamento={a}
