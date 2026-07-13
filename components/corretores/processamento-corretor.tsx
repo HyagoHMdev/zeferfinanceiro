@@ -4,7 +4,7 @@ import * as React from "react";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Loader2, Plus } from "lucide-react";
+import { Loader2, Plus, Check } from "lucide-react";
 
 import { calcularVenda, resumoCorretor, round2 } from "@/lib/calculos";
 import {
@@ -24,7 +24,6 @@ import type { ProcessamentoVenda } from "@/lib/data/corretores";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ResumoLinha } from "@/components/resumo-linha";
 import {
@@ -60,15 +59,20 @@ export function ProcessamentoCorretor({
     ...dados.adiantamentosDisponiveis.map((a) => ({ ...a, incluido: false })),
   ];
 
+  const [busyAdiantamento, setBusyAdiantamento] = useState<string | null>(null);
+
   async function toggleIncluir(id: string, incluir: boolean) {
+    setBusyAdiantamento(id);
     const res = incluir
       ? await vincularAdiantamento(id, venda.id)
       : await desvincularAdiantamento(id, venda.id);
     if (res?.error) {
       toast.error("Erro ao atualizar", { description: res.error });
+      setBusyAdiantamento(null);
       return;
     }
     router.refresh();
+    setBusyAdiantamento(null);
   }
 
   const [pctCorretor, setPctCorretor] = useState(
@@ -232,7 +236,7 @@ export function ProcessamentoCorretor({
               <Table>
                 <TableHeader>
                   <TableRow>
-                    {podeEditar ? <TableHead className="w-20">Descontar</TableHead> : null}
+                    {podeEditar ? <TableHead className="w-36">Descontar</TableHead> : null}
                     <TableHead>Data</TableHead>
                     <TableHead>Descrição</TableHead>
                     <TableHead className="text-right">Valor</TableHead>
@@ -240,14 +244,28 @@ export function ProcessamentoCorretor({
                 </TableHeader>
                 <TableBody>
                   {linhasAdiantamento.map((a) => (
-                    <TableRow key={a.id} className={a.incluido ? "" : "opacity-60"}>
+                    <TableRow key={a.id} className={a.incluido ? "" : "opacity-70"}>
                       {podeEditar ? (
                         <TableCell>
-                          <Checkbox
-                            checked={a.incluido}
-                            onCheckedChange={(v) => toggleIncluir(a.id, v === true)}
-                            aria-label="Descontar nesta venda"
-                          />
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant={a.incluido ? "default" : "outline"}
+                            className={
+                              a.incluido
+                                ? "w-32 bg-success text-white hover:bg-success/90"
+                                : "w-32"
+                            }
+                            disabled={busyAdiantamento === a.id}
+                            onClick={() => toggleIncluir(a.id, !a.incluido)}
+                          >
+                            {busyAdiantamento === a.id ? (
+                              <Loader2 className="size-4 animate-spin" />
+                            ) : a.incluido ? (
+                              <Check className="size-4" />
+                            ) : null}
+                            {a.incluido ? "Descontando" : "Incluir"}
+                          </Button>
                         </TableCell>
                       ) : null}
                       <TableCell className="whitespace-nowrap">
