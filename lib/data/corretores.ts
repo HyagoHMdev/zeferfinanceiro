@@ -63,6 +63,8 @@ export interface VendaComNomes extends Venda {
 export interface ProcessamentoVenda {
   venda: VendaComNomes;
   adiantamentos: Adiantamento[];
+  /** Vales avulsos do corretor (não vinculados a venda, ainda não descontados). */
+  adiantamentosDisponiveis: Adiantamento[];
   totalAdiantamentos: number;
   liquidoParaPagamento: number;
 }
@@ -89,6 +91,21 @@ export async function carregarProcessamentoVenda(
   if (!vRes.data) return null;
   const venda = vRes.data as unknown as VendaComNomes;
   const adiantamentos = (aRes.data ?? []) as Adiantamento[];
+
+  // Vales avulsos do corretor (venda_id nulo, ainda não descontados), para
+  // o usuário incluir ou não nesta venda.
+  let adiantamentosDisponiveis: Adiantamento[] = [];
+  if (venda.corretor_id) {
+    const { data } = await supabase
+      .from("adiantamentos")
+      .select("*")
+      .eq("corretor_id", venda.corretor_id)
+      .is("venda_id", null)
+      .is("pagamento_id", null)
+      .order("data", { ascending: false });
+    adiantamentosDisponiveis = (data ?? []) as Adiantamento[];
+  }
+
   const totalAdiantamentos = round2(
     adiantamentos.reduce((s, a) => s + Number(a.valor), 0),
   );
@@ -97,5 +114,11 @@ export async function carregarProcessamentoVenda(
     totalAdiantamentos,
   );
 
-  return { venda, adiantamentos, totalAdiantamentos, liquidoParaPagamento };
+  return {
+    venda,
+    adiantamentos,
+    adiantamentosDisponiveis,
+    totalAdiantamentos,
+    liquidoParaPagamento,
+  };
 }

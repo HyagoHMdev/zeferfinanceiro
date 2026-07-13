@@ -127,3 +127,41 @@ export async function excluirAdiantamento(
   revalidar(vendaId);
   return {};
 }
+
+/** Inclui um vale avulso nesta venda (passa a descontar da comissão). */
+export async function vincularAdiantamento(
+  id: string,
+  vendaId: string,
+): Promise<ActionResult> {
+  await requireRole(ADMIN_FIN_ROLES);
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("adiantamentos")
+    .update({ venda_id: vendaId })
+    .eq("id", id)
+    .is("pagamento_id", null);
+  if (error) return { error: error.message };
+
+  revalidar(vendaId);
+  revalidatePath("/adiantamentos");
+  return {};
+}
+
+/** Remove o vale desta venda (volta a ser um vale avulso do corretor). */
+export async function desvincularAdiantamento(
+  id: string,
+  vendaId: string,
+): Promise<ActionResult> {
+  await requireRole(ADMIN_FIN_ROLES);
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("adiantamentos")
+    .update({ venda_id: null })
+    .eq("id", id)
+    .is("pagamento_id", null);
+  if (error) return { error: error.message };
+
+  revalidar(vendaId);
+  revalidatePath("/adiantamentos");
+  return {};
+}

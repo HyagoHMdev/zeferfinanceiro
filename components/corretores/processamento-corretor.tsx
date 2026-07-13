@@ -4,7 +4,7 @@ import * as React from "react";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Loader2, Plus, Trash2 } from "lucide-react";
+import { Loader2, Plus } from "lucide-react";
 
 import { calcularVenda, resumoCorretor, round2 } from "@/lib/calculos";
 import {
@@ -17,12 +17,14 @@ import {
 import {
   salvarCorretorVenda,
   registrarAdiantamento,
-  excluirAdiantamento,
+  vincularAdiantamento,
+  desvincularAdiantamento,
 } from "@/app/(app)/corretores/actions";
 import type { ProcessamentoVenda } from "@/lib/data/corretores";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ResumoLinha } from "@/components/resumo-linha";
 import {
@@ -51,6 +53,23 @@ export function ProcessamentoCorretor({
 }) {
   const router = useRouter();
   const { venda, adiantamentos } = dados;
+
+  // Vales do corretor: os desta venda (incluídos) + os avulsos disponíveis.
+  const linhasAdiantamento = [
+    ...adiantamentos.map((a) => ({ ...a, incluido: true })),
+    ...dados.adiantamentosDisponiveis.map((a) => ({ ...a, incluido: false })),
+  ];
+
+  async function toggleIncluir(id: string, incluir: boolean) {
+    const res = incluir
+      ? await vincularAdiantamento(id, venda.id)
+      : await desvincularAdiantamento(id, venda.id);
+    if (res?.error) {
+      toast.error("Erro ao atualizar", { description: res.error });
+      return;
+    }
+    router.refresh();
+  }
 
   const [pctCorretor, setPctCorretor] = useState(
     fracaoParaInputPct(Number(venda.percentual_corretor)),
@@ -198,47 +217,58 @@ export function ProcessamentoCorretor({
             ) : null}
           </CardHeader>
           <CardContent className="px-0">
-            {adiantamentos.length === 0 ? (
+            {podeEditar ? (
+              <p className="px-6 pb-2 text-xs text-muted-foreground">
+                Marque os vales que devem ser descontados desta comissão. Vales
+                sem marcação continuam disponíveis para outra venda.
+              </p>
+            ) : null}
+            {linhasAdiantamento.length === 0 ? (
               <div className="py-6 text-center text-sm text-muted-foreground">
-                Nenhum adiantamento.
+                Nenhum vale para este corretor. Cadastre em Adiantamentos ou use
+                &quot;+ Adiantamento&quot;.
               </div>
             ) : (
               <Table>
                 <TableHeader>
                   <TableRow>
+                    {podeEditar ? <TableHead className="w-20">Descontar</TableHead> : null}
                     <TableHead>Data</TableHead>
                     <TableHead>Descrição</TableHead>
-                    <TableHead>Observações</TableHead>
                     <TableHead className="text-right">Valor</TableHead>
-                    {podeEditar ? <TableHead></TableHead> : null}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {adiantamentos.map((a) => (
-                    <TableRow key={a.id}>
+                  {linhasAdiantamento.map((a) => (
+                    <TableRow key={a.id} className={a.incluido ? "" : "opacity-60"}>
+                      {podeEditar ? (
+                        <TableCell>
+                          <Checkbox
+                            checked={a.incluido}
+                            onCheckedChange={(v) => toggleIncluir(a.id, v === true)}
+                            aria-label="Descontar nesta venda"
+                          />
+                        </TableCell>
+                      ) : null}
                       <TableCell className="whitespace-nowrap">
                         {formatData(a.data)}
                       </TableCell>
                       <TableCell>{a.descricao ?? "—"}</TableCell>
-                      <TableCell>{a.observacoes ?? "—"}</TableCell>
                       <TableCell className="text-right tabular-nums">
                         {formatBRL(a.valor)}
                       </TableCell>
-                      {podeEditar ? (
-                        <TableCell className="text-right">
-                          <AdiantamentoDelete id={a.id} vendaId={venda.id} />
-                        </TableCell>
-                      ) : null}
                     </TableRow>
                   ))}
                   <TableRow>
-                    <TableCell colSpan={3} className="font-medium">
-                      Total
+                    <TableCell
+                      colSpan={podeEditar ? 3 : 2}
+                      className="font-medium"
+                    >
+                      Total descontado
                     </TableCell>
                     <TableCell className="text-right font-medium tabular-nums">
                       {formatBRL(totalAdiantamentos)}
                     </TableCell>
-                    {podeEditar ? <TableCell></TableCell> : null}
                   </TableRow>
                 </TableBody>
               </Table>
@@ -392,27 +422,3 @@ function AdiantamentoDialog({
   );
 }
 
-function AdiantamentoDelete({ id, vendaId }: { id: string; vendaId: string }) {
-  const router = useRouter();
-  const [busy, setBusy] = useState(false);
-  async function remover() {
-    setBusy(true);
-    const res = await excluirAdiantamento(id, vendaId);
-    setBusy(false);
-    if (res?.error) {
-      toast.error("Erro ao remover", { description: res.error });
-      return;
-    }
-    toast.success("Removido");
-    router.refresh();
-  }
-  return (
-    <Button variant="ghost" size="icon" onClick={remover} disabled={busy} aria-label="Remover">
-      {busy ? (
-        <Loader2 className="size-4 animate-spin" />
-      ) : (
-        <Trash2 className="size-4 text-destructive" />
-      )}
-    </Button>
-  );
-}
