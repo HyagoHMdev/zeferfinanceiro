@@ -59,20 +59,25 @@ export function ProcessamentoCorretor({
     ...dados.adiantamentosDisponiveis.map((a) => ({ ...a, incluido: false })),
   ];
 
+  // Estado otimista: reflete o clique na hora, sem esperar o refresh.
+  const [incluidoOverride, setIncluidoOverride] = useState<Record<string, boolean>>({});
   const [busyAdiantamento, setBusyAdiantamento] = useState<string | null>(null);
+  const estaIncluido = (a: { id: string; incluido: boolean }) =>
+    incluidoOverride[a.id] ?? a.incluido;
 
   async function toggleIncluir(id: string, incluir: boolean) {
+    setIncluidoOverride((o) => ({ ...o, [id]: incluir })); // otimista
     setBusyAdiantamento(id);
     const res = incluir
       ? await vincularAdiantamento(id, venda.id)
       : await desvincularAdiantamento(id, venda.id);
+    setBusyAdiantamento(null);
     if (res?.error) {
       toast.error("Erro ao atualizar", { description: res.error });
-      setBusyAdiantamento(null);
+      setIncluidoOverride((o) => ({ ...o, [id]: !incluir })); // reverte
       return;
     }
     router.refresh();
-    setBusyAdiantamento(null);
   }
 
   const [pctCorretor, setPctCorretor] = useState(
@@ -100,7 +105,9 @@ export function ProcessamentoCorretor({
   });
 
   const totalAdiantamentos = round2(
-    adiantamentos.reduce((s, a) => s + Number(a.valor), 0),
+    linhasAdiantamento
+      .filter((a) => estaIncluido(a))
+      .reduce((s, a) => s + Number(a.valor), 0),
   );
   const liquidoPagamento = resumoCorretor(calc.liquidoCorretor, totalAdiantamentos);
 
@@ -243,28 +250,30 @@ export function ProcessamentoCorretor({
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {linhasAdiantamento.map((a) => (
-                    <TableRow key={a.id} className={a.incluido ? "" : "opacity-70"}>
+                  {linhasAdiantamento.map((a) => {
+                    const incluido = estaIncluido(a);
+                    return (
+                    <TableRow key={a.id} className={incluido ? "" : "opacity-70"}>
                       {podeEditar ? (
                         <TableCell>
                           <Button
                             type="button"
                             size="sm"
-                            variant={a.incluido ? "default" : "outline"}
+                            variant={incluido ? "default" : "outline"}
                             className={
-                              a.incluido
+                              incluido
                                 ? "w-32 bg-success text-white hover:bg-success/90"
                                 : "w-32"
                             }
                             disabled={busyAdiantamento === a.id}
-                            onClick={() => toggleIncluir(a.id, !a.incluido)}
+                            onClick={() => toggleIncluir(a.id, !incluido)}
                           >
                             {busyAdiantamento === a.id ? (
                               <Loader2 className="size-4 animate-spin" />
-                            ) : a.incluido ? (
+                            ) : incluido ? (
                               <Check className="size-4" />
                             ) : null}
-                            {a.incluido ? "Descontando" : "Incluir"}
+                            {incluido ? "Descontando" : "Incluir"}
                           </Button>
                         </TableCell>
                       ) : null}
@@ -276,7 +285,8 @@ export function ProcessamentoCorretor({
                         {formatBRL(a.valor)}
                       </TableCell>
                     </TableRow>
-                  ))}
+                    );
+                  })}
                   <TableRow>
                     <TableCell
                       colSpan={podeEditar ? 3 : 2}
