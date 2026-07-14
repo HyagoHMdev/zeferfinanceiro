@@ -141,7 +141,7 @@ export async function carregarCaixa(opts?: {
   const mesesSet = new Set<string>();
   for (const d of dist) if (d.entradas?.data) mesesSet.add(d.entradas.data.slice(0, 7));
   for (const l of lanc) mesesSet.add(l.competencia.slice(0, 7));
-  const meses = [...mesesSet].sort((a, b) => b.localeCompare(a));
+  const meses = [...mesesSet].sort((a, b) => a.localeCompare(b));
 
   // Filtro por mês: "movimento" pega só o mês; "acumulado" pega tudo até ele.
   // Mês inexistente é ignorado (equivale a "todos os meses").

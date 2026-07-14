@@ -81,7 +81,8 @@ export function LancamentosTable({
   const mesesOpts = useMemo(() => {
     const s = new Set<string>();
     for (const l of lancamentos) s.add(l.competencia.slice(0, 7));
-    return [...s].sort((a, b) => b.localeCompare(a));
+    // Crescente: começa dos meses mais antigos/atuais e segue pra frente.
+    return [...s].sort((a, b) => a.localeCompare(b));
   }, [lancamentos]);
 
   const filtrados = useMemo(
