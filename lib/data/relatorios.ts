@@ -122,8 +122,11 @@ export interface DRE {
   receitaLiquida: number;
   comissaoCorretores: number;
   lucroBruto: number;
+  /** Entradas que não são comissão (bonificação, premiação, investidor, outras). */
+  outrasEntradas: number;
   despesasFixas: number;
   despesasVariaveis: number;
+  investimentos: number;
   lucroLiquido: number;
 }
 
@@ -162,6 +165,22 @@ export async function relatorioDRE(ano: number): Promise<DRE> {
       .filter((l) => l.natureza === "despesa_variavel" && noAno(l.competencia))
       .reduce((s, l) => s + Number(l.valor), 0),
   );
+  const investimentos = round2(
+    lancamentos
+      .filter((l) => l.natureza === "investimento" && noAno(l.competencia))
+      .reduce((s, l) => s + Number(l.valor), 0),
+  );
+
+  // Demais entradas do ano (todas menos comissão, que já entra pela cadeia das
+  // vendas acima — evita dupla contagem).
+  const { data: entradasData } = await supabase
+    .from("entradas")
+    .select("data, valor, tipo");
+  const outrasEntradas = round2(
+    ((entradasData ?? []) as { data: string; valor: number; tipo: string }[])
+      .filter((e) => e.tipo !== "comissao" && noAno(e.data))
+      .reduce((s, e) => s + Number(e.valor), 0),
+  );
 
   return {
     ano,
@@ -171,8 +190,16 @@ export async function relatorioDRE(ano: number): Promise<DRE> {
     receitaLiquida,
     comissaoCorretores,
     lucroBruto,
+    outrasEntradas,
     despesasFixas,
     despesasVariaveis,
-    lucroLiquido: round2(lucroBruto - despesasFixas - despesasVariaveis),
+    investimentos,
+    lucroLiquido: round2(
+      lucroBruto +
+        outrasEntradas -
+        despesasFixas -
+        despesasVariaveis -
+        investimentos,
+    ),
   };
 }

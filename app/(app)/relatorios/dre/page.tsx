@@ -53,8 +53,10 @@ export default async function DREPage() {
           <Linha label="Receita Líquida" valor={dre.receitaLiquida} tipo="subtotal" />
           <Linha label="(−) Comissão Corretores" valor={-dre.comissaoCorretores} nivel={1} />
           <Linha label="Lucro Bruto" valor={dre.lucroBruto} tipo="subtotal" />
+          <Linha label="(+) Outras Entradas" valor={dre.outrasEntradas} nivel={1} />
           <Linha label="(−) Despesas Fixas" valor={-dre.despesasFixas} nivel={1} />
           <Linha label="(−) Despesas Variáveis" valor={-dre.despesasVariaveis} nivel={1} />
+          <Linha label="(−) Investimentos" valor={-dre.investimentos} nivel={1} />
           <Linha label="Lucro Líquido" valor={dre.lucroLiquido} tipo="total" />
         </CardContent>
       </Card>
