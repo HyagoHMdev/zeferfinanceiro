@@ -634,6 +634,29 @@ alter table public.adiantamentos
   add column if not exists observacoes text;
 create index if not exists idx_adiantamentos_venda on public.adiantamentos (venda_id);
 
+-- ---- Adiantamento espelhado como despesa variável (0012/0013) ---------------
+alter table public.adiantamentos
+  add column if not exists lancamento_id uuid references public.lancamentos (id) on delete set null;
+
+create or replace function public.excluir_despesa_do_adiantamento()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if old.lancamento_id is not null then
+    delete from public.lancamentos where id = old.lancamento_id;
+  end if;
+  return old;
+end;
+$$;
+
+drop trigger if exists trg_adiantamento_delete_despesa on public.adiantamentos;
+create trigger trg_adiantamento_delete_despesa
+  after delete on public.adiantamentos
+  for each row execute function public.excluir_despesa_do_adiantamento();
+
 -- ---- Configurações: remover distribuição global ----------------------------
 alter table public.configuracoes
   drop column if exists percentual_distribuicao_empresa,
@@ -697,6 +720,7 @@ insert into public.categorias_financeiras (nome, tipo) values
   ('Marketing',        'despesa_variavel'),
   ('Estrutura',        'despesa_variavel'),
   ('Compras',          'despesa_variavel'),
+  ('Adiantamentos',    'despesa_variavel'),
   ('Outros',           'despesa_variavel'),
   ('Equipamentos',     'investimento'),
   ('Reforma',          'investimento'),

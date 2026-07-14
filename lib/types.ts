@@ -187,6 +187,8 @@ export interface Adiantamento {
   recibo_url: string | null;
   recibo_ok: boolean;
   pagamento_id: string | null;
+  /** Lançamento espelho (despesa variável da empresa) gerado ao cadastrar. */
+  lancamento_id: string | null;
   created_at: string;
 }
 

@@ -6,6 +6,7 @@ import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { requireRole, ADMIN_FIN_ROLES } from "@/lib/auth";
 import { calcularVenda } from "@/lib/calculos";
+import { criarLancamentoEspelho } from "@/lib/adiantamento-despesa";
 import type { StatusPagamentoCorretor } from "@/lib/types";
 
 type ActionResult = { error?: string };
@@ -108,10 +109,22 @@ export async function registrarAdiantamento(
   if (!parsed.success) return { error: "Dados inválidos." };
 
   const supabase = await createClient();
-  const { error } = await supabase.from("adiantamentos").insert(parsed.data);
-  if (error) return { error: error.message };
+
+  // Espelha como despesa variável da empresa (atômico: lançamento primeiro,
+  // adiantamento já vinculado; compensa se o adiantamento falhar).
+  const espelho = await criarLancamentoEspelho(supabase, parsed.data);
+  if (espelho.error) return { error: espelho.error };
+
+  const { error } = await supabase
+    .from("adiantamentos")
+    .insert({ ...parsed.data, lancamento_id: espelho.id });
+  if (error) {
+    await supabase.from("lancamentos").delete().eq("id", espelho.id!);
+    return { error: error.message };
+  }
 
   revalidar(parsed.data.venda_id);
+  revalidatePath("/financeiro", "layout");
   return {};
 }
 
@@ -121,10 +134,12 @@ export async function excluirAdiantamento(
 ): Promise<ActionResult> {
   await requireRole(ADMIN_FIN_ROLES);
   const supabase = await createClient();
+  // O trigger no banco apaga o lançamento-espelho junto.
   const { error } = await supabase.from("adiantamentos").delete().eq("id", id);
   if (error) return { error: error.message };
 
   revalidar(vendaId);
+  revalidatePath("/financeiro", "layout");
   return {};
 }
 
