@@ -15,13 +15,12 @@ import { AdiantamentoFormDialog } from "@/components/adiantamentos/adiantamento-
 import { AdiantamentosManager } from "@/components/adiantamentos/adiantamentos-manager";
 
 export default async function AdiantamentosPage() {
-  const { profile } = await requireRole(STAFF_ROLES);
-  const podeEditar = ADMIN_FIN_ROLES.includes(profile.role);
-
-  const [adiantamentos, corretores] = await Promise.all([
+  const [{ profile }, adiantamentos, corretores] = await Promise.all([
+    requireRole(STAFF_ROLES),
     listarAdiantamentosAvulsos(),
     listarCorretoresAtivos(),
   ]);
+  const podeEditar = ADMIN_FIN_ROLES.includes(profile.role);
 
   const aDescontar = round2(
     adiantamentos.filter((a) => !a.descontado).reduce((s, a) => s + a.valor, 0),

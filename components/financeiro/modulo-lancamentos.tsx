@@ -26,13 +26,13 @@ export async function ModuloLancamentos({
   naturezas: LancamentoNatureza[];
   naturezaFixaCriar?: LancamentoNatureza;
 }) {
-  const { profile } = await requireRole(STAFF_ROLES);
-  const podeEditar = ADMIN_FIN_ROLES.includes(profile.role);
-
-  const [lancamentos, cadastros] = await Promise.all([
+  // Auth e dados em paralelo (os dados não dependem do papel; RLS protege).
+  const [{ profile }, lancamentos, cadastros] = await Promise.all([
+    requireRole(STAFF_ROLES),
     listarLancamentos({ escopo, naturezas }),
     carregarCadastrosLancamento(),
   ]);
+  const podeEditar = ADMIN_FIN_ROLES.includes(profile.role);
 
   return (
     <div>

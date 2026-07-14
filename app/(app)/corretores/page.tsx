@@ -23,10 +23,11 @@ import {
 } from "@/components/ui/table";
 
 export default async function CorretoresPage() {
-  const { profile } = await requireRole(STAFF_ROLES);
+  const [{ profile }, comissoes] = await Promise.all([
+    requireRole(STAFF_ROLES),
+    listarComissoesCorretor(),
+  ]);
   const podeEditar = ADMIN_FIN_ROLES.includes(profile.role);
-
-  const comissoes = await listarComissoesCorretor();
   const totalGeral = round2(comissoes.reduce((s, c) => s + c.liquidoCorretor, 0));
   const pendente = round2(
     comissoes

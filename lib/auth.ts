@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { redirect } from "next/navigation";
 
 import { createClient } from "@/lib/supabase/server";
@@ -9,23 +10,35 @@ export interface SessionProfile {
   profile: Profile;
 }
 
-/** Retorna o usuário autenticado e seu perfil, ou null se não houver sessão. */
-export async function getSessionProfile(): Promise<SessionProfile | null> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return null;
+/**
+ * Retorna o usuário autenticado e seu perfil, ou null se não houver sessão.
+ * Memoizado por request com React cache(): o layout, o layout aninhado e a page
+ * chamam requireProfile/requireRole no mesmo render — sem isso seriam N chamadas
+ * sequenciais de getUser() + query de profile (cada uma um round-trip de rede).
+ * cache() é escopado por request (não vaza entre usuários) e não altera a validação.
+ */
+export const getSessionProfile = cache(
+  async (): Promise<SessionProfile | null> => {
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) return null;
 
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("*")
-    .eq("id", user.id)
-    .single();
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("*")
+      .eq("id", user.id)
+      .single();
 
-  if (!profile) return null;
-  return { userId: user.id, email: user.email ?? "", profile: profile as Profile };
-}
+    if (!profile) return null;
+    return {
+      userId: user.id,
+      email: user.email ?? "",
+      profile: profile as Profile,
+    };
+  },
+);
 
 /** Garante que há sessão; caso contrário redireciona para /login. */
 export async function requireProfile(): Promise<SessionProfile> {

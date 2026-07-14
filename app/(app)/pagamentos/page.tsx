@@ -24,9 +24,8 @@ import { RegistrarPagamentoDialog } from "@/components/pagamentos/registrar-paga
 import { EstornarPagamentoButton } from "@/components/pagamentos/estornar-pagamento-button";
 
 export default async function PagamentosPage() {
-  await requireRole(ADMIN_FIN_ROLES);
-
-  const [pendentes, realizados] = await Promise.all([
+  const [, pendentes, realizados] = await Promise.all([
+    requireRole(ADMIN_FIN_ROLES),
     listarPagamentosPendentes(),
     listarPagamentosRealizados(),
   ]);

@@ -18,12 +18,14 @@ export default async function DashboardPage({
 }: {
   searchParams: Promise<{ ano?: string; mes?: string }>;
 }) {
-  await requireRole(STAFF_ROLES);
   const { ano: anoParam, mes: mesParam } = await searchParams;
-  const d = await carregarDashboard({
-    ano: anoParam ? Number(anoParam) : undefined,
-    mes: mesParam ? Number(mesParam) : undefined,
-  });
+  const [, d] = await Promise.all([
+    requireRole(STAFF_ROLES),
+    carregarDashboard({
+      ano: anoParam ? Number(anoParam) : undefined,
+      mes: mesParam ? Number(mesParam) : undefined,
+    }),
+  ]);
 
   const periodo = d.mes ? `${MESES[d.mes - 1]}/${d.ano}` : String(d.ano);
 

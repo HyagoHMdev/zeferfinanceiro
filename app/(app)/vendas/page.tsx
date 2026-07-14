@@ -37,16 +37,17 @@ interface VendaRow {
 }
 
 export default async function VendasPage() {
-  const { profile } = await requireRole(STAFF_ROLES);
-  const podeEditar = ADMIN_FIN_ROLES.includes(profile.role);
-
   const supabase = await createClient();
-  const { data } = await supabase
-    .from("vendas")
-    .select(
-      "id, data_venda, unidade, cliente, vgv, liquido_zefer, liquido_corretor, lucro_liquido, status, construtoras(nome), empreendimentos(nome), corretores(nome)",
-    )
-    .order("data_venda", { ascending: false });
+  const [{ profile }, { data }] = await Promise.all([
+    requireRole(STAFF_ROLES),
+    supabase
+      .from("vendas")
+      .select(
+        "id, data_venda, unidade, cliente, vgv, liquido_zefer, liquido_corretor, lucro_liquido, status, construtoras(nome), empreendimentos(nome), corretores(nome)",
+      )
+      .order("data_venda", { ascending: false }),
+  ]);
+  const podeEditar = ADMIN_FIN_ROLES.includes(profile.role);
 
   const vendas = (data ?? []) as unknown as VendaRow[];
   const totalVgv = vendas.reduce((s, v) => s + Number(v.vgv), 0);

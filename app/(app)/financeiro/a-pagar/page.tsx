@@ -12,13 +12,12 @@ import { Card, CardContent } from "@/components/ui/card";
 import { ContasAPagarTable } from "@/components/financeiro/contas-a-pagar-table";
 
 export default async function APagarPage() {
-  const { profile } = await requireRole(STAFF_ROLES);
-  const podeEditar = ADMIN_FIN_ROLES.includes(profile.role);
-
-  const [lancamentos, cadastros] = await Promise.all([
+  const [{ profile }, lancamentos, cadastros] = await Promise.all([
+    requireRole(STAFF_ROLES),
     listarContasAPagar(),
     carregarCadastrosLancamento(),
   ]);
+  const podeEditar = ADMIN_FIN_ROLES.includes(profile.role);
 
   const totalAPagar = round2(lancamentos.reduce((s, l) => s + Number(l.valor), 0));
   const vencido = round2(

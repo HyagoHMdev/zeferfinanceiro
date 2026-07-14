@@ -26,25 +26,25 @@ interface VendaDispRow {
 }
 
 export default async function EntradasPage() {
-  const { profile } = await requireRole(STAFF_ROLES);
-  const podeEditar = ADMIN_FIN_ROLES.includes(profile.role);
-
   const supabase = await createClient();
-  const [config, entradasRes, vendasRes, percentuaisRes] = await Promise.all([
-    getConfig(),
-    supabase
-      .from("entradas")
-      .select(
-        "*, distribuicoes(destino, valor, percentual), vendas(comissao_bruta, liquido_zefer, lucro_liquido)",
-      )
-      .order("data", { ascending: false }),
-    supabase
-      .from("vendas")
-      .select("id, cliente, lucro_liquido, empreendimentos(nome)")
-      .eq("status", "aguardando_recebimento")
-      .order("data_venda", { ascending: false }),
-    supabase.from("percentuais_mensais").select("*"),
-  ]);
+  const [{ profile }, config, entradasRes, vendasRes, percentuaisRes] =
+    await Promise.all([
+      requireRole(STAFF_ROLES),
+      getConfig(),
+      supabase
+        .from("entradas")
+        .select(
+          "*, distribuicoes(destino, valor, percentual), vendas(comissao_bruta, liquido_zefer, lucro_liquido)",
+        )
+        .order("data", { ascending: false }),
+      supabase
+        .from("vendas")
+        .select("id, cliente, lucro_liquido, empreendimentos(nome)")
+        .eq("status", "aguardando_recebimento")
+        .order("data_venda", { ascending: false }),
+      supabase.from("percentuais_mensais").select("*"),
+    ]);
+  const podeEditar = ADMIN_FIN_ROLES.includes(profile.role);
 
   const entradas = (entradasRes.data ?? []) as unknown as EntradaRow[];
   const vendasDisp = (vendasRes.data ?? []) as unknown as VendaDispRow[];
