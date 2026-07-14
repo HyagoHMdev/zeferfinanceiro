@@ -6,6 +6,7 @@ import {
   listarPagamentosPendentes,
   listarPagamentosRealizados,
 } from "@/lib/data/pagamentos";
+import { salvarReciboPagamento } from "@/app/(app)/pagamentos/actions";
 import { round2 } from "@/lib/calculos";
 import { formatBRL, formatData } from "@/lib/format";
 import { PageHeader } from "@/components/page-header";
@@ -22,6 +23,7 @@ import {
 } from "@/components/ui/table";
 import { RegistrarPagamentoDialog } from "@/components/pagamentos/registrar-pagamento-dialog";
 import { EstornarPagamentoButton } from "@/components/pagamentos/estornar-pagamento-button";
+import { ReciboAssinado } from "@/components/recibo/recibo-assinado";
 
 export default async function PagamentosPage() {
   const [, pendentes, realizados] = await Promise.all([
@@ -147,7 +149,7 @@ export default async function PagamentosPage() {
                       {formatBRL(p.valorLiquido)}
                     </TableCell>
                     <TableCell className="text-right">
-                      <div className="flex items-center justify-end gap-1">
+                      <div className="flex items-center justify-end gap-2">
                         <Link
                           href={`/recibo/pagamento/${p.id}`}
                           target="_blank"
@@ -156,6 +158,11 @@ export default async function PagamentosPage() {
                           <FileText className="size-4" />
                           Recibo
                         </Link>
+                        <ReciboAssinado
+                          id={p.id}
+                          value={p.reciboUrl}
+                          salvar={salvarReciboPagamento}
+                        />
                         <EstornarPagamentoButton pagamentoId={p.id} />
                       </div>
                     </TableCell>

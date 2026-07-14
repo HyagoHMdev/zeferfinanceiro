@@ -14,7 +14,9 @@ import type {
 import {
   alternarReciboOk,
   excluirAdiantamentoAvulso,
+  salvarReciboAdiantamento,
 } from "@/app/(app)/adiantamentos/actions";
+import { ReciboAssinado } from "@/components/recibo/recibo-assinado";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -209,7 +211,12 @@ export function AdiantamentosManager({
                 </TableCell>
                 {podeEditar ? (
                   <TableCell>
-                    <div className="flex items-center justify-end">
+                    <div className="flex items-center justify-end gap-1">
+                      <ReciboAssinado
+                        id={a.id}
+                        value={a.reciboUrl}
+                        salvar={salvarReciboAdiantamento}
+                      />
                       <Button
                         asChild
                         variant="ghost"

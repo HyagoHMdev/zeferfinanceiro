@@ -117,6 +117,23 @@ export async function registrarPagamento(
   return { pagamentoId: pag.id };
 }
 
+/** Salva (ou remove) o arquivo do recibo assinado de um pagamento. */
+export async function salvarReciboPagamento(
+  id: string,
+  url: string | null,
+): Promise<ActionResult> {
+  await requireRole(ADMIN_FIN_ROLES);
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("pagamentos_corretor")
+    .update({ recibo_url: url })
+    .eq("id", id);
+  if (error) return { error: error.message };
+
+  revalidar();
+  return {};
+}
+
 const estornarSchema = z.object({ pagamentoId: z.string().uuid() });
 
 /**

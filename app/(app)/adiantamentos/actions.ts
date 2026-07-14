@@ -84,6 +84,27 @@ export async function atualizarAdiantamento(
   return {};
 }
 
+/** Salva (ou remove) o arquivo do recibo assinado do adiantamento. */
+export async function salvarReciboAdiantamento(
+  id: string,
+  url: string | null,
+): Promise<ActionResult> {
+  await requireRole(ADMIN_FIN_ROLES);
+  const supabase = await createClient();
+  const patch: { recibo_url: string | null; recibo_ok?: boolean } = {
+    recibo_url: url,
+  };
+  if (url) patch.recibo_ok = true; // anexar o assinado marca como recebido
+  const { error } = await supabase
+    .from("adiantamentos")
+    .update(patch)
+    .eq("id", id);
+  if (error) return { error: error.message };
+
+  revalidar();
+  return {};
+}
+
 export async function alternarReciboOk(
   id: string,
   reciboOk: boolean,

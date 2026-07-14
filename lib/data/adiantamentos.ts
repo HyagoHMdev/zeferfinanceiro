@@ -9,6 +9,8 @@ export interface AdiantamentoAvulsoRow {
   valor: number;
   descricao: string | null;
   reciboOk: boolean;
+  /** Arquivo do recibo assinado (upload), se houver. */
+  reciboUrl: string | null;
   /** Já foi descontado num pagamento (pagamento_id preenchido). */
   descontado: boolean;
 }
@@ -19,7 +21,7 @@ export async function listarAdiantamentosAvulsos(): Promise<AdiantamentoAvulsoRo
   const { data } = await supabase
     .from("adiantamentos")
     .select(
-      "id, corretor_id, data, valor, descricao, recibo_ok, pagamento_id, corretores(nome)",
+      "id, corretor_id, data, valor, descricao, recibo_ok, recibo_url, pagamento_id, corretores(nome)",
     )
     .is("venda_id", null)
     .order("data", { ascending: false });
@@ -31,6 +33,7 @@ export async function listarAdiantamentosAvulsos(): Promise<AdiantamentoAvulsoRo
     valor: number;
     descricao: string | null;
     recibo_ok: boolean;
+    recibo_url: string | null;
     pagamento_id: string | null;
     corretores: { nome: string } | null;
   }[];
@@ -43,6 +46,7 @@ export async function listarAdiantamentosAvulsos(): Promise<AdiantamentoAvulsoRo
     valor: Number(r.valor),
     descricao: r.descricao,
     reciboOk: r.recibo_ok,
+    reciboUrl: r.recibo_url,
     descontado: r.pagamento_id != null,
   }));
 }
