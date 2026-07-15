@@ -1,7 +1,6 @@
 import { notFound } from "next/navigation";
 
-import { requireProfile, STAFF_ROLES } from "@/lib/auth";
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { formatBRL, formatData } from "@/lib/format";
 import { PrintButton } from "@/components/recibo/print-button";
 import { WhatsappButton } from "@/components/recibo/whatsapp-button";
@@ -22,9 +21,9 @@ export default async function ReciboPagamentoPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const { profile } = await requireProfile();
   const { id } = await params;
-  const supabase = await createClient();
+  // Público (link do WhatsApp): cliente admin busca só este recibo pelo UUID.
+  const supabase = createAdminClient();
 
   const { data } = await supabase
     .from("pagamentos_corretor")
@@ -33,10 +32,6 @@ export default async function ReciboPagamentoPage({
     .single();
   if (!data) notFound();
   const pagamento = data as unknown as PagamentoRecibo;
-
-  // Corretor só vê o próprio recibo.
-  const ehStaff = STAFF_ROLES.includes(profile.role);
-  if (!ehStaff && profile.corretor_id !== pagamento.corretor_id) notFound();
 
   const [vendasRes, adiRes, bonRes] = await Promise.all([
     supabase

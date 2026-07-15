@@ -2,7 +2,9 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
 /** Rotas públicas que não exigem autenticação. */
-const ROTAS_PUBLICAS = ["/login", "/auth"];
+// /recibo é público de propósito: o corretor abre o recibo pelo link (WhatsApp)
+// sem precisar logar. A página busca o registro pelo UUID via cliente admin.
+const ROTAS_PUBLICAS = ["/login", "/auth", "/recibo"];
 
 /**
  * Renova a sessão do Supabase a cada requisição e protege as rotas privadas.

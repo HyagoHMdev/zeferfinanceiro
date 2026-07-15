@@ -1,7 +1,6 @@
 import { notFound } from "next/navigation";
 
-import { requireProfile, STAFF_ROLES } from "@/lib/auth";
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { formatBRL, formatData, valorPorExtenso } from "@/lib/format";
 import { PrintButton } from "@/components/recibo/print-button";
 import { WhatsappButton } from "@/components/recibo/whatsapp-button";
@@ -28,9 +27,9 @@ export default async function ReciboAdiantamentoPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const { profile } = await requireProfile();
   const { id } = await params;
-  const supabase = await createClient();
+  // Público (link do WhatsApp): cliente admin busca só este recibo pelo UUID.
+  const supabase = createAdminClient();
 
   const { data } = await supabase
     .from("adiantamentos")
@@ -41,10 +40,6 @@ export default async function ReciboAdiantamentoPage({
     .single();
   if (!data) notFound();
   const adiantamento = data as unknown as AdiantamentoRecibo;
-
-  // Corretor só vê o próprio recibo.
-  const ehStaff = STAFF_ROLES.includes(profile.role);
-  if (!ehStaff && profile.corretor_id !== adiantamento.corretor_id) notFound();
 
   const nome = adiantamento.corretores?.nome ?? "Corretor";
   const cpf = adiantamento.corretores?.cpf?.trim() || "________________";
