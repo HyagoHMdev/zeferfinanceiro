@@ -5,6 +5,7 @@ import { formatBRL, formatData, valorPorExtenso } from "@/lib/format";
 import { PrintButton } from "@/components/recibo/print-button";
 import { WhatsappButton } from "@/components/recibo/whatsapp-button";
 import { AssinaturaRecibo } from "@/components/recibo/assinatura-recibo";
+import { PreencherCpf } from "@/components/recibo/preencher-cpf";
 
 const EMPRESA_NOME = "ZEFER INVESTIMENTOS IMOBILIARIOS LTDA";
 const EMPRESA_CNPJ = "55.901.792/0001-67";
@@ -71,6 +72,10 @@ export default async function ReciboAdiantamentoPage({
             <div className="text-zinc-500">Recibo nº {adiantamento.id.slice(0, 8)}</div>
           </div>
         </div>
+
+        {!adiantamento.corretores?.cpf?.trim() ? (
+          <PreencherCpf corretorId={adiantamento.corretor_id} />
+        ) : null}
 
         <p className="text-justify text-sm leading-7">
           Eu, <strong>{nome.toUpperCase()}</strong>, inscrito no CPF sob nº {cpf} e
