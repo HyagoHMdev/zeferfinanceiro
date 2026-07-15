@@ -657,6 +657,22 @@ create trigger trg_adiantamento_delete_despesa
   after delete on public.adiantamentos
   for each row execute function public.excluir_despesa_do_adiantamento();
 
+-- ---- Recibos: recibo assinado (upload) e assinatura digital (0009..0014) -----
+alter table public.corretores
+  add column if not exists telefone text,
+  add column if not exists creci text,
+  add column if not exists email text,
+  add column if not exists cpf text;
+alter table public.adiantamentos
+  add column if not exists recibo_ok boolean not null default false,
+  add column if not exists assinatura_url text,
+  add column if not exists assinado_em timestamptz,
+  add column if not exists assinado_ip text;
+alter table public.pagamentos_corretor
+  add column if not exists assinatura_url text,
+  add column if not exists assinado_em timestamptz,
+  add column if not exists assinado_ip text;
+
 -- ---- Configurações: remover distribuição global ----------------------------
 alter table public.configuracoes
   drop column if exists percentual_distribuicao_empresa,

@@ -4,6 +4,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { formatBRL, formatData } from "@/lib/format";
 import { PrintButton } from "@/components/recibo/print-button";
 import { WhatsappButton } from "@/components/recibo/whatsapp-button";
+import { AssinaturaRecibo } from "@/components/recibo/assinatura-recibo";
 
 interface PagamentoRecibo {
   id: string;
@@ -13,6 +14,8 @@ interface PagamentoRecibo {
   total_bonificacoes: number;
   total_adiantamentos: number;
   valor_liquido: number;
+  assinatura_url: string | null;
+  assinado_em: string | null;
   corretores: { nome: string; telefone: string | null } | null;
 }
 
@@ -173,11 +176,13 @@ export default async function ReciboPagamentoPage({
           </div>
         </div>
 
-        <div className="mt-16 text-center text-sm">
-          <div className="mx-auto w-64 border-t border-zinc-400 pt-1">
-            {pagamento.corretores?.nome ?? "Corretor"}
-          </div>
-        </div>
+        <AssinaturaRecibo
+          tipo="pagamento"
+          id={pagamento.id}
+          nome={pagamento.corretores?.nome ?? "Corretor"}
+          assinaturaUrl={pagamento.assinatura_url}
+          assinadoEm={pagamento.assinado_em}
+        />
       </div>
     </div>
   );

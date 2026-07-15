@@ -4,6 +4,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { formatBRL, formatData, valorPorExtenso } from "@/lib/format";
 import { PrintButton } from "@/components/recibo/print-button";
 import { WhatsappButton } from "@/components/recibo/whatsapp-button";
+import { AssinaturaRecibo } from "@/components/recibo/assinatura-recibo";
 
 const EMPRESA_NOME = "ZEFER INVESTIMENTOS IMOBILIARIOS LTDA";
 const EMPRESA_CNPJ = "55.901.792/0001-67";
@@ -14,6 +15,8 @@ interface AdiantamentoRecibo {
   data: string;
   valor: number;
   descricao: string | null;
+  assinatura_url: string | null;
+  assinado_em: string | null;
   corretores: {
     nome: string;
     telefone: string | null;
@@ -34,7 +37,7 @@ export default async function ReciboAdiantamentoPage({
   const { data } = await supabase
     .from("adiantamentos")
     .select(
-      "id, corretor_id, data, valor, descricao, corretores(nome, telefone, cpf, creci)",
+      "id, corretor_id, data, valor, descricao, assinatura_url, assinado_em, corretores(nome, telefone, cpf, creci)",
     )
     .eq("id", id)
     .single();
@@ -81,12 +84,14 @@ export default async function ReciboAdiantamentoPage({
           ser verdade, firmo o presente recibo.
         </p>
 
-        <div className="mt-16 text-center text-sm">
-          <div className="mx-auto w-72 border-t border-zinc-400 pt-1">
-            {nome.toUpperCase()}
-            <div className="text-xs text-zinc-500">CPF {cpf}</div>
-          </div>
-        </div>
+        <AssinaturaRecibo
+          tipo="adiantamento"
+          id={adiantamento.id}
+          nome={nome.toUpperCase()}
+          subtitulo={`CPF ${cpf}`}
+          assinaturaUrl={adiantamento.assinatura_url}
+          assinadoEm={adiantamento.assinado_em}
+        />
       </div>
     </div>
   );
