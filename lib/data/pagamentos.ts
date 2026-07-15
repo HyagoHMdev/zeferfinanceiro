@@ -159,6 +159,8 @@ export interface PagamentoRealizado {
   valorLiquido: number;
   /** Arquivo do recibo assinado (upload), se houver. */
   reciboUrl: string | null;
+  /** Assinado digitalmente pelo corretor (pelo link do recibo). */
+  assinado: boolean;
 }
 
 /** Histórico de pagamentos registrados, mais recentes primeiro. */
@@ -167,7 +169,7 @@ export async function listarPagamentosRealizados(): Promise<PagamentoRealizado[]
   const { data } = await supabase
     .from("pagamentos_corretor")
     .select(
-      "id, data, valor_bruto, total_bonificacoes, total_adiantamentos, valor_liquido, recibo_url, corretores(nome)",
+      "id, data, valor_bruto, total_bonificacoes, total_adiantamentos, valor_liquido, recibo_url, assinado_em, corretores(nome)",
     )
     .order("data", { ascending: false })
     .order("created_at", { ascending: false });
@@ -180,6 +182,7 @@ export async function listarPagamentosRealizados(): Promise<PagamentoRealizado[]
     total_adiantamentos: number;
     valor_liquido: number;
     recibo_url: string | null;
+    assinado_em: string | null;
     corretores: { nome: string } | null;
   }[];
 
@@ -192,5 +195,6 @@ export async function listarPagamentosRealizados(): Promise<PagamentoRealizado[]
     totalAdiantamentos: Number(p.total_adiantamentos),
     valorLiquido: Number(p.valor_liquido),
     reciboUrl: p.recibo_url,
+    assinado: p.assinado_em != null,
   }));
 }

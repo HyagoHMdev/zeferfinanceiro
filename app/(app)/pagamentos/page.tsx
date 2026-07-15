@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { FileText } from "lucide-react";
+import { FileText, PenLine } from "lucide-react";
 
 import { requireRole, ADMIN_FIN_ROLES } from "@/lib/auth";
 import {
@@ -12,6 +12,7 @@ import { formatBRL, formatData } from "@/lib/format";
 import { PageHeader } from "@/components/page-header";
 import { OnboardingHelp } from "@/components/onboarding/onboarding-help";
 import { KpiCard } from "@/components/kpi-card";
+import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Table,
@@ -135,7 +136,18 @@ export default async function PagamentosPage() {
                       {formatData(p.data)}
                     </TableCell>
                     <TableCell className="font-medium">
-                      {p.corretorNome ?? "—"}
+                      <span className="inline-flex items-center gap-2">
+                        {p.corretorNome ?? "—"}
+                        {p.assinado ? (
+                          <Badge
+                            variant="success"
+                            className="gap-1 px-1.5 py-0 text-[10px] font-normal"
+                          >
+                            <PenLine className="size-3" />
+                            Assinado
+                          </Badge>
+                        ) : null}
+                      </span>
                     </TableCell>
                     <TableCell className="text-right tabular-nums">
                       {formatBRL(p.valorBruto)}

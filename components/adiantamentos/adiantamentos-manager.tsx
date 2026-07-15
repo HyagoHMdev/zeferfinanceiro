@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { FileText, Pencil, Trash2, X } from "lucide-react";
+import { FileText, Pencil, Trash2, X, PenLine } from "lucide-react";
 
 import { formatBRL, formatData, mesAbrev } from "@/lib/format";
 import type {
@@ -192,17 +192,28 @@ export function AdiantamentosManager({
                   {formatBRL(a.valor)}
                 </TableCell>
                 <TableCell className="text-center">
-                  {podeEditar ? (
-                    <Checkbox
-                      checked={a.reciboOk}
-                      onCheckedChange={(v) => toggleRecibo(a, v === true)}
-                      aria-label="Recibo assinado recebido"
-                    />
-                  ) : a.reciboOk ? (
-                    "OK"
-                  ) : (
-                    "—"
-                  )}
+                  <div className="flex flex-col items-center gap-1">
+                    {podeEditar ? (
+                      <Checkbox
+                        checked={a.reciboOk}
+                        onCheckedChange={(v) => toggleRecibo(a, v === true)}
+                        aria-label="Recibo assinado recebido"
+                      />
+                    ) : a.reciboOk ? (
+                      "OK"
+                    ) : (
+                      "—"
+                    )}
+                    {a.assinado ? (
+                      <Badge
+                        variant="success"
+                        className="gap-1 px-1.5 py-0 text-[10px] font-normal"
+                      >
+                        <PenLine className="size-3" />
+                        Assinado
+                      </Badge>
+                    ) : null}
+                  </div>
                 </TableCell>
                 <TableCell>
                   <Badge variant={a.descontado ? "success" : "warning"}>
