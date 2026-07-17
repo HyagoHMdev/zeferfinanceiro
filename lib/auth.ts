@@ -26,6 +26,7 @@ export const getSessionProfile = cache(
     if (!user) return null;
 
     const { data: profile } = await supabase
+      .schema("public")
       .from("profiles")
       .select("*")
       .eq("id", user.id)

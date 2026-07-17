@@ -13,6 +13,9 @@ export async function createClient() {
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
+      // Schema dedicado apos a unificacao (ver client.ts). profiles usa
+      // `.schema("public")` nos poucos pontos que o consultam.
+      db: { schema: "financeiro" },
       cookies: {
         getAll() {
           return cookieStore.getAll();

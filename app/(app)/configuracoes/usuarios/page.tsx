@@ -13,7 +13,7 @@ export default async function UsuariosPage() {
   const admin = createAdminClient();
 
   const [profilesRes, corretoresRes, usersRes] = await Promise.all([
-    supabase.from("profiles").select("*"),
+    supabase.schema("public").from("profiles").select("*"),
     supabase.from("corretores").select("id, nome").eq("ativo", true).order("nome"),
     admin.auth.admin.listUsers(),
   ]);

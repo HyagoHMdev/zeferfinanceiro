@@ -117,8 +117,10 @@ export async function criarUsuario(
   });
   if (error || !data.user) return { error: error?.message ?? "Falha ao criar usuário." };
 
-  // O trigger já criou o profile; ajustamos papel e vínculo.
+  // O trigger já criou o profile; ajustamos papel e vínculo. profiles vive no
+  // schema public (identidade unica do painel), fora do schema financeiro.
   const { error: upErr } = await admin
+    .schema("public")
     .from("profiles")
     .update({ nome: u.nome, role: u.role, corretor_id: u.corretor_id, ativo: true })
     .eq("id", data.user.id);
@@ -137,6 +139,7 @@ export async function atualizarPerfil(
   await requireRole(["admin"]);
   const supabase = await createClient();
   const { error } = await supabase
+    .schema("public")
     .from("profiles")
     .update({ role, corretor_id: corretorId, ativo })
     .eq("id", id);
