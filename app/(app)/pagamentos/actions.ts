@@ -113,6 +113,43 @@ export async function registrarPagamento(
     if (uaErr) return { error: uaErr.message };
   }
 
+  // 4) Reconciliação: os adiantamentos descontados voltam ao CAIXA como entrada
+  // (100% empresa). O adiantamento saiu como despesa variável quando foi dado;
+  // ao pagar a comissão (que já desconta o adiantamento), esse valor retorna,
+  // cancelando a despesa no caixa e no DRE. Não divide com sócios: não é receita
+  // nova. Ligada ao pagamento -> some junto no estorno (cascade).
+  if (totalAdiantamentos > 0) {
+    const { data: nomeRow } = await supabase
+      .from("corretores")
+      .select("nome")
+      .eq("id", corretorId)
+      .maybeSingle();
+    const nomeCorretor = (nomeRow as { nome?: string } | null)?.nome ?? "corretor";
+    const { data: ent, error: eErr } = await supabase
+      .from("entradas")
+      .insert({
+        data: hoje,
+        tipo: "outras",
+        descricao: `Reconciliação de adiantamentos — pagamento de ${nomeCorretor}`,
+        valor: totalAdiantamentos,
+        percentual_dizimo: 0,
+        valor_dizimo: 0,
+        liquido: totalAdiantamentos,
+        venda_id: null,
+        pagamento_id: pag.id,
+      })
+      .select("id")
+      .single();
+    if (eErr || !ent) return { error: eErr?.message ?? "Falha ao reconciliar os adiantamentos." };
+    const { error: dErr } = await supabase.from("distribuicoes").insert({
+      entrada_id: ent.id,
+      destino: "empresa",
+      percentual: 1,
+      valor: totalAdiantamentos,
+    });
+    if (dErr) return { error: dErr.message };
+  }
+
   revalidar();
   return { pagamentoId: pag.id };
 }
