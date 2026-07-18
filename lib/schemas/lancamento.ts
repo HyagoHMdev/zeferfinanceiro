@@ -1,13 +1,15 @@
 import { z } from "zod";
 
 export const lancamentoSchema = z.object({
-  escopo: z.enum(["empresa", "pessoal"]),
+  escopo: z.enum(["empresa", "pessoal", "joinville"]),
   natureza: z.enum([
     "custo_fixo",
     "despesa_variavel",
     "investimento",
     "entrada_pessoal",
     "saida_pessoal",
+    "entrada_joinville",
+    "saida_joinville",
   ]),
   categoria_id: z.string().uuid().nullable(),
   descricao: z.string().trim().min(1, "Informe a descrição").max(200),

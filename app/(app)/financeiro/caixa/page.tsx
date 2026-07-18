@@ -58,6 +58,7 @@ export default async function CaixaPage({
       </PageHeader>
       <Bloco titulo="Empresa (Zefer)" resumo={caixa.empresa} />
       <Bloco titulo="Pessoal" resumo={caixa.pessoal} />
+      <Bloco titulo="Zefer Joinville" resumo={caixa.joinville} />
     </div>
   );
 }

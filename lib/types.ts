@@ -14,13 +14,15 @@ export type EntradaTipo =
   | "investidor"
   | "outras";
 export type PagamentoStatus = "pendente" | "pago" | "cancelado";
-export type LancamentoEscopo = "empresa" | "pessoal";
+export type LancamentoEscopo = "empresa" | "pessoal" | "joinville";
 export type LancamentoNatureza =
   | "custo_fixo"
   | "despesa_variavel"
   | "investimento"
   | "entrada_pessoal"
-  | "saida_pessoal";
+  | "saida_pessoal"
+  | "entrada_joinville"
+  | "saida_joinville";
 export type Recorrencia = "nenhuma" | "mensal" | "anual";
 export type CategoriaTipo = "custo_fixo" | "despesa_variavel" | "investimento";
 export type DistribuicaoDestino = "empresa" | "pessoal";

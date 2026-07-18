@@ -106,6 +106,7 @@ export const FINANCEIRO_SUBNAV = [
   { label: "Despesas Variáveis", href: "/financeiro/despesas-variaveis" },
   { label: "Investimentos", href: "/financeiro/investimentos" },
   { label: "Pessoal", href: "/financeiro/pessoal" },
+  { label: "Zefer Joinville", href: "/financeiro/joinville" },
 ];
 
 /** Sub-navegação do módulo Relatórios. */

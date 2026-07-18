@@ -47,6 +47,8 @@ const NATUREZA_LABEL: Record<LancamentoNatureza, string> = {
   investimento: "Investimento",
   saida_pessoal: "Pessoal",
   entrada_pessoal: "Entrada",
+  saida_joinville: "Zefer Joinville",
+  entrada_joinville: "Entrada (Joinville)",
 };
 
 function mesLabel(ym: string): string {

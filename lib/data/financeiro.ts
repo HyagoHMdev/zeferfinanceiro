@@ -106,6 +106,7 @@ export type CaixaModo = "movimento" | "acumulado";
 export interface CaixaData {
   empresa: ResumoCaixa;
   pessoal: ResumoCaixa;
+  joinville: ResumoCaixa;
   /** Meses (YYYY-MM) com movimento, em ordem decrescente. */
   meses: string[];
 }
@@ -185,6 +186,20 @@ export async function carregarCaixa(opts?: {
     (l) => Number(l.valor),
   );
 
+  // Zefer Joinville: carteira só de lançamentos manuais (sem distribuição de
+  // entrada, como o pessoal recebe). Entradas e saídas próprias.
+  const entradasJoinville = soma(lancF, (l) => l.natureza === "entrada_joinville", (l) => Number(l.valor));
+  const joinvillePagas = soma(
+    lancF,
+    (l) => l.natureza === "saida_joinville" && l.status === "pago",
+    (l) => Number(l.valor),
+  );
+  const joinvillePrevistas = soma(
+    lancF,
+    (l) => l.natureza === "saida_joinville" && l.status !== "pago",
+    (l) => Number(l.valor),
+  );
+
   return {
     meses,
     empresa: {
@@ -200,6 +215,13 @@ export async function carregarCaixa(opts?: {
       saidasPrevistas: pessoalPrevistas,
       saldoAtual: round2(entradasPessoal - pessoalPagas),
       saldoPrevisto: round2(entradasPessoal - pessoalPagas - pessoalPrevistas),
+    },
+    joinville: {
+      entradas: entradasJoinville,
+      saidasPagas: joinvillePagas,
+      saidasPrevistas: joinvillePrevistas,
+      saldoAtual: round2(entradasJoinville - joinvillePagas),
+      saldoPrevisto: round2(entradasJoinville - joinvillePagas - joinvillePrevistas),
     },
   };
 }
