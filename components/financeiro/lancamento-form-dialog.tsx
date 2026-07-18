@@ -49,10 +49,20 @@ const RECORRENCIA_LABEL: Record<Recorrencia, string> = {
   mensal: "Mensal",
   anual: "Anual",
 };
-const NATUREZA_PESSOAL: { value: LancamentoNatureza; label: string }[] = [
-  { value: "saida_pessoal", label: "Saída" },
-  { value: "entrada_pessoal", label: "Entrada" },
-];
+// Carteiras (pessoal, joinville) tem seletor entrada/saída próprio. A empresa
+// usa naturezaFixa por página (custo fixo, despesa variável, investimento).
+const NATUREZAS_POR_ESCOPO: Partial<
+  Record<LancamentoEscopo, { value: LancamentoNatureza; label: string }[]>
+> = {
+  pessoal: [
+    { value: "saida_pessoal", label: "Saída" },
+    { value: "entrada_pessoal", label: "Entrada" },
+  ],
+  joinville: [
+    { value: "saida_joinville", label: "Saída" },
+    { value: "entrada_joinville", label: "Entrada" },
+  ],
+};
 
 const TIPOS_COM_CATEGORIA: LancamentoNatureza[] = [
   "custo_fixo",
@@ -85,8 +95,9 @@ export function LancamentoFormDialog({
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
 
+  const naturezasEscopo = NATUREZAS_POR_ESCOPO[escopoFixo];
   const [natureza, setNatureza] = useState<LancamentoNatureza>(
-    lancamento?.natureza ?? naturezaFixa ?? "saida_pessoal",
+    lancamento?.natureza ?? naturezaFixa ?? naturezasEscopo?.[0]?.value ?? "saida_pessoal",
   );
   const [descricao, setDescricao] = useState(lancamento?.descricao ?? "");
   const [categoriaId, setCategoriaId] = useState(lancamento?.categoria_id ?? NONE);
@@ -160,7 +171,7 @@ export function LancamentoFormDialog({
         </DialogHeader>
 
         <form onSubmit={onSubmit} className="space-y-4">
-          {escopoFixo === "pessoal" && !naturezaFixa ? (
+          {naturezasEscopo && !naturezaFixa ? (
             <div className="space-y-2">
               <Label>Tipo</Label>
               <Select
@@ -171,7 +182,7 @@ export function LancamentoFormDialog({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {NATUREZA_PESSOAL.map((n) => (
+                  {naturezasEscopo.map((n) => (
                     <SelectItem key={n.value} value={n.value}>
                       {n.label}
                     </SelectItem>
