@@ -7,6 +7,7 @@ import {
   Receipt,
   Landmark,
   BarChart3,
+  Cake,
   Settings,
   type LucideIcon,
 } from "lucide-react";
@@ -76,6 +77,12 @@ export const NAV_ITEMS: NavItem[] = [
     label: "Relatórios",
     href: "/relatorios",
     icon: BarChart3,
+    roles: ["admin", "financeiro", "diretor"],
+  },
+  {
+    label: "Aniversários",
+    href: "/aniversarios",
+    icon: Cake,
     roles: ["admin", "financeiro", "diretor"],
   },
   {
