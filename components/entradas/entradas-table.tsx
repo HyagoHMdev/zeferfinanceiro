@@ -37,7 +37,7 @@ import { EntradaDelete } from "@/components/entradas/entrada-delete";
 
 export interface EntradaRow extends Entrada {
   distribuicoes: {
-    destino: "empresa" | "pessoal";
+    destino: "empresa" | "pessoal" | "joinville";
     valor: number;
     percentual: number;
   }[];
@@ -70,6 +70,7 @@ interface Totais {
   liquido: number;
   empresa: number;
   pessoal: number;
+  joinville: number;
 }
 
 interface Grupo {
@@ -99,12 +100,16 @@ export function EntradasTable({
   const [agrupar, setAgrupar] = useState<Agrupamento>("nenhum");
   const [colapsados, setColapsados] = useState<Set<string>>(new Set());
 
-  const distDe = (e: EntradaRow, destino: "empresa" | "pessoal") =>
+  type Destino = "empresa" | "pessoal" | "joinville";
+  const distDe = (e: EntradaRow, destino: Destino) =>
     e.distribuicoes?.find((d) => d.destino === destino);
-  const valorDe = (e: EntradaRow, destino: "empresa" | "pessoal") =>
+  const valorDe = (e: EntradaRow, destino: Destino) =>
     Number(distDe(e, destino)?.valor ?? 0);
-  const percDe = (e: EntradaRow, destino: "empresa" | "pessoal") =>
+  const percDe = (e: EntradaRow, destino: Destino) =>
     Number(distDe(e, destino)?.percentual ?? 0);
+
+  // Coluna Joinville só aparece quando há alguma entrada dessa carteira.
+  const temJoinville = useMemo(() => entradas.some((e) => e.escopo === "joinville"), [entradas]);
 
   const somar = (linhas: EntradaRow[]): Totais => ({
     valor: linhas.reduce((s, e) => s + Number(e.valor), 0),
@@ -112,6 +117,7 @@ export function EntradasTable({
     liquido: linhas.reduce((s, e) => s + Number(e.liquido), 0),
     empresa: linhas.reduce((s, e) => s + valorDe(e, "empresa"), 0),
     pessoal: linhas.reduce((s, e) => s + valorDe(e, "pessoal"), 0),
+    joinville: linhas.reduce((s, e) => s + valorDe(e, "joinville"), 0),
   });
 
   // Só os tipos e meses realmente presentes.
@@ -201,7 +207,14 @@ export function EntradasTable({
       <TableRow key={e.id}>
         <TableCell className="whitespace-nowrap">{formatData(e.data)}</TableCell>
         <TableCell>{ENTRADA_TIPO_LABEL[e.tipo]}</TableCell>
-        <TableCell>{e.descricao ?? "—"}</TableCell>
+        <TableCell>
+          {e.descricao ?? "—"}
+          {e.escopo === "joinville" ? (
+            <span className="ml-2 rounded bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary">
+              Joinville
+            </span>
+          ) : null}
+        </TableCell>
         <TableCell className="text-right tabular-nums text-muted-foreground">
           {e.vendas ? formatBRL(e.vendas.comissao_bruta) : "—"}
         </TableCell>
@@ -222,6 +235,11 @@ export function EntradasTable({
         <TableCell className="text-right tabular-nums">
           {formatBRL(valorDe(e, "pessoal"))}
         </TableCell>
+        {temJoinville ? (
+          <TableCell className="text-right tabular-nums">
+            {valorDe(e, "joinville") ? formatBRL(valorDe(e, "joinville")) : "—"}
+          </TableCell>
+        ) : null}
         {podeEditar ? (
           <TableCell>
             <div className="flex justify-end">
@@ -254,6 +272,9 @@ export function EntradasTable({
         <TableCell className="text-right tabular-nums">{formatBRL(t.liquido)}</TableCell>
         <TableCell className="text-right tabular-nums">{formatBRL(t.empresa)}</TableCell>
         <TableCell className="text-right tabular-nums">{formatBRL(t.pessoal)}</TableCell>
+        {temJoinville ? (
+          <TableCell className="text-right tabular-nums">{formatBRL(t.joinville)}</TableCell>
+        ) : null}
         {podeEditar ? <TableCell></TableCell> : null}
       </>
     );
@@ -367,6 +388,7 @@ export function EntradasTable({
               <TableHead className="text-right">Líquido</TableHead>
               <TableHead className="text-right">Empresa</TableHead>
               <TableHead className="text-right">Pessoal</TableHead>
+              {temJoinville ? <TableHead className="text-right">Joinville</TableHead> : null}
               {podeEditar ? <TableHead></TableHead> : null}
             </TableRow>
           </TableHeader>
@@ -421,6 +443,11 @@ export function EntradasTable({
               <TableCell className="text-right tabular-nums">
                 {formatBRL(totalGeral.pessoal)}
               </TableCell>
+              {temJoinville ? (
+                <TableCell className="text-right tabular-nums">
+                  {formatBRL(totalGeral.joinville)}
+                </TableCell>
+              ) : null}
               {podeEditar ? <TableCell></TableCell> : null}
             </TableRow>
           </TableFooter>

@@ -175,7 +175,9 @@ export async function relatorioDRE(ano: number): Promise<DRE> {
   // vendas acima — evita dupla contagem).
   const { data: entradasData } = await supabase
     .from("entradas")
-    .select("data, valor, tipo");
+    // Zefer Joinville é carteira separada: fora do DRE da Zefer.
+    .select("data, valor, tipo")
+    .neq("escopo", "joinville");
   const outrasEntradas = round2(
     ((entradasData ?? []) as { data: string; valor: number; tipo: string }[])
       .filter((e) => e.tipo !== "comissao" && noAno(e.data))

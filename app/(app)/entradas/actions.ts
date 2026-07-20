@@ -9,13 +9,17 @@ import { entradaSchema, type EntradaInput } from "@/lib/schemas/entrada";
 
 type ActionResult = { error?: string };
 
-/** Insere as 2 linhas de distribuição (empresa/pessoal) de uma entrada. */
+/**
+ * Insere as linhas de distribuição de uma entrada.
+ * escopo "empresa": 2 linhas (empresa/pessoal). escopo "joinville": 1 linha que
+ * manda 100% do líquido para a Zefer Joinville (carteira separada).
+ */
 async function inserirDistribuicoes(
   supabase: Awaited<ReturnType<typeof createClient>>,
   entradaId: string,
-  liquido: number,
-  percentualDizimo: number,
+  escopo: "empresa" | "joinville",
   valor: number,
+  percentualDizimo: number,
   percEmpresa: number,
   percPessoal: number,
 ) {
@@ -24,6 +28,11 @@ async function inserirDistribuicoes(
     percentualDizimo,
     percentualEmpresa: percEmpresa,
   });
+  if (escopo === "joinville") {
+    return supabase.from("distribuicoes").insert([
+      { entrada_id: entradaId, destino: "joinville", percentual: 1, valor: dist.liquido },
+    ]);
+  }
   return supabase.from("distribuicoes").insert([
     {
       entrada_id: entradaId,
@@ -64,6 +73,7 @@ export async function criarEntrada(input: EntradaInput): Promise<ActionResult> {
       valor_dizimo: dist.valorDizimo,
       liquido: dist.liquido,
       venda_id: e.venda_id,
+      escopo: e.escopo,
     })
     .select("id")
     .single();
@@ -72,9 +82,9 @@ export async function criarEntrada(input: EntradaInput): Promise<ActionResult> {
   const { error: distErr } = await inserirDistribuicoes(
     supabase,
     entrada.id,
-    dist.liquido,
-    e.percentual_dizimo,
+    e.escopo,
     e.valor,
+    e.percentual_dizimo,
     e.percentual_empresa,
     e.percentual_pessoal,
   );
@@ -122,6 +132,7 @@ export async function atualizarEntrada(
       valor_dizimo: dist.valorDizimo,
       liquido: dist.liquido,
       venda_id: e.venda_id,
+      escopo: e.escopo,
     })
     .eq("id", id);
   if (error) return { error: error.message };
@@ -131,9 +142,9 @@ export async function atualizarEntrada(
   const { error: distErr } = await inserirDistribuicoes(
     supabase,
     id,
-    dist.liquido,
-    e.percentual_dizimo,
+    e.escopo,
     e.valor,
+    e.percentual_dizimo,
     e.percentual_empresa,
     e.percentual_pessoal,
   );

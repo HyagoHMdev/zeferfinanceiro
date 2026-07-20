@@ -20,6 +20,7 @@ import {
   ENTRADA_TIPO_LABEL,
   type Configuracoes,
   type Entrada,
+  type EntradaEscopo,
   type EntradaTipo,
   type PercentualMensal,
 } from "@/lib/types";
@@ -85,6 +86,8 @@ export function EntradaFormDialog({
   const dataInicial = entrada?.data ?? new Date().toISOString().slice(0, 10);
   const [data, setData] = useState(dataInicial);
   const [tipo, setTipo] = useState<EntradaTipo>(entrada?.tipo ?? "comissao");
+  const [escopo, setEscopo] = useState<EntradaEscopo>(entrada?.escopo ?? "empresa");
+  const ehJoinville = escopo === "joinville";
   const [descricao, setDescricao] = useState(entrada?.descricao ?? "");
   const [valor, setValor] = useState(entrada ? String(entrada.valor) : "");
   const [pctDizimo, setPctDizimo] = useState(
@@ -110,7 +113,8 @@ export function EntradaFormDialog({
 
   const fracEmpresa = inputPctParaFracao(pctEmpresa);
   const fracPessoal = inputPctParaFracao(pctPessoal);
-  const somaValida = Math.abs(fracEmpresa + fracPessoal - 1) < 0.0001;
+  // Joinville manda 100% do líquido para a carteira Joinville; não há split.
+  const somaValida = ehJoinville || Math.abs(fracEmpresa + fracPessoal - 1) < 0.0001;
 
   function onChangeData(value: string) {
     setData(value);
@@ -166,6 +170,7 @@ export function EntradaFormDialog({
       percentual_empresa: fracEmpresa,
       percentual_pessoal: fracPessoal,
       venda_id: vendaId === NONE ? null : vendaId,
+      escopo,
     };
     const res = entrada
       ? await atualizarEntrada(entrada.id, input)
@@ -193,6 +198,19 @@ export function EntradaFormDialog({
         </DialogHeader>
 
         <form onSubmit={onSubmit} className="space-y-4">
+          <div className="space-y-2">
+            <Label>Destino</Label>
+            <Select value={escopo} onValueChange={(v) => setEscopo(v as EntradaEscopo)}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="empresa">Zefer (empresa/pessoal)</SelectItem>
+                <SelectItem value="joinville">Zefer Joinville</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="e-data">Data</Label>
@@ -272,40 +290,50 @@ export function EntradaFormDialog({
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="e-empresa">% Empresa</Label>
-              <Input
-                id="e-empresa"
-                inputMode="decimal"
-                value={pctEmpresa}
-                onChange={(ev) => setPctEmpresa(ev.target.value)}
-                placeholder="0"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="e-pessoal">% Pessoal</Label>
-              <Input
-                id="e-pessoal"
-                inputMode="decimal"
-                value={pctPessoal}
-                onChange={(ev) => setPctPessoal(ev.target.value)}
-                placeholder="100"
-              />
-            </div>
-          </div>
-          {!somaValida ? (
-            <p className="text-sm text-destructive">
-              A distribuição entre Empresa e Pessoal deve totalizar exatamente
-              100%.
-            </p>
+          {!ehJoinville ? (
+            <>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="e-empresa">% Empresa</Label>
+                  <Input
+                    id="e-empresa"
+                    inputMode="decimal"
+                    value={pctEmpresa}
+                    onChange={(ev) => setPctEmpresa(ev.target.value)}
+                    placeholder="0"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="e-pessoal">% Pessoal</Label>
+                  <Input
+                    id="e-pessoal"
+                    inputMode="decimal"
+                    value={pctPessoal}
+                    onChange={(ev) => setPctPessoal(ev.target.value)}
+                    placeholder="100"
+                  />
+                </div>
+              </div>
+              {!somaValida ? (
+                <p className="text-sm text-destructive">
+                  A distribuição entre Empresa e Pessoal deve totalizar exatamente
+                  100%.
+                </p>
+              ) : null}
+            </>
           ) : null}
 
           <div className="rounded-md border bg-muted/40 p-3 text-sm">
             <Resumo label="Dízimo" valor={dist.valorDizimo} />
             <Resumo label="Líquido" valor={dist.liquido} strong />
-            <Resumo label="Empresa (Zefer)" valor={dist.valorEmpresa} />
-            <Resumo label="Pessoal" valor={dist.valorPessoal} />
+            {ehJoinville ? (
+              <Resumo label="Zefer Joinville" valor={dist.liquido} />
+            ) : (
+              <>
+                <Resumo label="Empresa (Zefer)" valor={dist.valorEmpresa} />
+                <Resumo label="Pessoal" valor={dist.valorPessoal} />
+              </>
+            )}
           </div>
 
           <DialogFooter>

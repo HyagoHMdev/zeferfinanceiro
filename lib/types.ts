@@ -25,7 +25,8 @@ export type LancamentoNatureza =
   | "saida_joinville";
 export type Recorrencia = "nenhuma" | "mensal" | "anual";
 export type CategoriaTipo = "custo_fixo" | "despesa_variavel" | "investimento";
-export type DistribuicaoDestino = "empresa" | "pessoal";
+export type DistribuicaoDestino = "empresa" | "pessoal" | "joinville";
+export type EntradaEscopo = "empresa" | "joinville";
 export type LancamentoStatus = "pago" | "pendente" | "atrasado";
 
 export interface Configuracoes {
@@ -214,6 +215,8 @@ export interface Entrada {
   valor_dizimo: number;
   liquido: number;
   venda_id: string | null;
+  /** "empresa" = split empresa/pessoal (padrão); "joinville" = 100% Zefer Joinville. */
+  escopo: EntradaEscopo;
   created_at: string;
   updated_at: string;
 }

@@ -38,7 +38,8 @@ export async function carregarDashboard(opts?: {
   const anoAtual = new Date().getUTCFullYear();
 
   const [entradasRes, vendasRes, lancamentosRes, distRes] = await Promise.all([
-    supabase.from("entradas").select("data, valor"),
+    // Zefer Joinville é carteira separada: não entra na receita da Zefer.
+    supabase.from("entradas").select("data, valor").neq("escopo", "joinville"),
     supabase
       .from("vendas")
       .select(

@@ -126,7 +126,7 @@ export async function carregarCaixa(opts?: {
   ]);
 
   const dist = (distRes.data ?? []) as unknown as {
-    destino: "empresa" | "pessoal";
+    destino: "empresa" | "pessoal" | "joinville";
     valor: number;
     entradas: { data: string } | null;
   }[];
@@ -186,9 +186,14 @@ export async function carregarCaixa(opts?: {
     (l) => Number(l.valor),
   );
 
-  // Zefer Joinville: carteira só de lançamentos manuais (sem distribuição de
-  // entrada, como o pessoal recebe). Entradas e saídas próprias.
-  const entradasJoinville = soma(lancF, (l) => l.natureza === "entrada_joinville", (l) => Number(l.valor));
+  // Zefer Joinville: carteira própria. Entradas = lançamentos manuais
+  // (entrada_joinville) + entradas registradas na aba Entradas com destino
+  // Joinville (distribuição destino "joinville"). Igual ao pessoal, que também
+  // soma distribuição + lançamento.
+  const entradasJoinville = round2(
+    soma(lancF, (l) => l.natureza === "entrada_joinville", (l) => Number(l.valor)) +
+      soma(distF, (d) => d.destino === "joinville", (d) => Number(d.valor)),
+  );
   const joinvillePagas = soma(
     lancF,
     (l) => l.natureza === "saida_joinville" && l.status === "pago",
