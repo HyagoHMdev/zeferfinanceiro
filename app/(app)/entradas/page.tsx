@@ -60,7 +60,7 @@ export default async function EntradasPage() {
     <div>
       <PageHeader
         title="Entradas e Distribuições"
-        description="Toda entrada financeira, com dízimo e distribuição empresa/pessoal."
+        description="Toda entrada financeira, com distribuição empresa/pessoal."
         help={<OnboardingHelp screen="entradas" />}
       >
         {podeEditar ? (

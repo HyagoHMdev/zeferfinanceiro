@@ -66,7 +66,6 @@ function mesLabel(ym: string): string {
 
 interface Totais {
   valor: number;
-  dizimo: number;
   liquido: number;
   empresa: number;
   pessoal: number;
@@ -113,7 +112,6 @@ export function EntradasTable({
 
   const somar = (linhas: EntradaRow[]): Totais => ({
     valor: linhas.reduce((s, e) => s + Number(e.valor), 0),
-    dizimo: linhas.reduce((s, e) => s + Number(e.valor_dizimo), 0),
     liquido: linhas.reduce((s, e) => s + Number(e.liquido), 0),
     empresa: linhas.reduce((s, e) => s + valorDe(e, "empresa"), 0),
     pessoal: linhas.reduce((s, e) => s + valorDe(e, "pessoal"), 0),
@@ -225,9 +223,6 @@ export function EntradasTable({
           {e.vendas ? formatBRL(e.vendas.lucro_liquido) : "—"}
         </TableCell>
         <TableCell className="text-right tabular-nums">{formatBRL(e.valor)}</TableCell>
-        <TableCell className="text-right tabular-nums text-muted-foreground">
-          {formatBRL(e.valor_dizimo)}
-        </TableCell>
         <TableCell className="text-right tabular-nums">{formatBRL(e.liquido)}</TableCell>
         <TableCell className="text-right tabular-nums">
           {formatBRL(valorDe(e, "empresa"))}
@@ -268,7 +263,6 @@ export function EntradasTable({
     return (
       <>
         <TableCell className="text-right tabular-nums">{formatBRL(t.valor)}</TableCell>
-        <TableCell className="text-right tabular-nums">{formatBRL(t.dizimo)}</TableCell>
         <TableCell className="text-right tabular-nums">{formatBRL(t.liquido)}</TableCell>
         <TableCell className="text-right tabular-nums">{formatBRL(t.empresa)}</TableCell>
         <TableCell className="text-right tabular-nums">{formatBRL(t.pessoal)}</TableCell>
@@ -384,7 +378,6 @@ export function EntradasTable({
               <TableHead className="text-right">Pós imposto</TableHead>
               <TableHead className="text-right">Pós corr.+imp.</TableHead>
               <TableHead className="text-right">Valor</TableHead>
-              <TableHead className="text-right">Dízimo</TableHead>
               <TableHead className="text-right">Líquido</TableHead>
               <TableHead className="text-right">Empresa</TableHead>
               <TableHead className="text-right">Pessoal</TableHead>
@@ -430,9 +423,6 @@ export function EntradasTable({
               </TableCell>
               <TableCell className="text-right tabular-nums">
                 {formatBRL(totalGeral.valor)}
-              </TableCell>
-              <TableCell className="text-right tabular-nums">
-                {formatBRL(totalGeral.dizimo)}
               </TableCell>
               <TableCell className="text-right tabular-nums">
                 {formatBRL(totalGeral.liquido)}

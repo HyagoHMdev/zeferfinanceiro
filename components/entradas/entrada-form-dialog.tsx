@@ -13,7 +13,6 @@ import {
   fracaoParaInputPct,
   inputPctParaFracao,
 } from "@/lib/format";
-import { percentualComFallback } from "@/lib/percentuais";
 import { criarEntrada, atualizarEntrada } from "@/app/(app)/entradas/actions";
 import type { EntradaInput } from "@/lib/schemas/entrada";
 import {
@@ -90,19 +89,6 @@ export function EntradaFormDialog({
   const ehJoinville = escopo === "joinville";
   const [descricao, setDescricao] = useState(entrada?.descricao ?? "");
   const [valor, setValor] = useState(entrada ? String(entrada.valor) : "");
-  const [pctDizimo, setPctDizimo] = useState(
-    fracaoParaInputPct(
-      entrada
-        ? entrada.percentual_dizimo
-        : percentualComFallback(
-            percentuaisMensais,
-            "dizimo",
-            null,
-            dataInicial,
-            config.percentual_dizimo,
-          ),
-    ),
-  );
   const [vendaId, setVendaId] = useState(entrada?.venda_id ?? NONE);
   const [pctEmpresa, setPctEmpresa] = useState(
     fracaoParaInputPct(percentualEmpresaInicial),
@@ -116,29 +102,14 @@ export function EntradaFormDialog({
   // Joinville manda 100% do líquido para a carteira Joinville; não há split.
   const somaValida = ehJoinville || Math.abs(fracEmpresa + fracPessoal - 1) < 0.0001;
 
-  function onChangeData(value: string) {
-    setData(value);
-    setPctDizimo(
-      fracaoParaInputPct(
-        percentualComFallback(
-          percentuaisMensais,
-          "dizimo",
-          null,
-          value,
-          config.percentual_dizimo,
-        ),
-      ),
-    );
-  }
-
   const dist = useMemo(
     () =>
       calcularDistribuicao({
         valor: parseNumeroBR(valor),
-        percentualDizimo: inputPctParaFracao(pctDizimo),
+        percentualDizimo: 0,
         percentualEmpresa: fracEmpresa,
       }),
-    [valor, pctDizimo, fracEmpresa],
+    [valor, fracEmpresa],
   );
 
   function onSelectVenda(value: string) {
@@ -166,7 +137,7 @@ export function EntradaFormDialog({
       tipo,
       descricao: descricao.trim() || null,
       valor: parseNumeroBR(valor),
-      percentual_dizimo: inputPctParaFracao(pctDizimo),
+      percentual_dizimo: 0,
       percentual_empresa: fracEmpresa,
       percentual_pessoal: fracPessoal,
       venda_id: vendaId === NONE ? null : vendaId,
@@ -192,8 +163,7 @@ export function EntradaFormDialog({
         <DialogHeader>
           <DialogTitle>{entrada ? "Editar entrada" : "Nova entrada"}</DialogTitle>
           <DialogDescription>
-            O dízimo e a distribuição empresa/pessoal são calculados
-            automaticamente.
+            A distribuição empresa/pessoal é calculada automaticamente.
           </DialogDescription>
         </DialogHeader>
 
@@ -218,7 +188,7 @@ export function EntradaFormDialog({
                 id="e-data"
                 type="date"
                 value={data}
-                onChange={(ev) => onChangeData(ev.target.value)}
+                onChange={(ev) => setData(ev.target.value)}
                 required
               />
             </div>
@@ -266,28 +236,16 @@ export function EntradaFormDialog({
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="e-valor">Valor recebido</Label>
-              <Input
-                id="e-valor"
-                inputMode="decimal"
-                value={valor}
-                onChange={(ev) => setValor(ev.target.value)}
-                placeholder="0,00"
-                required
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="e-dizimo">% Dízimo</Label>
-              <Input
-                id="e-dizimo"
-                inputMode="decimal"
-                value={pctDizimo}
-                onChange={(ev) => setPctDizimo(ev.target.value)}
-                placeholder="0"
-              />
-            </div>
+          <div className="space-y-2">
+            <Label htmlFor="e-valor">Valor recebido</Label>
+            <Input
+              id="e-valor"
+              inputMode="decimal"
+              value={valor}
+              onChange={(ev) => setValor(ev.target.value)}
+              placeholder="0,00"
+              required
+            />
           </div>
 
           {!ehJoinville ? (
@@ -324,7 +282,6 @@ export function EntradaFormDialog({
           ) : null}
 
           <div className="rounded-md border bg-muted/40 p-3 text-sm">
-            <Resumo label="Dízimo" valor={dist.valorDizimo} />
             <Resumo label="Líquido" valor={dist.liquido} strong />
             {ehJoinville ? (
               <Resumo label="Zefer Joinville" valor={dist.liquido} />

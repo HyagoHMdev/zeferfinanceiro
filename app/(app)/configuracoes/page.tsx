@@ -32,8 +32,8 @@ export default async function ParametrosPage() {
         <CardHeader>
           <CardTitle>Percentuais globais por mês</CardTitle>
           <CardDescription>
-            Imposto da imobiliária e dízimo podem variar mês a mês. Sem valor no
-            mês, vale o padrão acima.
+            O imposto da imobiliária pode variar mês a mês. Sem valor no mês,
+            vale o padrão acima.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -42,7 +42,6 @@ export default async function ParametrosPage() {
             entidadeId={null}
             campos={[
               { chave: "imposto_imobiliaria", label: "% Imposto imob." },
-              { chave: "dizimo", label: "% Dízimo" },
             ]}
             rows={percentuaisRows}
             trigger={

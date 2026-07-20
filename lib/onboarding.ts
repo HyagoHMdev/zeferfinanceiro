@@ -196,9 +196,9 @@ export const ONBOARDING: Record<OnboardingScreen, OnboardingConteudo> = {
       "Todo dinheiro que entra: comissões (geradas pelas vendas), bonificações, premiações, investidores e outras.",
     topicos: [
       {
-        titulo: "Dízimo e divisão",
+        titulo: "Divisão Empresa / Pessoal",
         texto:
-          "Cada entrada tem o dízimo e a divisão Empresa / Pessoal (que precisa somar 100%).",
+          "Cada entrada tem a divisão Empresa / Pessoal (que precisa somar 100%), ou vai 100% para a Zefer Joinville.",
       },
       {
         titulo: "Comissões automáticas",
@@ -342,7 +342,7 @@ export const ONBOARDING: Record<OnboardingScreen, OnboardingConteudo> = {
       {
         titulo: "Parâmetros",
         texto:
-          "Percentuais padrão e valores globais por mês (comissão, impostos, dízimo).",
+          "Percentuais padrão e valores globais por mês (comissão, impostos).",
       },
       {
         titulo: "Cadastros",

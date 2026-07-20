@@ -71,7 +71,6 @@ const parametrosSchema = z.object({
   percentual_imposto_imobiliaria: z.number().min(0).max(1),
   percentual_imposto_nf_corretor: z.number().min(0).max(1),
   percentual_comissao_corretor_padrao: z.number().min(0).max(1),
-  percentual_dizimo: z.number().min(0).max(1),
 });
 
 export async function salvarParametros(
@@ -155,7 +154,6 @@ const CHAVES_VALIDAS: PercentualChave[] = [
   "comissao_corretor",
   "imposto_nf_corretor",
   "imposto_imobiliaria",
-  "dizimo",
 ];
 
 function revalidarPercentuais() {

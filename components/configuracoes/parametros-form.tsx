@@ -19,7 +19,6 @@ const CAMPOS: { key: keyof Configuracoes; label: string }[] = [
   { key: "percentual_imposto_imobiliaria", label: "% Imposto da imobiliária" },
   { key: "percentual_imposto_nf_corretor", label: "% Imposto NF do corretor" },
   { key: "percentual_comissao_corretor_padrao", label: "% Comissão padrão do corretor" },
-  { key: "percentual_dizimo", label: "% Dízimo" },
 ];
 
 export function ParametrosForm({ config }: { config: Configuracoes }) {
@@ -42,7 +41,6 @@ export function ParametrosForm({ config }: { config: Configuracoes }) {
       percentual_comissao_corretor_padrao: inputPctParaFracao(
         valores.percentual_comissao_corretor_padrao,
       ),
-      percentual_dizimo: inputPctParaFracao(valores.percentual_dizimo),
     };
     const res = await salvarParametros(dados);
     setSaving(false);
