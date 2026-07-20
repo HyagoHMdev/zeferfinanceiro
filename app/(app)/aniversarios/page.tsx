@@ -15,6 +15,11 @@ export default async function AniversariosPage() {
     .select("id,nome,dia,mes,telefone")
     .order("nome");
 
+  // Mês atual (fuso de São Paulo) para começar a lista por ele.
+  const mesAtual = Number(
+    new Intl.DateTimeFormat("en-US", { timeZone: "America/Sao_Paulo", month: "numeric" }).format(new Date()),
+  );
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -24,6 +29,7 @@ export default async function AniversariosPage() {
       <AniversariosView
         aniversariantes={(data ?? []) as AniversarioRow[]}
         podeEditar={ADMIN_FIN_ROLES.includes(profile.role)}
+        mesAtual={mesAtual}
       />
     </div>
   );

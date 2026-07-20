@@ -48,9 +48,11 @@ const selectCls =
 export function AniversariosView({
   aniversariantes,
   podeEditar,
+  mesAtual,
 }: {
   aniversariantes: AniversarioRow[];
   podeEditar: boolean;
+  mesAtual: number;
 }) {
   const router = useRouter();
   const [busca, setBusca] = useState("");
@@ -171,13 +173,19 @@ export function AniversariosView({
         </Card>
       ) : (
         <div className="space-y-5">
-          {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => {
+          {/* Começa no mês atual e segue em diante, dando a volta no ano. */}
+          {Array.from({ length: 12 }, (_, k) => ((mesAtual - 1 + k) % 12) + 1).map((m) => {
             const lista = grupos.porMes[m];
             if (lista.length === 0) return null;
             return (
               <div key={m}>
                 <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
                   {MESES[m]} · {lista.length}
+                  {m === mesAtual && (
+                    <span className="ml-2 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] normal-case text-primary">
+                      mês atual
+                    </span>
+                  )}
                 </h2>
                 <Card className="divide-y overflow-hidden py-0">
                   {lista.map((a) => (
