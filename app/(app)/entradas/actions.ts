@@ -4,49 +4,39 @@ import { revalidatePath } from "next/cache";
 
 import { createClient } from "@/lib/supabase/server";
 import { requireRole, ADMIN_FIN_ROLES } from "@/lib/auth";
-import { calcularDistribuicao } from "@/lib/calculos";
+import { calcularDistribuicao, round2 } from "@/lib/calculos";
 import { entradaSchema, type EntradaInput } from "@/lib/schemas/entrada";
 
 type ActionResult = { error?: string };
 
+// 100% de Joinville => escopo 'joinville' (entrada só da carteira Joinville);
+// qualquer outra combinação é uma entrada da Zefer (escopo 'empresa').
+function escopoDe(percJoinville: number): "empresa" | "joinville" {
+  return percJoinville >= 0.9999 ? "joinville" : "empresa";
+}
+
 /**
- * Insere as linhas de distribuição de uma entrada.
- * escopo "empresa": 2 linhas (empresa/pessoal). escopo "joinville": 1 linha que
- * manda 100% do líquido para a Zefer Joinville (carteira separada).
+ * Insere as linhas de distribuição de uma entrada: Empresa, Pessoal e Zefer
+ * Joinville, cada uma como % do líquido. O pessoal fica com o resto para não
+ * sobrar/faltar centavo no arredondamento. Linhas com 0% são omitidas.
  */
 async function inserirDistribuicoes(
   supabase: Awaited<ReturnType<typeof createClient>>,
   entradaId: string,
-  escopo: "empresa" | "joinville",
-  valor: number,
-  percentualDizimo: number,
+  liquido: number,
   percEmpresa: number,
   percPessoal: number,
+  percJoinville: number,
 ) {
-  const dist = calcularDistribuicao({
-    valor,
-    percentualDizimo,
-    percentualEmpresa: percEmpresa,
-  });
-  if (escopo === "joinville") {
-    return supabase.from("distribuicoes").insert([
-      { entrada_id: entradaId, destino: "joinville", percentual: 1, valor: dist.liquido },
-    ]);
-  }
-  return supabase.from("distribuicoes").insert([
-    {
-      entrada_id: entradaId,
-      destino: "empresa",
-      percentual: percEmpresa,
-      valor: dist.valorEmpresa,
-    },
-    {
-      entrada_id: entradaId,
-      destino: "pessoal",
-      percentual: percPessoal,
-      valor: dist.valorPessoal,
-    },
-  ]);
+  const vEmpresa = round2(liquido * percEmpresa);
+  const vJoinville = round2(liquido * percJoinville);
+  const vPessoal = round2(liquido - vEmpresa - vJoinville);
+  const linhas = [
+    { entrada_id: entradaId, destino: "empresa", percentual: percEmpresa, valor: vEmpresa },
+    { entrada_id: entradaId, destino: "pessoal", percentual: percPessoal, valor: vPessoal },
+    { entrada_id: entradaId, destino: "joinville", percentual: percJoinville, valor: vJoinville },
+  ].filter((l) => l.percentual > 0);
+  return supabase.from("distribuicoes").insert(linhas);
 }
 
 export async function criarEntrada(input: EntradaInput): Promise<ActionResult> {
@@ -73,7 +63,7 @@ export async function criarEntrada(input: EntradaInput): Promise<ActionResult> {
       valor_dizimo: dist.valorDizimo,
       liquido: dist.liquido,
       venda_id: e.venda_id,
-      escopo: e.escopo,
+      escopo: escopoDe(e.percentual_joinville),
     })
     .select("id")
     .single();
@@ -82,11 +72,10 @@ export async function criarEntrada(input: EntradaInput): Promise<ActionResult> {
   const { error: distErr } = await inserirDistribuicoes(
     supabase,
     entrada.id,
-    e.escopo,
-    e.valor,
-    e.percentual_dizimo,
+    dist.liquido,
     e.percentual_empresa,
     e.percentual_pessoal,
+    e.percentual_joinville,
   );
   if (distErr) return { error: distErr.message };
 
@@ -132,7 +121,7 @@ export async function atualizarEntrada(
       valor_dizimo: dist.valorDizimo,
       liquido: dist.liquido,
       venda_id: e.venda_id,
-      escopo: e.escopo,
+      escopo: escopoDe(e.percentual_joinville),
     })
     .eq("id", id);
   if (error) return { error: error.message };
@@ -142,11 +131,10 @@ export async function atualizarEntrada(
   const { error: distErr } = await inserirDistribuicoes(
     supabase,
     id,
-    e.escopo,
-    e.valor,
-    e.percentual_dizimo,
+    dist.liquido,
     e.percentual_empresa,
     e.percentual_pessoal,
+    e.percentual_joinville,
   );
   if (distErr) return { error: distErr.message };
 

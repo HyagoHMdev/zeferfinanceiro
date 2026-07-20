@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 
-import { calcularDistribuicao } from "@/lib/calculos";
+import { round2 } from "@/lib/calculos";
 import {
   parseNumeroBR,
   formatBRL,
@@ -19,7 +19,6 @@ import {
   ENTRADA_TIPO_LABEL,
   type Configuracoes,
   type Entrada,
-  type EntradaEscopo,
   type EntradaTipo,
   type PercentualMensal,
 } from "@/lib/types";
@@ -63,9 +62,10 @@ interface Props {
   vendas: VendaDisponivel[];
   entrada?: Entrada;
   percentuaisMensais?: PercentualMensal[];
-  /** % Empresa/Pessoal atuais (edição). Criação usa 0/100 como ponto de partida. */
+  /** % Empresa/Pessoal/Joinville atuais (edição). Criação usa 0/100/0. */
   percentualEmpresaInicial?: number;
   percentualPessoalInicial?: number;
+  percentualJoinvilleInicial?: number;
   trigger: React.ReactNode;
 }
 
@@ -76,6 +76,7 @@ export function EntradaFormDialog({
   percentuaisMensais = [],
   percentualEmpresaInicial = 0,
   percentualPessoalInicial = 1,
+  percentualJoinvilleInicial = 0,
   trigger,
 }: Props) {
   const router = useRouter();
@@ -85,8 +86,6 @@ export function EntradaFormDialog({
   const dataInicial = entrada?.data ?? new Date().toISOString().slice(0, 10);
   const [data, setData] = useState(dataInicial);
   const [tipo, setTipo] = useState<EntradaTipo>(entrada?.tipo ?? "comissao");
-  const [escopo, setEscopo] = useState<EntradaEscopo>(entrada?.escopo ?? "empresa");
-  const ehJoinville = escopo === "joinville";
   const [descricao, setDescricao] = useState(entrada?.descricao ?? "");
   const [valor, setValor] = useState(entrada ? String(entrada.valor) : "");
   const [vendaId, setVendaId] = useState(entrada?.venda_id ?? NONE);
@@ -96,21 +95,25 @@ export function EntradaFormDialog({
   const [pctPessoal, setPctPessoal] = useState(
     fracaoParaInputPct(percentualPessoalInicial),
   );
+  const [pctJoinville, setPctJoinville] = useState(
+    fracaoParaInputPct(percentualJoinvilleInicial),
+  );
 
   const fracEmpresa = inputPctParaFracao(pctEmpresa);
   const fracPessoal = inputPctParaFracao(pctPessoal);
-  // Joinville manda 100% do líquido para a carteira Joinville; não há split.
-  const somaValida = ehJoinville || Math.abs(fracEmpresa + fracPessoal - 1) < 0.0001;
+  const fracJoinville = inputPctParaFracao(pctJoinville);
+  // Empresa + Pessoal + Zefer Joinville têm que somar 100%.
+  const somaValida = Math.abs(fracEmpresa + fracPessoal + fracJoinville - 1) < 0.0001;
 
-  const dist = useMemo(
-    () =>
-      calcularDistribuicao({
-        valor: parseNumeroBR(valor),
-        percentualDizimo: 0,
-        percentualEmpresa: fracEmpresa,
-      }),
-    [valor, fracEmpresa],
-  );
+  // Sem dízimo: líquido = valor. As três parcelas são % do líquido; o pessoal
+  // fica com o resto para não sobrar/faltar centavo no arredondamento.
+  const dist = useMemo(() => {
+    const liquido = round2(parseNumeroBR(valor));
+    const valorEmpresa = round2(liquido * fracEmpresa);
+    const valorJoinville = round2(liquido * fracJoinville);
+    const valorPessoal = round2(liquido - valorEmpresa - valorJoinville);
+    return { liquido, valorEmpresa, valorPessoal, valorJoinville };
+  }, [valor, fracEmpresa, fracJoinville]);
 
   function onSelectVenda(value: string) {
     setVendaId(value);
@@ -127,7 +130,7 @@ export function EntradaFormDialog({
     e.preventDefault();
     if (!somaValida) {
       toast.error(
-        "A distribuição entre Empresa e Pessoal deve totalizar exatamente 100%.",
+        "A soma de Empresa + Pessoal + Zefer Joinville deve dar exatamente 100%.",
       );
       return;
     }
@@ -140,8 +143,8 @@ export function EntradaFormDialog({
       percentual_dizimo: 0,
       percentual_empresa: fracEmpresa,
       percentual_pessoal: fracPessoal,
+      percentual_joinville: fracJoinville,
       venda_id: vendaId === NONE ? null : vendaId,
-      escopo,
     };
     const res = entrada
       ? await atualizarEntrada(entrada.id, input)
@@ -163,24 +166,11 @@ export function EntradaFormDialog({
         <DialogHeader>
           <DialogTitle>{entrada ? "Editar entrada" : "Nova entrada"}</DialogTitle>
           <DialogDescription>
-            A distribuição empresa/pessoal é calculada automaticamente.
+            Divida a entrada entre Empresa, Pessoal e Zefer Joinville (soma 100%).
           </DialogDescription>
         </DialogHeader>
 
         <form onSubmit={onSubmit} className="space-y-4">
-          <div className="space-y-2">
-            <Label>Destino</Label>
-            <Select value={escopo} onValueChange={(v) => setEscopo(v as EntradaEscopo)}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="empresa">Zefer (empresa/pessoal)</SelectItem>
-                <SelectItem value="joinville">Zefer Joinville</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="e-data">Data</Label>
@@ -248,49 +238,51 @@ export function EntradaFormDialog({
             />
           </div>
 
-          {!ehJoinville ? (
-            <>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="e-empresa">% Empresa</Label>
-                  <Input
-                    id="e-empresa"
-                    inputMode="decimal"
-                    value={pctEmpresa}
-                    onChange={(ev) => setPctEmpresa(ev.target.value)}
-                    placeholder="0"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="e-pessoal">% Pessoal</Label>
-                  <Input
-                    id="e-pessoal"
-                    inputMode="decimal"
-                    value={pctPessoal}
-                    onChange={(ev) => setPctPessoal(ev.target.value)}
-                    placeholder="100"
-                  />
-                </div>
-              </div>
-              {!somaValida ? (
-                <p className="text-sm text-destructive">
-                  A distribuição entre Empresa e Pessoal deve totalizar exatamente
-                  100%.
-                </p>
-              ) : null}
-            </>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+            <div className="space-y-2">
+              <Label htmlFor="e-empresa">% Empresa</Label>
+              <Input
+                id="e-empresa"
+                inputMode="decimal"
+                value={pctEmpresa}
+                onChange={(ev) => setPctEmpresa(ev.target.value)}
+                placeholder="0"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="e-pessoal">% Pessoal</Label>
+              <Input
+                id="e-pessoal"
+                inputMode="decimal"
+                value={pctPessoal}
+                onChange={(ev) => setPctPessoal(ev.target.value)}
+                placeholder="100"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="e-joinville">% Zefer Joinville</Label>
+              <Input
+                id="e-joinville"
+                inputMode="decimal"
+                value={pctJoinville}
+                onChange={(ev) => setPctJoinville(ev.target.value)}
+                placeholder="0"
+              />
+            </div>
+          </div>
+          {!somaValida ? (
+            <p className="text-sm text-destructive">
+              A soma de Empresa + Pessoal + Zefer Joinville deve dar exatamente 100%.
+            </p>
           ) : null}
 
           <div className="rounded-md border bg-muted/40 p-3 text-sm">
             <Resumo label="Líquido" valor={dist.liquido} strong />
-            {ehJoinville ? (
-              <Resumo label="Zefer Joinville" valor={dist.liquido} />
-            ) : (
-              <>
-                <Resumo label="Empresa (Zefer)" valor={dist.valorEmpresa} />
-                <Resumo label="Pessoal" valor={dist.valorPessoal} />
-              </>
-            )}
+            <Resumo label="Empresa (Zefer)" valor={dist.valorEmpresa} />
+            <Resumo label="Pessoal" valor={dist.valorPessoal} />
+            {fracJoinville > 0 ? (
+              <Resumo label="Zefer Joinville" valor={dist.valorJoinville} />
+            ) : null}
           </div>
 
           <DialogFooter>

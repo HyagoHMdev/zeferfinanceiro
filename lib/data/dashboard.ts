@@ -38,8 +38,7 @@ export async function carregarDashboard(opts?: {
   const anoAtual = new Date().getUTCFullYear();
 
   const [entradasRes, vendasRes, lancamentosRes, distRes] = await Promise.all([
-    // Zefer Joinville é carteira separada: não entra na receita da Zefer.
-    supabase.from("entradas").select("data, valor").neq("escopo", "joinville"),
+    supabase.from("entradas").select("data, valor"),
     supabase
       .from("vendas")
       .select(
@@ -68,7 +67,7 @@ export async function carregarDashboard(opts?: {
     competencia: string;
   }[];
   const distribuicoes = (distRes.data ?? []) as unknown as {
-    destino: "empresa" | "pessoal";
+    destino: "empresa" | "pessoal" | "joinville";
     valor: number;
     entradas: { data: string } | null;
   }[];
@@ -113,6 +112,12 @@ export async function carregarDashboard(opts?: {
       receitaPorMes[Number(e.data.slice(5, 7)) - 1] += Number(e.valor);
     }
   }
+  // Zefer Joinville é carteira separada: subtrai a parcela joinville da receita.
+  for (const d of distribuicoes) {
+    if (d.destino === "joinville" && d.entradas?.data && d.entradas.data.slice(0, 4) === anoStr) {
+      receitaPorMes[Number(d.entradas.data.slice(5, 7)) - 1] -= Number(d.valor);
+    }
+  }
   for (const l of lancamentos) {
     if (l.competencia.slice(0, 4) === anoStr) {
       despesaPorMes[Number(l.competencia.slice(5, 7)) - 1] += Number(l.valor);
@@ -125,7 +130,14 @@ export async function carregarDashboard(opts?: {
     lucro: round2(receitaPorMes[i] - despesaPorMes[i]),
   }));
 
-  const receita = somar(entradas, (e) => noPeriodo(e.data), (e) => Number(e.valor));
+  const receita = round2(
+    somar(entradas, (e) => noPeriodo(e.data), (e) => Number(e.valor)) -
+      somar(
+        distribuicoes,
+        (d) => d.destino === "joinville" && noPeriodo(d.entradas?.data ?? ""),
+        (d) => Number(d.valor),
+      ),
+  );
   // Investimentos: lançamentos do cadastro de Investimentos (Financeiro).
   const investimentos = somar(
     lancamentos,

@@ -107,8 +107,14 @@ export function EntradasTable({
   const percDe = (e: EntradaRow, destino: Destino) =>
     Number(distDe(e, destino)?.percentual ?? 0);
 
-  // Coluna Joinville só aparece quando há alguma entrada dessa carteira.
-  const temJoinville = useMemo(() => entradas.some((e) => e.escopo === "joinville"), [entradas]);
+  const entradaTemJoinville = (e: EntradaRow) =>
+    (e.distribuicoes ?? []).some((d) => d.destino === "joinville" && Number(d.valor) !== 0);
+  // Coluna Joinville só aparece quando há alguma entrada com parcela dessa carteira.
+  const temJoinville = useMemo(
+    () => entradas.some(entradaTemJoinville),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [entradas],
+  );
 
   const somar = (linhas: EntradaRow[]): Totais => ({
     valor: linhas.reduce((s, e) => s + Number(e.valor), 0),
@@ -207,7 +213,7 @@ export function EntradasTable({
         <TableCell>{ENTRADA_TIPO_LABEL[e.tipo]}</TableCell>
         <TableCell>
           {e.descricao ?? "—"}
-          {e.escopo === "joinville" ? (
+          {entradaTemJoinville(e) ? (
             <span className="ml-2 rounded bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary">
               Joinville
             </span>
@@ -245,6 +251,7 @@ export function EntradasTable({
                 percentuaisMensais={percentuaisMensais}
                 percentualEmpresaInicial={percDe(e, "empresa")}
                 percentualPessoalInicial={percDe(e, "pessoal")}
+                percentualJoinvilleInicial={percDe(e, "joinville")}
                 trigger={
                   <Button variant="ghost" size="icon" aria-label="Editar">
                     <Pencil className="size-4" />

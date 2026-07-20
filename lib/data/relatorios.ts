@@ -173,16 +173,21 @@ export async function relatorioDRE(ano: number): Promise<DRE> {
 
   // Demais entradas do ano (todas menos comissão, que já entra pela cadeia das
   // vendas acima — evita dupla contagem).
-  const { data: entradasData } = await supabase
-    .from("entradas")
-    // Zefer Joinville é carteira separada: fora do DRE da Zefer.
-    .select("data, valor, tipo")
-    .neq("escopo", "joinville");
-  const outrasEntradas = round2(
-    ((entradasData ?? []) as { data: string; valor: number; tipo: string }[])
-      .filter((e) => e.tipo !== "comissao" && noAno(e.data))
-      .reduce((s, e) => s + Number(e.valor), 0),
-  );
+  // Outras entradas do ano (todas menos comissão), já descontando a parcela
+  // destinada à Zefer Joinville (carteira separada, fora do DRE da Zefer).
+  const [{ data: entradasData }, { data: joinDistData }] = await Promise.all([
+    supabase.from("entradas").select("data, valor, tipo"),
+    supabase.from("distribuicoes").select("valor, entradas(data, tipo)").eq("destino", "joinville"),
+  ]);
+  const outrasBrutas = ((entradasData ?? []) as { data: string; valor: number; tipo: string }[])
+    .filter((e) => e.tipo !== "comissao" && noAno(e.data))
+    .reduce((s, e) => s + Number(e.valor), 0);
+  const joinvilleOutras = (
+    (joinDistData ?? []) as unknown as { valor: number; entradas: { data: string; tipo: string } | null }[]
+  )
+    .filter((d) => d.entradas && d.entradas.tipo !== "comissao" && noAno(d.entradas.data))
+    .reduce((s, d) => s + Number(d.valor), 0);
+  const outrasEntradas = round2(outrasBrutas - joinvilleOutras);
 
   return {
     ano,

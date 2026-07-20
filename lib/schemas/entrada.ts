@@ -15,16 +15,16 @@ export const entradaSchema = z
     percentual_dizimo: z.number().min(0).max(1),
     percentual_empresa: z.number().min(0).max(1),
     percentual_pessoal: z.number().min(0).max(1),
+    // Parcela desta entrada destinada à Zefer Joinville (carteira separada).
+    percentual_joinville: z.number().min(0).max(1).default(0),
     venda_id: z.string().uuid().nullable(),
-    // "joinville" manda 100% do líquido para a Zefer Joinville (sem split).
-    escopo: z.enum(["empresa", "joinville"]).default("empresa"),
   })
   .refine(
-    // O split empresa/pessoal só precisa fechar 100% no escopo "empresa".
-    (d) => d.escopo === "joinville" || Math.abs(d.percentual_empresa + d.percentual_pessoal - 1) < 0.0001,
+    (d) =>
+      Math.abs(d.percentual_empresa + d.percentual_pessoal + d.percentual_joinville - 1) < 0.0001,
     {
-      message: "A distribuição entre Empresa e Pessoal deve totalizar exatamente 100%.",
-      path: ["percentual_pessoal"],
+      message: "A soma de Empresa + Pessoal + Zefer Joinville deve dar exatamente 100%.",
+      path: ["percentual_joinville"],
     },
   );
 
