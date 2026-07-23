@@ -1,10 +1,76 @@
+"use client";
+
 import * as React from "react";
 
 import { cn } from "@/lib/utils";
 
 function Table({ className, ...props }: React.ComponentProps<"table">) {
+  const containerRef = React.useRef<HTMLDivElement>(null);
+
+  // Rolagem horizontal seguindo o mouse: quando o cursor se aproxima da borda
+  // direita (ou esquerda) da tabela, ela rola sozinha para aquele lado. Assim
+  // dá para ver as colunas escondidas sem precisar descer até a barra de
+  // rolagem lá no rodapé. Só age quando a tabela é mais larga que a área visível.
+  React.useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+
+    let raf = 0;
+    let velocidade = 0; // px por frame; o sinal indica a direção (+ direita, - esquerda)
+
+    const passo = () => {
+      const antes = el.scrollLeft;
+      el.scrollLeft += velocidade;
+      // Continua enquanto realmente há movimento. Ao bater na ponta (scrollLeft
+      // não muda) ou zerar a velocidade, encerra o loop até o próximo mousemove.
+      if (velocidade !== 0 && el.scrollLeft !== antes) {
+        raf = requestAnimationFrame(passo);
+      } else {
+        raf = 0;
+      }
+    };
+    const ligar = () => {
+      if (!raf && velocidade !== 0) raf = requestAnimationFrame(passo);
+    };
+
+    const onMove = (e: MouseEvent) => {
+      if (el.scrollWidth - el.clientWidth <= 1) {
+        velocidade = 0; // sem overflow: nada a rolar
+        return;
+      }
+      const r = el.getBoundingClientRect();
+      const x = e.clientX - r.left;
+      // Faixa sensível nas bordas: ~18% da largura, limitada entre 48 e 140px.
+      const zona = Math.min(140, Math.max(48, r.width * 0.18));
+      const vMax = 16; // px por frame no encostar da borda
+      if (x > r.width - zona) {
+        velocidade = Math.ceil(((x - (r.width - zona)) / zona) * vMax);
+      } else if (x < zona) {
+        velocidade = -Math.ceil(((zona - x) / zona) * vMax);
+      } else {
+        velocidade = 0;
+      }
+      ligar();
+    };
+    const onLeave = () => {
+      velocidade = 0;
+    };
+
+    el.addEventListener("mousemove", onMove);
+    el.addEventListener("mouseleave", onLeave);
+    return () => {
+      el.removeEventListener("mousemove", onMove);
+      el.removeEventListener("mouseleave", onLeave);
+      if (raf) cancelAnimationFrame(raf);
+    };
+  }, []);
+
   return (
-    <div data-slot="table-container" className="relative w-full overflow-x-auto">
+    <div
+      ref={containerRef}
+      data-slot="table-container"
+      className="relative w-full overflow-x-auto"
+    >
       <table
         data-slot="table"
         className={cn("w-full caption-bottom text-sm", className)}

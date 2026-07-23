@@ -115,16 +115,6 @@ export function EntradaFormDialog({
     return { liquido, valorEmpresa, valorPessoal, valorJoinville };
   }, [valor, fracEmpresa, fracJoinville]);
 
-  // Slider Empresa ↔ Pessoal: define a % da empresa (dentro do que sobra depois
-  // da Joinville) e joga o resto no pessoal, mantendo a soma em 100%.
-  const tetoEmpresa = 100 - fracJoinville * 100; // o que sobra depois da Joinville
-  function ajustarSplit(empresaPct: number) {
-    const emp = Math.max(0, Math.min(tetoEmpresa, Math.round(empresaPct)));
-    setPctEmpresa(String(emp));
-    // Arredonda o resto em 2 casas para não deixar "39.49999" no campo.
-    setPctPessoal(String(Math.round((tetoEmpresa - emp) * 100) / 100));
-  }
-
   function onSelectVenda(value: string) {
     setVendaId(value);
     if (value !== NONE) {
@@ -248,7 +238,6 @@ export function EntradaFormDialog({
             />
           </div>
 
-          <div className="group space-y-2">
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
             <div className="space-y-2">
               <Label htmlFor="e-empresa">% Empresa</Label>
@@ -282,27 +271,6 @@ export function EntradaFormDialog({
             </div>
           </div>
 
-          {/* Controle deslizante: aparece ao passar o mouse. Arrasta o split
-              Empresa ↔ Pessoal (respeitando a fatia da Joinville). */}
-          <div className="max-h-0 overflow-hidden opacity-0 transition-all duration-200 group-hover:max-h-24 group-hover:opacity-100 focus-within:max-h-24 focus-within:opacity-100">
-            <div className="flex items-center gap-3 pt-1">
-              <span className="w-14 shrink-0 text-right text-xs text-muted-foreground">Pessoal</span>
-              <input
-                type="range"
-                min={0}
-                max={tetoEmpresa}
-                value={Math.round(fracEmpresa * 100)}
-                onChange={(ev) => ajustarSplit(Number(ev.target.value))}
-                aria-label="Distribuir entre Pessoal e Empresa"
-                className="h-1.5 flex-1 cursor-pointer accent-primary"
-              />
-              <span className="w-14 shrink-0 text-xs text-muted-foreground">Empresa</span>
-              <span className="w-24 shrink-0 text-right text-xs tabular-nums text-foreground">
-                {Math.round(fracEmpresa * 100)}% / {Math.round(fracPessoal * 100)}%
-              </span>
-            </div>
-          </div>
-          </div>
           {!somaValida ? (
             <p className="text-sm text-destructive">
               A soma de Empresa + Pessoal + Zefer Joinville deve dar exatamente 100%.
