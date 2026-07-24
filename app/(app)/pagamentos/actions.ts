@@ -132,24 +132,26 @@ export async function registrarPagamento(
     if (uaErr) return { error: uaErr.message };
   }
 
+  // Nome do corretor (para as descrições dos lançamentos/entradas abaixo).
+  const { data: nomeRow } = await supabase
+    .from("corretores")
+    .select("nome")
+    .eq("id", corretorId)
+    .maybeSingle();
+  const nomeCorretor = (nomeRow as { nome?: string } | null)?.nome ?? "corretor";
+
   // 4) Reconciliação: os adiantamentos descontados voltam ao CAIXA como entrada
   // (100% empresa). O adiantamento saiu como despesa variável quando foi dado;
-  // ao pagar a comissão (que já desconta o adiantamento), esse valor retorna,
-  // cancelando a despesa no caixa e no DRE. Não divide com sócios: não é receita
-  // nova. Ligada ao pagamento -> some junto no estorno (cascade).
+  // ao pagar a comissão (que já desconta o adiantamento), esse valor retorna.
+  // Junto com a saída do passo 5, o efeito líquido no caixa da data é o valor
+  // realmente desembolsado. Ligada ao pagamento -> some junto no estorno (cascade).
   if (totalAdiantamentos > 0) {
-    const { data: nomeRow } = await supabase
-      .from("corretores")
-      .select("nome")
-      .eq("id", corretorId)
-      .maybeSingle();
-    const nomeCorretor = (nomeRow as { nome?: string } | null)?.nome ?? "corretor";
     const { data: ent, error: eErr } = await supabase
       .from("entradas")
       .insert({
         data: hoje,
         tipo: "outras",
-        descricao: `Reconciliação de adiantamentos — pagamento de ${nomeCorretor}`,
+        descricao: `Reconciliação de adiantamentos, pagamento de ${nomeCorretor}`,
         valor: totalAdiantamentos,
         percentual_dizimo: 0,
         valor_dizimo: 0,
@@ -167,6 +169,32 @@ export async function registrarPagamento(
       valor: totalAdiantamentos,
     });
     if (dErr) return { error: dErr.message };
+  }
+
+  // 5) Saída no CAIXA: a comissão do corretor é uma despesa PAGA da EMPRESA,
+  // debitando o saldo. Valor = comissão líquida do corretor (bruto do pagamento).
+  // Com a reconciliação acima, o movimento do dia fecha no líquido desembolsado.
+  // Ligada ao pagamento -> some junto no estorno (cascade).
+  if (valorBruto > 0) {
+    const { data: catRow } = await supabase
+      .from("categorias_financeiras")
+      .select("id")
+      .eq("nome", "Comissões de corretores")
+      .eq("tipo", "despesa_variavel")
+      .maybeSingle();
+    const { error: lErr } = await supabase.from("lancamentos").insert({
+      escopo: "empresa",
+      natureza: "despesa_variavel",
+      categoria_id: (catRow as { id?: string } | null)?.id ?? null,
+      descricao: `Comissão de corretor · ${nomeCorretor}`,
+      valor: valorBruto,
+      competencia: `${hoje.slice(0, 7)}-01`,
+      data_vencimento: hoje,
+      data_pagamento: hoje,
+      status: "pago",
+      pagamento_id: pag.id,
+    });
+    if (lErr) return { error: lErr.message };
   }
 
   revalidar();
