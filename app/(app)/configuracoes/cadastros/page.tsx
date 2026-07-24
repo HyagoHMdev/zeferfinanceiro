@@ -57,7 +57,7 @@ export default async function CadastrosPage() {
       <TabsList className="mb-4 h-auto flex-wrap">
         <TabsTrigger value="construtoras">Construtoras</TabsTrigger>
         <TabsTrigger value="empreendimentos">Empreendimentos</TabsTrigger>
-        <TabsTrigger value="corretores">Corretores</TabsTrigger>
+        <TabsTrigger value="corretores">Colaboradores</TabsTrigger>
         <TabsTrigger value="parceiros">Parceiros</TabsTrigger>
         <TabsTrigger value="contas">Contas</TabsTrigger>
         <TabsTrigger value="centros">Centros de custo</TabsTrigger>
@@ -108,7 +108,7 @@ export default async function CadastrosPage() {
       <TabsContent value="corretores">
         <CadastroManager
           tabela="corretores"
-          titulo="Corretores"
+          titulo="Colaboradores"
           registros={(corretores.data ?? []) as unknown as Registro[]}
           campos={[
             { name: "nome", label: "Nome", tipo: "text", required: true },
