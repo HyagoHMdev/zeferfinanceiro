@@ -206,18 +206,47 @@ export async function estornarPagamento(
 
   const supabase = await createClient();
 
-  const { error: uvErr } = await supabase
-    .from("vendas")
-    .update({ status_pagamento_corretor: "aguardando_liberacao", pagamento_id: null })
-    .eq("pagamento_id", pagamentoId);
-  if (uvErr) return { error: uvErr.message };
+  // Captura os vínculos ANTES de mexer: apagar o pagamento zera
+  // vendas.pagamento_id e adiantamentos.pagamento_id por cascata (ON DELETE SET
+  // NULL). Se apagássemos antes de reverter, não haveria mais como achar as
+  // vendas e elas ficariam presas em "pago", fora da lista de a pagar (e os
+  // adiantamentos delas somem junto).
+  const [vLig, aLig] = await Promise.all([
+    supabase.from("vendas").select("id").eq("pagamento_id", pagamentoId),
+    supabase.from("adiantamentos").select("id").eq("pagamento_id", pagamentoId),
+  ]);
+  if (vLig.error) return { error: vLig.error.message };
+  if (aLig.error) return { error: aLig.error.message };
+  const vendaIds = (vLig.data ?? []).map((v) => (v as { id: string }).id);
+  const adiIds = (aLig.data ?? []).map((a) => (a as { id: string }).id);
 
-  const { error: uaErr } = await supabase
-    .from("adiantamentos")
-    .update({ pagamento_id: null })
-    .eq("pagamento_id", pagamentoId);
-  if (uaErr) return { error: uaErr.message };
+  // 1) Reverte as comissões para "aguardando liberação". Confere o número de
+  //    linhas: se não voltarem todas (ex.: permissão), ABORTA antes de apagar o
+  //    pagamento — assim nunca se cria venda órfã.
+  if (vendaIds.length > 0) {
+    const { error, count } = await supabase
+      .from("vendas")
+      .update(
+        { status_pagamento_corretor: "aguardando_liberacao", pagamento_id: null },
+        { count: "exact" },
+      )
+      .in("id", vendaIds);
+    if (error) return { error: error.message };
+    if ((count ?? 0) < vendaIds.length) {
+      return { error: "Não foi possível reverter todas as comissões. Nada foi estornado." };
+    }
+  }
 
+  // 2) Desvincula os adiantamentos (continuam existindo, voltam a ser descontáveis).
+  if (adiIds.length > 0) {
+    const { error: uaErr } = await supabase
+      .from("adiantamentos")
+      .update({ pagamento_id: null })
+      .in("id", adiIds);
+    if (uaErr) return { error: uaErr.message };
+  }
+
+  // 3) Só agora apaga o pagamento (a cascata remove a entrada de reconciliação).
   const { error: dErr } = await supabase
     .from("pagamentos_corretor")
     .delete()
