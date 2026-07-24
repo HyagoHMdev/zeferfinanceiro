@@ -7,12 +7,16 @@ export interface ComissaoAPagar {
   empreendimento: string | null;
   cliente: string | null;
   dataVenda: string;
+  comissaoBruta: number;
+  imposto: number;
   liquidoCorretor: number;
 }
 
 /** Um adiantamento a descontar no pagamento. */
 export interface AdiantamentoAPagar {
   id: string;
+  /** Venda a que o adiantamento está atrelado (null = vale avulso). */
+  vendaId: string | null;
   data: string;
   descricao: string | null;
   valor: number;
@@ -40,7 +44,7 @@ export async function listarPagamentosPendentes(): Promise<CorretorPendente[]> {
   const { data: vendasData } = await supabase
     .from("vendas")
     .select(
-      "id, cliente, data_venda, liquido_corretor, corretor_id, corretores(nome), empreendimentos(nome)",
+      "id, cliente, data_venda, liquido_corretor, comissao_corretor_bruto, valor_imposto_nf, corretor_id, corretores(nome), empreendimentos(nome)",
     )
     .eq("status_pagamento_corretor", "aguardando_liberacao")
     .not("corretor_id", "is", null)
@@ -51,6 +55,8 @@ export async function listarPagamentosPendentes(): Promise<CorretorPendente[]> {
     cliente: string | null;
     data_venda: string;
     liquido_corretor: number;
+    comissao_corretor_bruto: number;
+    valor_imposto_nf: number;
     corretor_id: string;
     corretores: { nome: string } | null;
     empreendimentos: { nome: string } | null;
@@ -93,6 +99,8 @@ export async function listarPagamentosPendentes(): Promise<CorretorPendente[]> {
       empreendimento: v.empreendimentos?.nome ?? null,
       cliente: v.cliente,
       dataVenda: v.data_venda,
+      comissaoBruta: Number(v.comissao_corretor_bruto),
+      imposto: Number(v.valor_imposto_nf),
       liquidoCorretor: Number(v.liquido_corretor),
     });
     mapa.set(v.corretor_id, atual);
@@ -102,6 +110,7 @@ export async function listarPagamentosPendentes(): Promise<CorretorPendente[]> {
     if (!atual) continue; // adiantamento de venda que não está pendente
     atual.adiantamentos.push({
       id: a.id,
+      vendaId: a.venda_id,
       data: a.data,
       descricao: a.descricao,
       valor: Number(a.valor),
@@ -129,6 +138,7 @@ export async function listarPagamentosPendentes(): Promise<CorretorPendente[]> {
       if (!atual) continue;
       atual.adiantamentos.push({
         id: a.id,
+        vendaId: null,
         data: a.data,
         descricao: a.descricao ?? "Adiantamento",
         valor: Number(a.valor),

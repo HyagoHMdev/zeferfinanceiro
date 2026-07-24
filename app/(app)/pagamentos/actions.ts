@@ -17,7 +17,13 @@ function revalidar() {
   revalidatePath("/meu-extrato");
 }
 
-const registrarSchema = z.object({ corretorId: z.string().uuid() });
+const registrarSchema = z.object({
+  corretorId: z.string().uuid(),
+  // Comissões (vendas) a pagar. Ausente = pagar todas as pendentes do corretor.
+  vendaIds: z.array(z.string().uuid()).optional(),
+  // Adiantamentos a descontar. Ausente = descontar todos os elegíveis.
+  adiantamentoIds: z.array(z.string().uuid()).optional(),
+});
 
 /**
  * Registra um pagamento consolidado a um corretor: junta as comissões
@@ -43,9 +49,17 @@ export async function registrarPagamento(
     .eq("corretor_id", corretorId)
     .eq("status_pagamento_corretor", "aguardando_liberacao");
   if (vErr) return { error: vErr.message };
-  const vendas = (vendasData ?? []) as { id: string; liquido_corretor: number; data_venda: string }[];
-  if (vendas.length === 0) {
+  const todasVendas = (vendasData ?? []) as { id: string; liquido_corretor: number; data_venda: string }[];
+  if (todasVendas.length === 0) {
     return { error: "Nenhuma comissão aguardando liberação para este corretor." };
+  }
+  // Se o cliente escolheu comissões específicas, paga só essas (validadas contra
+  // as realmente pendentes deste corretor). Sem seleção, paga todas.
+  const vendas = parsed.data.vendaIds
+    ? todasVendas.filter((v) => parsed.data.vendaIds!.includes(v.id))
+    : todasVendas;
+  if (vendas.length === 0) {
+    return { error: "Selecione ao menos uma comissão válida para pagar." };
   }
   const vendaIds = vendas.map((v) => v.id);
 
@@ -66,10 +80,15 @@ export async function registrarPagamento(
   ]);
   if (adiVendaRes.error) return { error: adiVendaRes.error.message };
   if (adiAvulsoRes.error) return { error: adiAvulsoRes.error.message };
-  const adiantamentos = [
+  let adiantamentos = [
     ...((adiVendaRes.data ?? []) as { id: string; valor: number }[]),
     ...((adiAvulsoRes.data ?? []) as { id: string; valor: number }[]),
   ];
+  // Descontar só os adiantamentos escolhidos (validados contra os elegíveis).
+  if (parsed.data.adiantamentoIds) {
+    const escolhidos = new Set(parsed.data.adiantamentoIds);
+    adiantamentos = adiantamentos.filter((a) => escolhidos.has(a.id));
+  }
 
   const valorBruto = round2(vendas.reduce((s, v) => s + Number(v.liquido_corretor), 0));
   const totalAdiantamentos = round2(

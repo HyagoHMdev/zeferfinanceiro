@@ -39,7 +39,9 @@ export default async function ReciboPagamentoPage({
   const [vendasRes, adiRes, bonRes] = await Promise.all([
     supabase
       .from("vendas")
-      .select("id, cliente, liquido_corretor, empreendimentos(nome)")
+      .select(
+        "id, cliente, liquido_corretor, comissao_corretor_bruto, valor_imposto_nf, empreendimentos(nome)",
+      )
       .eq("pagamento_id", id),
     supabase.from("adiantamentos").select("id, data, descricao, valor").eq("pagamento_id", id),
     supabase.from("bonificacoes").select("id, data, motivo, valor").eq("pagamento_id", id),
@@ -49,8 +51,12 @@ export default async function ReciboPagamentoPage({
     id: string;
     cliente: string | null;
     liquido_corretor: number;
+    comissao_corretor_bruto: number;
+    valor_imposto_nf: number;
     empreendimentos: { nome: string } | null;
   }[];
+  const totalComissaoBruta = vendas.reduce((s, v) => s + Number(v.comissao_corretor_bruto), 0);
+  const totalImposto = vendas.reduce((s, v) => s + Number(v.valor_imposto_nf), 0);
   const adiantamentos = (adiRes.data ?? []) as {
     id: string;
     data: string;
@@ -108,6 +114,14 @@ export default async function ReciboPagamentoPage({
           <section className="mb-4">
             <div className="mb-1 text-sm font-semibold">Comissões</div>
             <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b text-xs text-zinc-500">
+                  <th className="py-1 text-left font-medium">Venda</th>
+                  <th className="py-1 text-right font-medium">Comissão</th>
+                  <th className="py-1 text-right font-medium">Imposto</th>
+                  <th className="py-1 text-right font-medium">Líquida</th>
+                </tr>
+              </thead>
               <tbody>
                 {vendas.map((v) => (
                   <tr key={v.id} className="border-b last:border-0">
@@ -116,6 +130,12 @@ export default async function ReciboPagamentoPage({
                       {v.cliente ? ` — ${v.cliente}` : ""}
                     </td>
                     <td className="py-1 text-right tabular-nums">
+                      {formatBRL(v.comissao_corretor_bruto)}
+                    </td>
+                    <td className="py-1 text-right tabular-nums text-zinc-500">
+                      - {formatBRL(v.valor_imposto_nf)}
+                    </td>
+                    <td className="py-1 text-right font-medium tabular-nums">
                       {formatBRL(v.liquido_corretor)}
                     </td>
                   </tr>
@@ -159,16 +179,26 @@ export default async function ReciboPagamentoPage({
 
         <div className="mt-6 space-y-1 border-t pt-4 text-sm">
           <div className="flex justify-between">
-            <span>Comissões (bruto)</span>
+            <span>Comissão bruta</span>
+            <span className="tabular-nums">{formatBRL(totalComissaoBruta)}</span>
+          </div>
+          <div className="flex justify-between text-zinc-500">
+            <span>(−) Imposto (NF)</span>
+            <span className="tabular-nums">- {formatBRL(totalImposto)}</span>
+          </div>
+          <div className="flex justify-between border-t pt-2">
+            <span>Comissão líquida</span>
             <span className="tabular-nums">{formatBRL(pagamento.valor_bruto)}</span>
           </div>
-          <div className="flex justify-between">
-            <span>(+) Bonificações</span>
-            <span className="tabular-nums">{formatBRL(pagamento.total_bonificacoes)}</span>
-          </div>
+          {pagamento.total_bonificacoes > 0 ? (
+            <div className="flex justify-between">
+              <span>(+) Bonificações</span>
+              <span className="tabular-nums">{formatBRL(pagamento.total_bonificacoes)}</span>
+            </div>
+          ) : null}
           <div className="flex justify-between">
             <span>(−) Adiantamentos</span>
-            <span className="tabular-nums">{formatBRL(pagamento.total_adiantamentos)}</span>
+            <span className="tabular-nums">- {formatBRL(pagamento.total_adiantamentos)}</span>
           </div>
           <div className="flex justify-between border-t pt-2 text-base font-bold">
             <span>Valor líquido</span>
