@@ -23,6 +23,7 @@ interface AdiantamentoRecibo {
     telefone: string | null;
     cpf: string | null;
     creci: string | null;
+    tipo: string | null;
   } | null;
 }
 
@@ -38,14 +39,15 @@ export default async function ReciboAdiantamentoPage({
   const { data } = await supabase
     .from("adiantamentos")
     .select(
-      "id, corretor_id, data, valor, descricao, assinatura_url, assinado_em, corretores(nome, telefone, cpf, creci)",
+      "id, corretor_id, data, valor, descricao, assinatura_url, assinado_em, corretores(nome, telefone, cpf, creci, tipo)",
     )
     .eq("id", id)
     .single();
   if (!data) notFound();
   const adiantamento = data as unknown as AdiantamentoRecibo;
 
-  const nome = adiantamento.corretores?.nome ?? "Corretor";
+  const ehFuncionario = adiantamento.corretores?.tipo === "funcionario";
+  const nome = adiantamento.corretores?.nome ?? (ehFuncionario ? "Funcionário" : "Corretor");
   const cpf = adiantamento.corretores?.cpf?.trim() || "________________";
   const creci = adiantamento.corretores?.creci?.trim() || "________";
 
@@ -78,15 +80,16 @@ export default async function ReciboAdiantamentoPage({
         ) : null}
 
         <p className="text-justify text-sm leading-7">
-          Eu, <strong>{nome.toUpperCase()}</strong>, inscrito no CPF sob nº {cpf} e
-          CRECI {creci}, declaro ter recebido da empresa{" "}
+          Eu, <strong>{nome.toUpperCase()}</strong>, inscrito no CPF sob nº {cpf}
+          {ehFuncionario ? "" : ` e CRECI ${creci}`}, declaro ter recebido da empresa{" "}
           <strong>{EMPRESA_NOME}</strong>, pessoa jurídica de direito privado,
           inscrita no CNPJ sob nº {EMPRESA_CNPJ}, nesta data, a quantia de{" "}
           <strong>{formatBRL(adiantamento.valor)}</strong> (
-          {valorPorExtenso(adiantamento.valor)}), a título de adiantamento.
-          Declaro ainda estar ciente e de acordo que referido valor será
-          descontado integralmente da próxima comissão que eu venha a receber. Por
-          ser verdade, firmo o presente recibo.
+          {valorPorExtenso(adiantamento.valor)}), a título de adiantamento.{" "}
+          {ehFuncionario
+            ? "Declaro ainda estar ciente e de acordo que referido valor será acertado com a empresa."
+            : "Declaro ainda estar ciente e de acordo que referido valor será descontado integralmente da próxima comissão que eu venha a receber."}{" "}
+          Por ser verdade, firmo o presente recibo.
         </p>
 
         <AssinaturaRecibo
