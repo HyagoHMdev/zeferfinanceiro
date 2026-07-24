@@ -171,32 +171,9 @@ export async function registrarPagamento(
     if (dErr) return { error: dErr.message };
   }
 
-  // 5) Saída no CAIXA: a comissão do corretor é uma despesa PAGA da EMPRESA,
-  // debitando o saldo. Valor = comissão líquida do corretor (bruto do pagamento).
-  // Com a reconciliação acima, o movimento do dia fecha no líquido desembolsado.
-  // Ligada ao pagamento -> some junto no estorno (cascade).
-  if (valorBruto > 0) {
-    const { data: catRow } = await supabase
-      .from("categorias_financeiras")
-      .select("id")
-      .eq("nome", "Comissões de corretores")
-      .eq("tipo", "despesa_variavel")
-      .maybeSingle();
-    const { error: lErr } = await supabase.from("lancamentos").insert({
-      escopo: "empresa",
-      natureza: "despesa_variavel",
-      categoria_id: (catRow as { id?: string } | null)?.id ?? null,
-      descricao: `Comissão de corretor · ${nomeCorretor}`,
-      valor: valorBruto,
-      competencia: `${hoje.slice(0, 7)}-01`,
-      data_vencimento: hoje,
-      data_pagamento: hoje,
-      status: "pago",
-      pagamento_id: pag.id,
-    });
-    if (lErr) return { error: lErr.message };
-  }
-
+  // Obs.: o pagamento da comissão NÃO gera saída no caixa. A entrada da venda
+  // já entra pelo LUCRO líquido (pós corretor), então o corretor já saiu ali;
+  // debitar aqui de novo contaria o corretor duas vezes.
   revalidar();
   return { pagamentoId: pag.id };
 }
