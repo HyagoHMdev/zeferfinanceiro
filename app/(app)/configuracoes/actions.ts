@@ -35,6 +35,11 @@ export async function salvarCadastro(
   await requireRole(["admin"]);
   if (!TABELAS_PERMITIDAS.has(tabela)) return { error: "Tabela inválida." };
 
+  // corretores.tipo é NOT NULL: sem escolha explícita, cai em 'corretor'.
+  if (tabela === "corretores" && (dados.tipo == null || dados.tipo === "")) {
+    dados.tipo = "corretor";
+  }
+
   const supabase = await createClient();
   const res = id
     ? await supabase.from(tabela).update(dados).eq("id", id)

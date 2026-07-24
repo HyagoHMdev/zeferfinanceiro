@@ -58,15 +58,20 @@ export async function listarAdiantamentosAvulsos(): Promise<AdiantamentoAvulsoRo
 export interface CorretorOpcao {
   id: string;
   nome: string;
+  tipo: "corretor" | "funcionario";
 }
 
-/** Corretores ativos, para o seletor de novo adiantamento. */
+/** Pessoas ativas (corretores E funcionários) para o seletor de adiantamento. */
 export async function listarCorretoresAtivos(): Promise<CorretorOpcao[]> {
   const supabase = await createClient();
   const { data } = await supabase
     .from("corretores")
-    .select("id, nome")
+    .select("id, nome, tipo")
     .eq("ativo", true)
     .order("nome");
-  return (data ?? []) as CorretorOpcao[];
+  return (data ?? []).map((c) => ({
+    id: (c as { id: string }).id,
+    nome: (c as { nome: string }).nome,
+    tipo: (c as { tipo?: string }).tipo === "funcionario" ? "funcionario" : "corretor",
+  }));
 }

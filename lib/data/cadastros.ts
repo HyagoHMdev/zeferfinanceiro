@@ -38,7 +38,8 @@ export async function carregarCadastrosVenda() {
       supabase.from("configuracoes").select("*").eq("id", true).single(),
       supabase.from("construtoras").select("*").eq("ativo", true).order("nome"),
       supabase.from("empreendimentos").select("*").eq("ativo", true).order("nome"),
-      supabase.from("corretores").select("*").eq("ativo", true).order("nome"),
+      // Só corretores viram vendedor da venda (funcionários não vendem).
+      supabase.from("corretores").select("*").eq("ativo", true).eq("tipo", "corretor").order("nome"),
       supabase.from("parceiros").select("*").eq("ativo", true).order("nome"),
       supabase.from("percentuais_mensais").select("*"),
     ]);

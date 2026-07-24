@@ -19,7 +19,9 @@ import { Checkbox } from "@/components/ui/checkbox";
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
+  SelectLabel,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
@@ -61,11 +63,12 @@ export function AdiantamentoFormDialog({
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!corretorId) {
-      toast.error("Escolha o corretor.");
+      toast.error("Escolha o corretor ou funcionário.");
       return;
     }
     setSaving(true);
     const payload = {
+      // A coluna se chama corretor_id, mas guarda corretor OU funcionário.
       corretor_id: corretorId,
       data,
       valor: parseNumeroBR(valor),
@@ -97,17 +100,36 @@ export function AdiantamentoFormDialog({
 
         <form onSubmit={onSubmit} className="space-y-4">
           <div className="space-y-2">
-            <Label>Corretor</Label>
+            <Label>Corretor ou funcionário</Label>
             <Select value={corretorId} onValueChange={setCorretorId}>
               <SelectTrigger>
-                <SelectValue placeholder="Selecione o corretor" />
+                <SelectValue placeholder="Selecione a pessoa" />
               </SelectTrigger>
               <SelectContent>
-                {corretores.map((c) => (
-                  <SelectItem key={c.id} value={c.id}>
-                    {c.nome}
-                  </SelectItem>
-                ))}
+                {corretores.some((c) => c.tipo === "corretor") ? (
+                  <SelectGroup>
+                    <SelectLabel>Corretores</SelectLabel>
+                    {corretores
+                      .filter((c) => c.tipo === "corretor")
+                      .map((c) => (
+                        <SelectItem key={c.id} value={c.id}>
+                          {c.nome}
+                        </SelectItem>
+                      ))}
+                  </SelectGroup>
+                ) : null}
+                {corretores.some((c) => c.tipo === "funcionario") ? (
+                  <SelectGroup>
+                    <SelectLabel>Funcionários</SelectLabel>
+                    {corretores
+                      .filter((c) => c.tipo === "funcionario")
+                      .map((c) => (
+                        <SelectItem key={c.id} value={c.id}>
+                          {c.nome}
+                        </SelectItem>
+                      ))}
+                  </SelectGroup>
+                ) : null}
               </SelectContent>
             </Select>
           </div>

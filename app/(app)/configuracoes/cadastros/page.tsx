@@ -112,8 +112,17 @@ export default async function CadastrosPage() {
           registros={(corretores.data ?? []) as unknown as Registro[]}
           campos={[
             { name: "nome", label: "Nome", tipo: "text", required: true },
-            { name: "percentual_comissao_padrao", label: "% Comissão padrão", tipo: "percent" },
-            { name: "percentual_imposto_nf", label: "% Imposto NF", tipo: "percent" },
+            {
+              name: "tipo",
+              label: "Tipo",
+              tipo: "select",
+              options: [
+                { value: "corretor", label: "Corretor" },
+                { value: "funcionario", label: "Funcionário" },
+              ],
+            },
+            { name: "percentual_comissao_padrao", label: "% Comissão padrão (corretor)", tipo: "percent" },
+            { name: "percentual_imposto_nf", label: "% Imposto NF (corretor)", tipo: "percent" },
             { name: "forma_pagamento", label: "Forma de pagamento", tipo: "text" },
             { name: "chave_pix", label: "Chave PIX", tipo: "text" },
             { name: "dados_bancarios", label: "Dados bancários", tipo: "text" },
@@ -125,6 +134,7 @@ export default async function CadastrosPage() {
           ]}
           colunas={[
             { key: "nome", label: "Nome" },
+            { key: "tipo", label: "Tipo" },
             { key: "percentual_comissao_padrao", label: "% Comissão", formato: "percent", alignRight: true },
             { key: "ativo", label: "Status", formato: "bool" },
           ]}
