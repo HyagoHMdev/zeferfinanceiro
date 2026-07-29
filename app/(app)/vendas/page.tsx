@@ -77,6 +77,7 @@ export default async function VendasPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Data</TableHead>
+                  <TableHead>Cliente</TableHead>
                   <TableHead>Empreendimento</TableHead>
                   <TableHead>Corretor</TableHead>
                   <TableHead className="text-right">VGV</TableHead>
@@ -91,6 +92,9 @@ export default async function VendasPage() {
                   <TableRow key={v.id}>
                     <TableCell className="whitespace-nowrap">
                       {formatData(v.data_venda)}
+                    </TableCell>
+                    <TableCell className="font-medium">
+                      {v.cliente ?? "—"}
                     </TableCell>
                     <TableCell>
                       <div className="font-medium">

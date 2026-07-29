@@ -210,3 +210,16 @@ export function valorPorExtenso(valor: number): string {
   const txt = partes.join(" e ");
   return txt.charAt(0).toUpperCase() + txt.slice(1);
 }
+
+/**
+ * Máscara de CPF conforme a pessoa digita (000.000.000-00). Guarda formatado
+ * porque é assim que sai no recibo; a comparação, quando precisar, usa só os
+ * dígitos. Corta o excedente para não aceitar mais de 11 números.
+ */
+export function formatarCpf(valor: string): string {
+  const d = valor.replace(/\D/g, "").slice(0, 11);
+  if (d.length <= 3) return d;
+  if (d.length <= 6) return `${d.slice(0, 3)}.${d.slice(3)}`;
+  if (d.length <= 9) return `${d.slice(0, 3)}.${d.slice(3, 6)}.${d.slice(6)}`;
+  return `${d.slice(0, 3)}.${d.slice(3, 6)}.${d.slice(6, 9)}-${d.slice(9)}`;
+}

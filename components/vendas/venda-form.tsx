@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 
 import { calcularVenda } from "@/lib/calculos";
-import { parseNumeroBR, formatBRL } from "@/lib/format";
+import { parseNumeroBR, formatBRL, formatarCpf } from "@/lib/format";
 import { percentualComFallback } from "@/lib/percentuais";
 import { criarVenda, atualizarVenda } from "@/app/(app)/vendas/actions";
 import type { VendaInput } from "@/lib/schemas/venda";
@@ -77,6 +77,7 @@ export function VendaForm({
   const [clienteNascimento, setClienteNascimento] = useState(
     venda?.cliente_nascimento ?? "",
   );
+  const [clienteCpf, setClienteCpf] = useState(venda?.cliente_cpf ?? "");
   const [clienteTelefone, setClienteTelefone] = useState(
     venda?.cliente_telefone ?? "",
   );
@@ -231,6 +232,7 @@ export function VendaForm({
       cliente: cliente.trim() || null,
       cliente_nascimento: clienteNascimento || null,
       cliente_telefone: clienteTelefone.trim() || null,
+      cliente_cpf: clienteCpf.trim() || null,
       corretor_id: corretorId === NONE ? null : corretorId,
       possui_parceria: possuiParceria,
       parceiro_id: possuiParceria && parceiroId !== NONE ? parceiroId : null,
@@ -327,6 +329,16 @@ export function VendaForm({
                 id="cliente"
                 value={cliente}
                 onChange={(e) => setCliente(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="cliente-cpf">CPF do cliente</Label>
+              <Input
+                id="cliente-cpf"
+                inputMode="numeric"
+                value={clienteCpf}
+                onChange={(e) => setClienteCpf(formatarCpf(e.target.value))}
+                placeholder="000.000.000-00"
               />
             </div>
             <div className="space-y-2">
