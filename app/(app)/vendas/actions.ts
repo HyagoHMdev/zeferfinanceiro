@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { requireRole, ADMIN_FIN_ROLES } from "@/lib/auth";
 import { getConfig } from "@/lib/data/cadastros";
 import { calcularVenda, calcularDistribuicao } from "@/lib/calculos";
@@ -95,6 +96,28 @@ function montarLinha(input: VendaInput, corr: CorretorDefaults) {
   };
 }
 
+/**
+ * Grava quais investidores participam da venda. Usa o cliente admin porque
+ * public.investidor_vendas é fechada por RLS; quem chama já passou pelo
+ * requireRole. O repasse na despesa variável não é criado aqui: um gatilho no
+ * banco cuida disso, então o valor acompanha a venda em qualquer alteração.
+ */
+async function sincronizarInvestidores(vendaId: string, ids: string[]) {
+  const pub = createAdminClient().schema("public");
+
+  let del = pub.from("investidor_vendas").delete().eq("venda_id", vendaId);
+  // Sem ids, remove todos; com ids, remove só quem foi desmarcado.
+  if (ids.length > 0) del = del.not("investidor_id", "in", `(${ids.join(",")})`);
+  await del;
+
+  if (ids.length > 0) {
+    await pub.from("investidor_vendas").upsert(
+      ids.map((investidor_id) => ({ investidor_id, venda_id: vendaId })),
+      { onConflict: "investidor_id,venda_id", ignoreDuplicates: true },
+    );
+  }
+}
+
 function revalidar(id?: string) {
   revalidatePath("/vendas");
   if (id) revalidatePath(`/vendas/${id}`);
@@ -130,6 +153,8 @@ export async function criarVenda(input: VendaInput): Promise<ActionResult> {
   if (Number(row.lucro_liquido) > 0) {
     await supabase.from("vendas").update({ status: "recebido" }).eq("id", nova.id);
   }
+
+  await sincronizarInvestidores(nova.id, parsed.data.investidores ?? []);
 
   revalidar();
   revalidatePath("/entradas");
@@ -173,6 +198,8 @@ export async function atualizarVenda(
     .update(montarLinha(parsed.data, corr))
     .eq("id", id);
   if (error) return { error: error.message };
+
+  await sincronizarInvestidores(id, parsed.data.investidores ?? []);
 
   revalidar(id);
   redirect("/vendas");

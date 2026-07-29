@@ -4,7 +4,7 @@ import { ArrowLeft } from "lucide-react";
 
 import { requireRole, ADMIN_FIN_ROLES } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
-import { carregarCadastrosVenda } from "@/lib/data/cadastros";
+import { carregarCadastrosVenda, carregarInvestidoresDaVenda } from "@/lib/data/cadastros";
 import type { Venda } from "@/lib/types";
 import { PageHeader } from "@/components/page-header";
 import { OnboardingHelp } from "@/components/onboarding/onboarding-help";
@@ -26,7 +26,10 @@ export default async function EditarVendaPage({
   if (!data) notFound();
   const venda = data as Venda;
 
-  const cadastros = await carregarCadastrosVenda();
+  const [cadastros, investidores] = await Promise.all([
+    carregarCadastrosVenda(),
+    carregarInvestidoresDaVenda(id),
+  ]);
 
   return (
     <div>
@@ -52,7 +55,7 @@ export default async function EditarVendaPage({
         </CardContent>
       </Card>
 
-      <VendaForm mode="edit" venda={venda} {...cadastros} />
+      <VendaForm mode="edit" venda={venda} {...cadastros} investidores={investidores} />
     </div>
   );
 }

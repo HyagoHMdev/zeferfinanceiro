@@ -2,7 +2,7 @@ import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 
 import { requireRole, ADMIN_FIN_ROLES } from "@/lib/auth";
-import { carregarCadastrosVenda } from "@/lib/data/cadastros";
+import { carregarCadastrosVenda, carregarInvestidoresDaVenda } from "@/lib/data/cadastros";
 import { PageHeader } from "@/components/page-header";
 import { OnboardingHelp } from "@/components/onboarding/onboarding-help";
 import { Button } from "@/components/ui/button";
@@ -10,7 +10,10 @@ import { VendaForm } from "@/components/vendas/venda-form";
 
 export default async function NovaVendaPage() {
   await requireRole(ADMIN_FIN_ROLES);
-  const cadastros = await carregarCadastrosVenda();
+  const [cadastros, investidores] = await Promise.all([
+    carregarCadastrosVenda(),
+    carregarInvestidoresDaVenda(),
+  ]);
 
   return (
     <div>
@@ -23,7 +26,7 @@ export default async function NovaVendaPage() {
         </Button>
       </PageHeader>
 
-      <VendaForm mode="create" {...cadastros} />
+      <VendaForm mode="create" {...cadastros} investidores={investidores} />
     </div>
   );
 }

@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import type {
   Configuracoes,
   Construtora,
@@ -28,6 +29,33 @@ export async function getConfig(): Promise<Configuracoes> {
     .eq("id", true)
     .single();
   return (data as Configuracoes | null) ?? CONFIG_PADRAO;
+}
+
+/**
+ * Investidores ativos, já marcando quem participa da venda informada.
+ * Vive em public (identidade compartilhada com o painel) e é fechado por RLS,
+ * por isso a leitura usa o cliente admin. `vendaId` ausente = venda nova.
+ */
+export async function carregarInvestidoresDaVenda(vendaId?: string) {
+  const pub = createAdminClient().schema("public");
+
+  const [invRes, vinculosRes] = await Promise.all([
+    pub.from("investidores").select("id,nome,percentual").eq("ativo", true).order("nome"),
+    vendaId
+      ? pub.from("investidor_vendas").select("investidor_id").eq("venda_id", vendaId)
+      : Promise.resolve({ data: [] as { investidor_id: string }[] }),
+  ]);
+
+  const marcados = new Set(
+    ((vinculosRes.data ?? []) as { investidor_id: string }[]).map((v) => v.investidor_id),
+  );
+
+  return ((invRes.data ?? []) as { id: string; nome: string; percentual: number }[]).map((i) => ({
+    id: i.id,
+    nome: i.nome,
+    percentual: Number(i.percentual ?? 0),
+    participa: marcados.has(i.id),
+  }));
 }
 
 /** Carrega config + cadastros ativos necessários para o formulário de venda. */

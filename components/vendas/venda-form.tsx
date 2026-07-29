@@ -43,6 +43,13 @@ function pctToFrac(str: string): number {
   return parseNumeroBR(str) / 100;
 }
 
+export interface InvestidorOpcao {
+  id: string;
+  nome: string;
+  percentual: number;
+  participa: boolean;
+}
+
 interface VendaFormProps {
   mode: "create" | "edit";
   config: Configuracoes;
@@ -51,6 +58,7 @@ interface VendaFormProps {
   corretores: Corretor[];
   parceiros: Parceiro[];
   percentuaisMensais?: PercentualMensal[];
+  investidores?: InvestidorOpcao[];
   venda?: Venda;
 }
 
@@ -62,8 +70,14 @@ export function VendaForm({
   corretores,
   parceiros,
   percentuaisMensais = [],
+  investidores = [],
   venda,
 }: VendaFormProps) {
+  // Quais investidores participam desta venda. O repasse (lucro × percentual)
+  // entra sozinho como despesa variável assim que a venda é salva.
+  const [investidoresSel, setInvestidoresSel] = useState<string[]>(
+    investidores.filter((i) => i.participa).map((i) => i.id),
+  );
   const [dataVenda, setDataVenda] = useState(
     venda?.data_venda ?? new Date().toISOString().slice(0, 10),
   );
@@ -242,6 +256,7 @@ export function VendaForm({
       percentual_comissao: pctToFrac(pctComissao),
       percentual_imposto_imobiliaria: pctToFrac(pctImpostoImob),
       observacoes: observacoes.trim() || null,
+      investidores: investidoresSel,
     };
 
     const res =
@@ -490,6 +505,56 @@ export function VendaForm({
             </div>
           </CardContent>
         </Card>
+
+        {investidores.length > 0 ? (
+          <Card>
+            <CardHeader>
+              <CardTitle>Investidores</CardTitle>
+              <p className="text-sm text-muted-foreground">
+                Marque quem participa desta venda. O repasse entra sozinho como
+                despesa variável, e acompanha o lucro se a venda mudar.
+              </p>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {investidores.map((i) => {
+                const marcado = investidoresSel.includes(i.id);
+                const repasse = calc.lucroLiquido * (i.percentual / 100);
+                return (
+                  <label
+                    key={i.id}
+                    className="flex cursor-pointer items-center justify-between gap-3 rounded-md border p-3 hover:bg-muted/40"
+                  >
+                    <span className="flex items-center gap-3">
+                      <input
+                        type="checkbox"
+                        checked={marcado}
+                        onChange={(e) =>
+                          setInvestidoresSel((atual) =>
+                            e.target.checked
+                              ? [...atual, i.id]
+                              : atual.filter((x) => x !== i.id),
+                          )
+                        }
+                        className="h-4 w-4"
+                      />
+                      <span>
+                        <span className="font-medium">{i.nome}</span>
+                        <span className="ml-2 text-sm text-muted-foreground">
+                          {i.percentual}%
+                        </span>
+                      </span>
+                    </span>
+                    <span
+                      className={`tabular-nums text-sm ${marcado ? "font-medium" : "text-muted-foreground/50"}`}
+                    >
+                      {formatBRL(repasse)}
+                    </span>
+                  </label>
+                );
+              })}
+            </CardContent>
+          </Card>
+        ) : null}
       </div>
 
       {/* PAINEL RESULTADO */}
