@@ -122,33 +122,12 @@ export async function criarVenda(input: VendaInput): Promise<ActionResult> {
   // A venda cai em Entradas já pelo LUCRO líquido (pós imposto E pós corretor):
   // é o que de fato sobra para dividir entre empresa/pessoal. O corretor sai
   // aqui, então o pagamento da comissão NÃO debita o caixa de novo.
-  const valorEntrada = Number(row.lucro_liquido);
-  if (valorEntrada > 0) {
-    const dist = calcularDistribuicao({
-      valor: valorEntrada,
-      percentualDizimo: 0,
-      percentualEmpresa: 0,
-    });
-    const { data: entrada } = await supabase
-      .from("entradas")
-      .insert({
-        data: row.data_venda,
-        tipo: "comissao",
-        descricao: row.cliente ? `Comissão · ${row.cliente}` : "Comissão da venda",
-        valor: valorEntrada,
-        percentual_dizimo: 0,
-        valor_dizimo: 0,
-        liquido: dist.liquido,
-        venda_id: nova.id,
-      })
-      .select("id")
-      .single();
-    if (entrada) {
-      await supabase.from("distribuicoes").insert([
-        { entrada_id: entrada.id, destino: "empresa", percentual: 0, valor: dist.valorEmpresa },
-        { entrada_id: entrada.id, destino: "pessoal", percentual: 1, valor: dist.valorPessoal },
-      ]);
-    }
+  //
+  // Quem cria a entrada e a distribuição é um gatilho no banco
+  // (financeiro.sincronizar_entrada_venda). Assim EDITAR a venda também
+  // corrige a entrada, o que antes não acontecia: o lucro mudava e a entrada
+  // ficava com o valor antigo.
+  if (Number(row.lucro_liquido) > 0) {
     await supabase.from("vendas").update({ status: "recebido" }).eq("id", nova.id);
   }
 
