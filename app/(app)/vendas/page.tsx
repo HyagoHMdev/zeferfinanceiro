@@ -26,6 +26,7 @@ interface VendaRow {
   data_venda: string;
   unidade: string | null;
   cliente: string | null;
+  origem: string | null;
   vgv: number;
   liquido_zefer: number;
   liquido_corretor: number;
@@ -43,7 +44,7 @@ export default async function VendasPage() {
     supabase
       .from("vendas")
       .select(
-        "id, data_venda, unidade, cliente, vgv, liquido_zefer, liquido_corretor, lucro_liquido, status, construtoras(nome), empreendimentos(nome), corretores(nome)",
+        "id, data_venda, unidade, cliente, origem, vgv, liquido_zefer, liquido_corretor, lucro_liquido, status, construtoras(nome), empreendimentos(nome), corretores(nome)",
       )
       .order("data_venda", { ascending: false }),
   ]);
@@ -93,8 +94,11 @@ export default async function VendasPage() {
                     <TableCell className="whitespace-nowrap">
                       {formatData(v.data_venda)}
                     </TableCell>
-                    <TableCell className="font-medium">
-                      {v.cliente ?? "—"}
+                    <TableCell>
+                      <div className="font-medium">{v.cliente ?? "—"}</div>
+                      {v.origem ? (
+                        <div className="text-xs text-muted-foreground">{v.origem}</div>
+                      ) : null}
                     </TableCell>
                     <TableCell>
                       <div className="font-medium">

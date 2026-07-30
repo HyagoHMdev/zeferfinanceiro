@@ -43,6 +43,33 @@ function pctToFrac(str: string): number {
   return parseNumeroBR(str) / 100;
 }
 
+// Canais de aquisição. Texto no banco (não enum): a lista muda com o tempo e
+// enum exigiria migração a cada canal novo.
+const ORIGENS = [
+  "Instagram",
+  "Anúncio (Meta Ads)",
+  "Indicação",
+  "Site / Landing page",
+  "WhatsApp",
+  "Carteira do corretor",
+  "Portal (VivaReal, ZAP)",
+  "Evento",
+  "Parceria",
+  "Outro",
+] as const
+
+// O Select do shadcn não aceita item de valor vazio, então "não informado"
+// tem um valor próprio que vira null na gravação.
+const SEM_ORIGEM = "__sem__"
+
+const DICA_ORIGEM: Record<string, string> = {
+  Indicação: "Quem indicou",
+  "Portal (VivaReal, ZAP)": "Qual portal",
+  Evento: "Qual evento",
+  Parceria: "Qual parceiro",
+  "Anúncio (Meta Ads)": "Qual campanha",
+}
+
 export interface InvestidorOpcao {
   id: string;
   nome: string;
@@ -92,6 +119,8 @@ export function VendaForm({
     venda?.cliente_nascimento ?? "",
   );
   const [clienteCpf, setClienteCpf] = useState(venda?.cliente_cpf ?? "");
+  const [origem, setOrigem] = useState(venda?.origem ?? "");
+  const [origemDetalhe, setOrigemDetalhe] = useState(venda?.origem_detalhe ?? "");
   const [clienteTelefone, setClienteTelefone] = useState(
     venda?.cliente_telefone ?? "",
   );
@@ -247,6 +276,8 @@ export function VendaForm({
       cliente_nascimento: clienteNascimento || null,
       cliente_telefone: clienteTelefone.trim() || null,
       cliente_cpf: clienteCpf.trim() || null,
+      origem: origem || null,
+      origem_detalhe: origemDetalhe.trim() || null,
       corretor_id: corretorId === NONE ? null : corretorId,
       possui_parceria: possuiParceria,
       parceiro_id: possuiParceria && parceiroId !== NONE ? parceiroId : null,
@@ -373,6 +404,37 @@ export function VendaForm({
                 value={clienteTelefone}
                 onChange={(e) => setClienteTelefone(e.target.value)}
                 placeholder="(47) 90000-0000"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>De onde veio o cliente</Label>
+              <Select
+                value={origem || SEM_ORIGEM}
+                onValueChange={(v) => setOrigem(v === SEM_ORIGEM ? "" : v)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={SEM_ORIGEM}>Não informado</SelectItem>
+                  {ORIGENS.map((o) => (
+                    <SelectItem key={o} value={o}>
+                      {o}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="origem-det">
+                Detalhe da origem{" "}
+                <span className="text-muted-foreground">(opcional)</span>
+              </Label>
+              <Input
+                id="origem-det"
+                value={origemDetalhe}
+                onChange={(e) => setOrigemDetalhe(e.target.value)}
+                placeholder={DICA_ORIGEM[origem] ?? "Quem indicou, qual portal, qual evento"}
               />
             </div>
             <div className="space-y-2">

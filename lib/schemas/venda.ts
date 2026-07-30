@@ -15,6 +15,9 @@ export const vendaSchema = z.object({
   cliente_nascimento: z.string().nullable(),
   cliente_telefone: z.string().trim().max(40).nullable(),
   cliente_cpf: z.string().trim().max(20).nullable(),
+  // De onde veio o cliente (canal + complemento livre).
+  origem: z.string().trim().max(60).nullable(),
+  origem_detalhe: z.string().trim().max(200).nullable(),
   // Investidores que participam desta venda (ids de public.investidores).
   investidores: z.array(z.string().uuid()).optional(),
   corretor_id: z.string().uuid().nullable(),

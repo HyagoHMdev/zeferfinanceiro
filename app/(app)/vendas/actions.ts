@@ -65,6 +65,8 @@ function montarLinha(input: VendaInput, corr: CorretorDefaults) {
     cliente_nascimento: input.cliente_nascimento || null,
     cliente_telefone: input.cliente_telefone,
     cliente_cpf: input.cliente_cpf,
+    origem: input.origem,
+    origem_detalhe: input.origem_detalhe,
     corretor_id: input.corretor_id,
     // Parceria (modelo novo)
     possui_parceria: possui,
