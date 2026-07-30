@@ -135,6 +135,11 @@ export interface Venda {
   cliente_cpf: string | null;
   origem: string | null;
   origem_detalhe: string | null;
+  cliente_finalidade: string | null;
+  cliente_profissao: string | null;
+  cliente_cidade: string | null;
+  cliente_estado: string | null;
+  cliente_email: string | null;
   corretor_id: string | null;
   parceiro_id: string | null;
   vgv: number;

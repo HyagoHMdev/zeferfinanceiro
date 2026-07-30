@@ -62,6 +62,13 @@ const ORIGENS = [
 // tem um valor próprio que vira null na gravação.
 const SEM_ORIGEM = "__sem__"
 
+const FINALIDADES = ["Moradia", "Investimento", "Veraneio"] as const
+
+const UFS = [
+  "AC","AL","AM","AP","BA","CE","DF","ES","GO","MA","MG","MS","MT","PA","PB",
+  "PE","PI","PR","RJ","RN","RO","RR","RS","SC","SE","SP","TO",
+] as const
+
 const DICA_ORIGEM: Record<string, string> = {
   Indicação: "Quem indicou",
   "Portal (VivaReal, ZAP)": "Qual portal",
@@ -121,6 +128,11 @@ export function VendaForm({
   const [clienteCpf, setClienteCpf] = useState(venda?.cliente_cpf ?? "");
   const [origem, setOrigem] = useState(venda?.origem ?? "");
   const [origemDetalhe, setOrigemDetalhe] = useState(venda?.origem_detalhe ?? "");
+  const [finalidade, setFinalidade] = useState(venda?.cliente_finalidade ?? "");
+  const [profissao, setProfissao] = useState(venda?.cliente_profissao ?? "");
+  const [clienteCidade, setClienteCidade] = useState(venda?.cliente_cidade ?? "");
+  const [clienteEstado, setClienteEstado] = useState(venda?.cliente_estado ?? "");
+  const [clienteEmail, setClienteEmail] = useState(venda?.cliente_email ?? "");
   const [clienteTelefone, setClienteTelefone] = useState(
     venda?.cliente_telefone ?? "",
   );
@@ -278,6 +290,11 @@ export function VendaForm({
       cliente_cpf: clienteCpf.trim() || null,
       origem: origem || null,
       origem_detalhe: origemDetalhe.trim() || null,
+      cliente_finalidade: finalidade || null,
+      cliente_profissao: profissao.trim() || null,
+      cliente_cidade: clienteCidade.trim() || null,
+      cliente_estado: clienteEstado || null,
+      cliente_email: clienteEmail.trim() || null,
       corretor_id: corretorId === NONE ? null : corretorId,
       possui_parceria: possuiParceria,
       parceiro_id: possuiParceria && parceiroId !== NONE ? parceiroId : null,
@@ -405,6 +422,72 @@ export function VendaForm({
                 onChange={(e) => setClienteTelefone(e.target.value)}
                 placeholder="(47) 90000-0000"
               />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="cliente-email">E-mail do cliente</Label>
+              <Input
+                id="cliente-email"
+                type="email"
+                value={clienteEmail}
+                onChange={(e) => setClienteEmail(e.target.value)}
+                placeholder="cliente@email.com"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="cliente-prof">Profissão</Label>
+              <Input
+                id="cliente-prof"
+                value={profissao}
+                onChange={(e) => setProfissao(e.target.value)}
+                placeholder="Ex.: Médico, Empresário"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="cliente-cidade">Cidade do cliente</Label>
+              <Input
+                id="cliente-cidade"
+                value={clienteCidade}
+                onChange={(e) => setClienteCidade(e.target.value)}
+                placeholder="Onde o cliente mora"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Estado</Label>
+              <Select
+                value={clienteEstado || SEM_ORIGEM}
+                onValueChange={(v) => setClienteEstado(v === SEM_ORIGEM ? "" : v)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="UF" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={SEM_ORIGEM}>Não informado</SelectItem>
+                  {UFS.map((uf) => (
+                    <SelectItem key={uf} value={uf}>
+                      {uf}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Finalidade da compra</Label>
+              <Select
+                value={finalidade || SEM_ORIGEM}
+                onValueChange={(v) => setFinalidade(v === SEM_ORIGEM ? "" : v)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={SEM_ORIGEM}>Não informado</SelectItem>
+                  {FINALIDADES.map((f) => (
+                    <SelectItem key={f} value={f}>
+                      {f}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div className="space-y-2">
               <Label>De onde veio o cliente</Label>
