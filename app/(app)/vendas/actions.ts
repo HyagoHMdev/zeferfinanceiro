@@ -149,14 +149,11 @@ export async function criarVenda(input: VendaInput): Promise<ActionResult> {
     .single();
   if (error || !nova) return { error: error?.message ?? "Falha ao salvar a venda." };
 
-  // A venda cai em Entradas já pelo LUCRO líquido (pós imposto E pós corretor):
-  // é o que de fato sobra para dividir entre empresa/pessoal. O corretor sai
-  // aqui, então o pagamento da comissão NÃO debita o caixa de novo.
+  // A venda NÃO gera mais entrada: o lançamento em Entradas é manual.
+  // (O gatilho que fazia isso foi removido; a função ficou no banco, desligada,
+  // caso um dia se queira religar.)
   //
-  // Quem cria a entrada e a distribuição é um gatilho no banco
-  // (financeiro.sincronizar_entrada_venda). Assim EDITAR a venda também
-  // corrige a entrada, o que antes não acontecia: o lucro mudava e a entrada
-  // ficava com o valor antigo.
+  // A marcação de "recebido" segue aqui, como sempre foi.
   if (Number(row.lucro_liquido) > 0) {
     await supabase.from("vendas").update({ status: "recebido" }).eq("id", nova.id);
   }
@@ -164,7 +161,6 @@ export async function criarVenda(input: VendaInput): Promise<ActionResult> {
   await sincronizarInvestidores(nova.id, parsed.data.investidores ?? []);
 
   revalidar();
-  revalidatePath("/entradas");
   redirect("/vendas");
 }
 
