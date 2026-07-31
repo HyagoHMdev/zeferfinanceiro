@@ -22,7 +22,12 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { createClient } from "@/lib/supabase/server";
 import { RegistrarPagamentoDialog } from "@/components/pagamentos/registrar-pagamento-dialog";
+import {
+  PagarFuncionarioDialog,
+  type AdiantamentoAberto,
+} from "@/components/pagamentos/pagar-funcionario-dialog";
 import { EstornarPagamentoButton } from "@/components/pagamentos/estornar-pagamento-button";
 import { ReciboAssinado } from "@/components/recibo/recibo-assinado";
 
@@ -32,6 +37,34 @@ export default async function PagamentosPage() {
     listarPagamentosPendentes(),
     listarPagamentosRealizados(),
   ]);
+
+  // Funcionário não tem comissão de venda, então não entra na lista de cima.
+  // Aqui ele aparece sempre, com os adiantamentos em aberto ao lado.
+  const supabase = await createClient();
+  const [funcRes, adiRes] = await Promise.all([
+    supabase
+      .from("corretores")
+      .select("id, nome")
+      .eq("tipo", "funcionario")
+      .eq("ativo", true)
+      .order("nome"),
+    supabase
+      .from("adiantamentos")
+      .select("id, corretor_id, data, valor, descricao")
+      .is("pagamento_id", null)
+      .order("data"),
+  ]);
+
+  const adiPorPessoa = new Map<string, AdiantamentoAberto[]>();
+  for (const a of (adiRes.data ?? []) as (AdiantamentoAberto & { corretor_id: string })[]) {
+    const lista = adiPorPessoa.get(a.corretor_id) ?? [];
+    lista.push({ id: a.id, data: a.data, valor: Number(a.valor), descricao: a.descricao });
+    adiPorPessoa.set(a.corretor_id, lista);
+  }
+  const funcionarios = ((funcRes.data ?? []) as { id: string; nome: string }[]).map((f) => ({
+    ...f,
+    adiantamentos: adiPorPessoa.get(f.id) ?? [],
+  }));
 
   const totalAPagar = round2(pendentes.reduce((s, c) => s + c.liquido, 0));
   const totalPago = round2(realizados.reduce((s, p) => s + p.valorLiquido, 0));
@@ -106,6 +139,59 @@ export default async function PagamentosPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* Funcionários ----------------------------------------------------- */}
+      {funcionarios.length > 0 ? (
+        <Card className="mb-6">
+          <CardHeader>
+            <CardTitle>Funcionários</CardTitle>
+            <p className="text-sm text-muted-foreground">
+              Pagamento com valor informado (não vem de comissão). Os
+              adiantamentos descontados voltam para o caixa.
+            </p>
+          </CardHeader>
+          <CardContent className="px-0">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Funcionário</TableHead>
+                  <TableHead className="text-right">Adiantamentos em aberto</TableHead>
+                  <TableHead></TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {funcionarios.map((f) => {
+                  const total = f.adiantamentos.reduce((s, a) => s + a.valor, 0);
+                  return (
+                    <TableRow key={f.id}>
+                      <TableCell className="font-medium">{f.nome}</TableCell>
+                      <TableCell className="text-right tabular-nums">
+                        {total > 0 ? (
+                          <>
+                            {formatBRL(total)}
+                            <span className="ml-1 text-xs text-muted-foreground">
+                              ({f.adiantamentos.length})
+                            </span>
+                          </>
+                        ) : (
+                          "—"
+                        )}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <PagarFuncionarioDialog
+                          funcionarioId={f.id}
+                          nome={f.nome}
+                          adiantamentos={f.adiantamentos}
+                        />
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      ) : null}
 
       {/* Realizados ------------------------------------------------------ */}
       <Card>

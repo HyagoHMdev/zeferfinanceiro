@@ -178,6 +178,155 @@ export async function registrarPagamento(
   return { pagamentoId: pag.id };
 }
 
+const funcionarioSchema = z.object({
+  corretorId: z.string().uuid(),
+  // Quanto é o pagamento (salário, pró-labore, freela). Funcionário não tem
+  // comissão de venda, então o valor não pode ser deduzido: é informado.
+  valorBruto: z.number().positive('Informe o valor do pagamento.'),
+  adiantamentoIds: z.array(z.string().uuid()).optional(),
+  observacoes: z.string().trim().max(300).nullable().optional(),
+})
+
+/**
+ * Pagamento de FUNCIONÁRIO (não corretor): informa o valor, desconta os
+ * adiantamentos e gera o recibo.
+ *
+ * O caixa se comporta diferente do corretor, e é de propósito:
+ *  - Corretor: a comissão NÃO debita o caixa, porque a entrada da venda já
+ *    entra pelo lucro líquido (pós corretor). Debitar de novo contaria duas vezes.
+ *  - Funcionário: o pagamento é desembolso de verdade, então SAI do caixa.
+ *
+ * Como o adiantamento já saiu quando foi dado, ele volta como entrada de
+ * reconciliação. O efeito líquido no caixa é (bruto - adiantamentos), que é o
+ * que de fato sai da conta hoje, e as duas pontas ficam visíveis no extrato.
+ */
+export async function registrarPagamentoFuncionario(
+  input: z.infer<typeof funcionarioSchema>,
+): Promise<ActionResult> {
+  await requireRole(ADMIN_FIN_ROLES)
+  const parsed = funcionarioSchema.safeParse(input)
+  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? 'Dados inválidos.' }
+  const { corretorId, valorBruto } = parsed.data
+
+  const supabase = await createClient()
+
+  const { data: pessoa } = await supabase
+    .from('corretores')
+    .select('nome, tipo')
+    .eq('id', corretorId)
+    .maybeSingle<{ nome: string; tipo: string }>()
+  if (!pessoa) return { error: 'Colaborador não encontrado.' }
+  if (pessoa.tipo !== 'funcionario') {
+    return { error: 'Este fluxo é para funcionários. Corretor recebe pela comissão da venda.' }
+  }
+
+  // Adiantamentos avulsos ainda não descontados (funcionário não tem venda).
+  const { data: adiData, error: adiErr } = await supabase
+    .from('adiantamentos')
+    .select('id, valor')
+    .eq('corretor_id', corretorId)
+    .is('pagamento_id', null)
+  if (adiErr) return { error: adiErr.message }
+
+  let adiantamentos = (adiData ?? []) as { id: string; valor: number }[]
+  if (parsed.data.adiantamentoIds) {
+    const escolhidos = new Set(parsed.data.adiantamentoIds)
+    adiantamentos = adiantamentos.filter((a) => escolhidos.has(a.id))
+  }
+
+  const totalAdiantamentos = round2(adiantamentos.reduce((s, a) => s + Number(a.valor), 0))
+  const valorLiquido = round2(valorBruto - totalAdiantamentos)
+  if (valorLiquido < 0) {
+    return {
+      error: `Os adiantamentos (${totalAdiantamentos}) passam do valor do pagamento. Desmarque algum ou aumente o valor.`,
+    }
+  }
+  const hoje = new Date().toISOString().slice(0, 10)
+
+  // 1) Pagamento (reaproveita a tabela e, com ela, o recibo já existente).
+  const { data: pag, error: pErr } = await supabase
+    .from('pagamentos_corretor')
+    .insert({
+      corretor_id: corretorId,
+      data: hoje,
+      valor_bruto: valorBruto,
+      total_bonificacoes: 0,
+      total_adiantamentos: totalAdiantamentos,
+      valor_liquido: valorLiquido,
+      status: 'pago',
+      observacoes: parsed.data.observacoes ?? null,
+    })
+    .select('id')
+    .single()
+  if (pErr || !pag) return { error: pErr?.message ?? 'Falha ao criar o pagamento.' }
+
+  // 2) Vincula os adiantamentos (some do "a descontar" e entra no recibo).
+  if (adiantamentos.length > 0) {
+    const { error: uaErr } = await supabase
+      .from('adiantamentos')
+      .update({ pagamento_id: pag.id })
+      .in(
+        'id',
+        adiantamentos.map((a) => a.id),
+      )
+    if (uaErr) return { error: uaErr.message }
+
+    // 3) Os adiantamentos voltam ao caixa (saíram como despesa quando dados).
+    const { data: ent, error: eErr } = await supabase
+      .from('entradas')
+      .insert({
+        data: hoje,
+        tipo: 'outras',
+        descricao: `Reconciliação de adiantamentos, pagamento de ${pessoa.nome}`,
+        valor: totalAdiantamentos,
+        percentual_dizimo: 0,
+        valor_dizimo: 0,
+        liquido: totalAdiantamentos,
+        venda_id: null,
+        pagamento_id: pag.id,
+      })
+      .select('id')
+      .single()
+    if (eErr || !ent) return { error: eErr?.message ?? 'Falha ao reconciliar os adiantamentos.' }
+    const { error: dErr } = await supabase.from('distribuicoes').insert({
+      entrada_id: ent.id,
+      destino: 'empresa',
+      percentual: 1,
+      valor: totalAdiantamentos,
+    })
+    if (dErr) return { error: dErr.message }
+  }
+
+  // 4) O pagamento em si sai do caixa, pelo BRUTO. Com a entrada do passo 3, o
+  // líquido do dia fecha no que realmente saiu da conta.
+  const { data: cat } = await supabase
+    .from('categorias_financeiras')
+    .select('id')
+    .eq('nome', 'Pessoal')
+    .eq('tipo', 'despesa_variavel')
+    .limit(1)
+    .maybeSingle<{ id: string }>()
+
+  const { error: lErr } = await supabase.from('lancamentos').insert({
+    escopo: 'empresa',
+    natureza: 'despesa_variavel',
+    categoria_id: cat?.id ?? null,
+    descricao: `Pagamento de ${pessoa.nome}`,
+    valor: valorBruto,
+    competencia: `${hoje.slice(0, 7)}-01`,
+    data_vencimento: hoje,
+    data_pagamento: hoje,
+    status: 'pago',
+    pagamento_id: pag.id,
+  })
+  if (lErr) return { error: lErr.message }
+
+  revalidar()
+  revalidatePath('/financeiro', 'layout')
+  revalidatePath('/adiantamentos')
+  return { pagamentoId: pag.id }
+}
+
 /** Salva (ou remove) o arquivo do recibo assinado de um pagamento. */
 export async function salvarReciboPagamento(
   id: string,

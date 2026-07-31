@@ -14,6 +14,7 @@ interface PagamentoRecibo {
   total_bonificacoes: number;
   total_adiantamentos: number;
   valor_liquido: number;
+  observacoes: string | null;
   assinatura_url: string | null;
   assinado_em: string | null;
   corretores: { nome: string; telefone: string | null } | null;
@@ -101,14 +102,38 @@ export default async function ReciboPagamentoPage({
 
         <p className="mb-6 text-sm leading-relaxed">
           Recebi da <strong>Zefer Imóveis</strong> a importância de{" "}
-          <strong>{formatBRL(pagamento.valor_liquido)}</strong>, referente às
-          comissões e valores discriminados abaixo, dando plena e geral quitação.
+          <strong>{formatBRL(pagamento.valor_liquido)}</strong>, referente{" "}
+          {/* Sem comissão o texto muda: pagamento de funcionário não tem venda,
+              e "referente às comissões" seria falso no documento assinado. */}
+          {vendas.length > 0
+            ? "às comissões e valores discriminados abaixo"
+            : "aos valores discriminados abaixo"}
+          {pagamento.observacoes ? ` (${pagamento.observacoes})` : ""}, dando
+          plena e geral quitação.
         </p>
 
         <div className="mb-4">
-          <div className="text-sm font-semibold">Corretor</div>
+          <div className="text-sm font-semibold">
+            {vendas.length > 0 ? "Corretor" : "Colaborador"}
+          </div>
           <div>{pagamento.corretores?.nome ?? "—"}</div>
         </div>
+
+        {vendas.length === 0 ? (
+          <section className="mb-4">
+            <div className="mb-1 text-sm font-semibold">Pagamento</div>
+            <table className="w-full text-sm">
+              <tbody>
+                <tr className="border-t">
+                  <td className="py-1">Valor do pagamento</td>
+                  <td className="py-1 text-right tabular-nums">
+                    {formatBRL(pagamento.valor_bruto)}
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </section>
+        ) : null}
 
         {vendas.length > 0 ? (
           <section className="mb-4">
