@@ -36,7 +36,13 @@ export const vendaSchema = z.object({
   vgv: z.number().nonnegative("VGV inválido"),
   percentual_comissao: z.number().min(0).max(1),
   percentual_imposto_imobiliaria: z.number().min(0).max(1),
-  observacoes: z.string().trim().max(1000).nullable(),
+  // 2000 e não 1000: observação é campo de texto corrido (condições combinadas,
+  // pendências) e o limite antigo cortava um parágrafo mais longo.
+  observacoes: z
+    .string()
+    .trim()
+    .max(2000, "A observação passou de 2000 caracteres.")
+    .nullable(),
 });
 
 export type VendaInput = z.infer<typeof vendaSchema>;

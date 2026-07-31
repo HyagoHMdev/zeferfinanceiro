@@ -22,6 +22,7 @@ import type {
 } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -642,11 +643,16 @@ export function VendaForm({
             <Calculado label="Líquido pós imposto" valor={calc.liquidoZefer} />
             <div className="space-y-2 sm:col-span-2">
               <Label htmlFor="obs">Observações</Label>
-              <Input
+              <Textarea
                 id="obs"
+                rows={4}
                 value={observacoes}
                 onChange={(e) => setObservacoes(e.target.value)}
+                placeholder="Condições combinadas, pendências, o que mais precisar registrar."
               />
+              <p className="text-xs text-muted-foreground">
+                {observacoes.length}/2000
+              </p>
             </div>
           </CardContent>
         </Card>
