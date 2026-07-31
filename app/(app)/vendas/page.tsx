@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import Link from "next/link";
 import { Plus, Pencil } from "lucide-react";
 
@@ -8,7 +9,8 @@ import type { VendaStatus } from "@/lib/types";
 import { PageHeader } from "@/components/page-header";
 import { OnboardingHelp } from "@/components/onboarding/onboarding-help";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { FiltroCorretor } from "@/components/vendas/filtro-corretor";
 import { VendaStatusBadge } from "@/components/vendas/status-badge";
 import { VendaStatusSelect } from "@/components/vendas/venda-status-select";
 import {
@@ -38,18 +40,34 @@ interface VendaRow {
   corretores: { nome: string } | null;
 }
 
-export default async function VendasPage() {
+export default async function VendasPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ corretor?: string }>;
+}) {
   const supabase = await createClient();
-  const [{ profile }, { data }] = await Promise.all([
+  const { corretor: corretorFiltro } = await searchParams;
+
+  let q = supabase
+    .from("vendas")
+    .select(
+      "id, data_venda, unidade, cliente, origem, vgv, comissao_bruta, liquido_zefer, liquido_corretor, lucro_liquido, status, construtoras(nome), empreendimentos(nome), corretores(nome)",
+    );
+  // O filtro entra na CONSULTA, não na tela: assim os totais do rodapé já saem
+  // do recorte, sem ter que recalcular em dois lugares.
+  if (corretorFiltro) q = q.eq("corretor_id", corretorFiltro);
+
+  const [{ profile }, { data }, corretoresRes] = await Promise.all([
     requireRole(STAFF_ROLES),
+    q.order("data_venda", { ascending: false }),
     supabase
-      .from("vendas")
-      .select(
-        "id, data_venda, unidade, cliente, origem, vgv, comissao_bruta, liquido_zefer, liquido_corretor, lucro_liquido, status, construtoras(nome), empreendimentos(nome), corretores(nome)",
-      )
-      .order("data_venda", { ascending: false }),
+      .from("corretores")
+      .select("id, nome")
+      .eq("tipo", "corretor")
+      .order("nome"),
   ]);
   const podeEditar = ADMIN_FIN_ROLES.includes(profile.role);
+  const corretores = (corretoresRes.data ?? []) as { id: string; nome: string }[];
 
   const vendas = (data ?? []) as unknown as VendaRow[];
   const totalVgv = vendas.reduce((s, v) => s + Number(v.vgv), 0);
@@ -71,10 +89,17 @@ export default async function VendasPage() {
       </PageHeader>
 
       <Card>
+        <CardHeader className="pb-3">
+          <Suspense fallback={null}>
+            <FiltroCorretor corretores={corretores} valor={corretorFiltro ?? null} />
+          </Suspense>
+        </CardHeader>
         <CardContent className="px-0">
           {vendas.length === 0 ? (
             <div className="py-12 text-center text-sm text-muted-foreground">
-              Nenhuma venda cadastrada ainda.
+              {corretorFiltro
+                ? "Nenhuma venda deste corretor."
+                : "Nenhuma venda cadastrada ainda."}
             </div>
           ) : (
             <Table>
