@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import type { z } from "zod";
 
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -104,6 +105,17 @@ function montarLinha(input: VendaInput, corr: CorretorDefaults) {
 }
 
 /**
+ * Diz QUAL campo reprovou, em vez de "Dados inválidos". Sem isto, um campo
+ * recusado vira um erro genérico e não há como saber onde está o problema.
+ */
+function erroDeValidacao(erro: z.ZodError): string {
+  const p = erro.issues[0]
+  if (!p) return "Dados inválidos. Revise o formulário."
+  const campo = p.path.join(".") || "formulário"
+  return `Campo "${campo}": ${p.message}`
+}
+
+/**
  * Grava quais investidores participam da venda. Usa o cliente admin porque
  * public.investidor_vendas é fechada por RLS; quem chama já passou pelo
  * requireRole. O repasse na despesa variável não é criado aqui: um gatilho no
@@ -135,7 +147,7 @@ function revalidar(id?: string) {
 export async function criarVenda(input: VendaInput): Promise<ActionResult> {
   await requireRole(ADMIN_FIN_ROLES);
   const parsed = vendaSchema.safeParse(input);
-  if (!parsed.success) return { error: "Dados inválidos. Revise o formulário." };
+  if (!parsed.success) return { error: erroDeValidacao(parsed.error) };
 
   const supabase = await createClient();
   const config = await getConfig();
@@ -170,7 +182,7 @@ export async function atualizarVenda(
 ): Promise<ActionResult> {
   await requireRole(ADMIN_FIN_ROLES);
   const parsed = vendaSchema.safeParse(input);
-  if (!parsed.success) return { error: "Dados inválidos. Revise o formulário." };
+  if (!parsed.success) return { error: erroDeValidacao(parsed.error) };
 
   const supabase = await createClient();
   const config = await getConfig();
