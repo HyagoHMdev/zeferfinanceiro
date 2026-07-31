@@ -17,8 +17,25 @@ const TIPO_OPTIONS = [
   { value: "investimento", label: "Investimento" },
 ];
 
-export default async function CadastrosPage() {
+const ABAS = new Set([
+  "construtoras",
+  "empreendimentos",
+  "corretores",
+  "parceiros",
+  "contas",
+  "centros",
+  "fornecedores",
+  "categorias",
+]);
+
+export default async function CadastrosPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ aba?: string }>;
+}) {
   await requireRole(["admin"]);
+  const { aba } = await searchParams;
+  const abaInicial = aba && ABAS.has(aba) ? aba : "construtoras";
   const supabase = await createClient();
 
   const [construtoras, empreendimentos, corretores, parceiros, contas, centros, fornecedores, categorias, percentuais] =
@@ -53,7 +70,9 @@ export default async function CadastrosPage() {
   })) as unknown as Registro[];
 
   return (
-    <Tabs defaultValue="construtoras">
+    // ?aba=corretores abre direto em Colaboradores (é assim que o item do menu
+    // chega aqui, sem o usuário ter que caçar a aba).
+    <Tabs defaultValue={abaInicial}>
       <TabsList className="mb-4 h-auto flex-wrap">
         <TabsTrigger value="construtoras">Construtoras</TabsTrigger>
         <TabsTrigger value="empreendimentos">Empreendimentos</TabsTrigger>

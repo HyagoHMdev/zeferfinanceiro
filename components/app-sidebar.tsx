@@ -25,7 +25,10 @@ interface NavProps {
 }
 
 function isActive(pathname: string, href: string) {
-  return pathname === href || pathname.startsWith(href + "/");
+  // usePathname() não traz a querystring, então itens com ?aba=... nunca
+  // acenderiam se comparássemos o href inteiro.
+  const caminho = href.split("?")[0];
+  return pathname === caminho || pathname.startsWith(caminho + "/");
 }
 
 function Brand() {
