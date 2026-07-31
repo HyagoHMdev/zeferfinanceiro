@@ -28,6 +28,7 @@ interface VendaRow {
   cliente: string | null;
   origem: string | null;
   vgv: number;
+  comissao_bruta: number;
   liquido_zefer: number;
   liquido_corretor: number;
   lucro_liquido: number;
@@ -44,7 +45,7 @@ export default async function VendasPage() {
     supabase
       .from("vendas")
       .select(
-        "id, data_venda, unidade, cliente, origem, vgv, liquido_zefer, liquido_corretor, lucro_liquido, status, construtoras(nome), empreendimentos(nome), corretores(nome)",
+        "id, data_venda, unidade, cliente, origem, vgv, comissao_bruta, liquido_zefer, liquido_corretor, lucro_liquido, status, construtoras(nome), empreendimentos(nome), corretores(nome)",
       )
       .order("data_venda", { ascending: false }),
   ]);
@@ -82,6 +83,7 @@ export default async function VendasPage() {
                   <TableHead>Empreendimento</TableHead>
                   <TableHead>Corretor</TableHead>
                   <TableHead className="text-right">VGV</TableHead>
+                  <TableHead className="text-right">Comissão bruta</TableHead>
                   <TableHead className="text-right">Líquido Zefer</TableHead>
                   <TableHead className="text-right">Lucro</TableHead>
                   <TableHead>Status</TableHead>
@@ -113,6 +115,9 @@ export default async function VendasPage() {
                     <TableCell>{v.corretores?.nome ?? "—"}</TableCell>
                     <TableCell className="text-right tabular-nums">
                       {formatBRL(v.vgv)}
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums">
+                      {formatBRL(v.comissao_bruta)}
                     </TableCell>
                     <TableCell className="text-right tabular-nums">
                       {formatBRL(v.liquido_zefer)}
