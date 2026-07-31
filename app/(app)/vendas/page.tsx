@@ -53,6 +53,8 @@ export default async function VendasPage() {
 
   const vendas = (data ?? []) as unknown as VendaRow[];
   const totalVgv = vendas.reduce((s, v) => s + Number(v.vgv), 0);
+  const totalComissaoBruta = vendas.reduce((s, v) => s + Number(v.comissao_bruta), 0);
+  const totalLiquidoZefer = vendas.reduce((s, v) => s + Number(v.liquido_zefer), 0);
   const totalLucro = vendas.reduce((s, v) => s + Number(v.lucro_liquido), 0);
 
   return (
@@ -145,13 +147,22 @@ export default async function VendasPage() {
                 ))}
               </TableBody>
               <TableFooter>
+                {/* As células seguem a MESMA ordem do cabeçalho: Data, Cliente,
+                    Empreendimento, Corretor | VGV, Comissão bruta, Líquido
+                    Zefer, Lucro | Status (+ editar). Coluna nova aqui em cima
+                    exige acertar este rodapé, senão os totais escorregam. */}
                 <TableRow>
-                  <TableCell colSpan={3}>Total</TableCell>
+                  <TableCell colSpan={4}>Total ({vendas.length})</TableCell>
                   <TableCell className="text-right tabular-nums">
                     {formatBRL(totalVgv)}
                   </TableCell>
-                  <TableCell></TableCell>
                   <TableCell className="text-right tabular-nums">
+                    {formatBRL(totalComissaoBruta)}
+                  </TableCell>
+                  <TableCell className="text-right tabular-nums">
+                    {formatBRL(totalLiquidoZefer)}
+                  </TableCell>
+                  <TableCell className="text-right font-medium tabular-nums">
                     {formatBRL(totalLucro)}
                   </TableCell>
                   <TableCell colSpan={podeEditar ? 2 : 1}></TableCell>
