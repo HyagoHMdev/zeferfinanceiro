@@ -184,6 +184,8 @@ const funcionarioSchema = z.object({
   // comissão de venda, então o valor não pode ser deduzido: é informado.
   valorBruto: z.number().positive('Informe o valor do pagamento.'),
   adiantamentoIds: z.array(z.string().uuid()).optional(),
+  // Contas a pagar que este pagamento quita (o salário do mês, tipicamente).
+  lancamentoIds: z.array(z.string().uuid()).optional(),
   observacoes: z.string().trim().max(300).nullable().optional(),
 })
 
@@ -207,6 +209,7 @@ export async function registrarPagamentoFuncionario(
   const parsed = funcionarioSchema.safeParse(input)
   if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? 'Dados inválidos.' }
   const { corretorId, valorBruto } = parsed.data
+  const quitarIds = parsed.data.lancamentoIds ?? []
 
   const supabase = await createClient()
 
@@ -297,29 +300,71 @@ export async function registrarPagamentoFuncionario(
     if (dErr) return { error: dErr.message }
   }
 
-  // 4) O pagamento em si sai do caixa, pelo BRUTO. Com a entrada do passo 3, o
-  // líquido do dia fecha no que realmente saiu da conta.
-  const { data: cat } = await supabase
-    .from('categorias_financeiras')
-    .select('id')
-    .eq('nome', 'Pessoal')
-    .eq('tipo', 'despesa_variavel')
-    .limit(1)
-    .maybeSingle<{ id: string }>()
+  // 4) O pagamento sai do caixa pelo BRUTO. Com a entrada do passo 3, o líquido
+  // do dia fecha no que realmente saiu da conta.
+  //
+  // Esse bruto pode já estar previsto em contas a pagar (o salário do mês).
+  // Nesse caso o certo é QUITAR aquele lançamento, não criar outro: criar um
+  // novo contava a despesa duas vezes e deixava a conta pendente para sempre.
+  let quitado = 0
+  if (quitarIds.length > 0) {
+    const { data: contas, error: cErr } = await supabase
+      .from('lancamentos')
+      .select('id, valor')
+      .in('id', quitarIds)
+      .eq('colaborador_id', corretorId)
+      .neq('status', 'pago')
+    if (cErr) return { error: cErr.message }
 
-  const { error: lErr } = await supabase.from('lancamentos').insert({
-    escopo: 'empresa',
-    natureza: 'despesa_variavel',
-    categoria_id: cat?.id ?? null,
-    descricao: `Pagamento de ${pessoa.nome}`,
-    valor: valorBruto,
-    competencia: `${hoje.slice(0, 7)}-01`,
-    data_vencimento: hoje,
-    data_pagamento: hoje,
-    status: 'pago',
-    pagamento_id: pag.id,
-  })
-  if (lErr) return { error: lErr.message }
+    const validos = (contas ?? []) as { id: string; valor: number }[]
+    quitado = round2(validos.reduce((s, c) => s + Number(c.valor), 0))
+    if (quitado > valorBruto) {
+      return {
+        error:
+          'As contas selecionadas somam mais que o valor do pagamento. Desmarque alguma ou aumente o valor.',
+      }
+    }
+
+    if (validos.length > 0) {
+      const { error: qErr } = await supabase
+        .from('lancamentos')
+        .update({ status: 'pago', data_pagamento: hoje, pagamento_id: pag.id })
+        .in(
+          'id',
+          validos.map((c) => c.id),
+        )
+      if (qErr) return { error: qErr.message }
+    }
+  }
+
+  // Só o que sobrou do bruto vira lançamento novo. Se o pagamento cobriu
+  // exatamente as contas quitadas, nada é criado e o caixa continua batendo.
+  const resto = round2(valorBruto - quitado)
+  if (resto > 0) {
+    const { data: cat } = await supabase
+      .from('categorias_financeiras')
+      .select('id')
+      .eq('nome', 'Pessoal')
+      .eq('tipo', 'despesa_variavel')
+      .limit(1)
+      .maybeSingle<{ id: string }>()
+
+    const { error: lErr } = await supabase.from('lancamentos').insert({
+      escopo: 'empresa',
+      natureza: 'despesa_variavel',
+      categoria_id: cat?.id ?? null,
+      colaborador_id: corretorId,
+      descricao: `Pagamento de ${pessoa.nome}`,
+      valor: resto,
+      competencia: `${hoje.slice(0, 7)}-01`,
+      data_vencimento: hoje,
+      data_pagamento: hoje,
+      status: 'pago',
+      pagamento_id: pag.id,
+      criado_pelo_pagamento: true,
+    })
+    if (lErr) return { error: lErr.message }
+  }
 
   revalidar()
   revalidatePath('/financeiro', 'layout')
@@ -400,7 +445,18 @@ export async function estornarPagamento(
     if (uaErr) return { error: uaErr.message };
   }
 
-  // 3) Só agora apaga o pagamento (a cascata remove a entrada de reconciliação).
+  // 3) Devolve para "pendente" as contas a pagar que este pagamento apenas
+  //    quitou. Elas existiam antes e precisam continuar existindo depois; sem
+  //    isto o cascade do passo 4 apagaria o salário do mês junto.
+  const { error: qErr } = await supabase
+    .from("lancamentos")
+    .update({ status: "pendente", data_pagamento: null, pagamento_id: null })
+    .eq("pagamento_id", pagamentoId)
+    .eq("criado_pelo_pagamento", false);
+  if (qErr) return { error: qErr.message };
+
+  // 4) Só agora apaga o pagamento. A cascata leva a entrada de reconciliação e
+  //    os lançamentos que o próprio pagamento criou.
   const { error: dErr } = await supabase
     .from("pagamentos_corretor")
     .delete()

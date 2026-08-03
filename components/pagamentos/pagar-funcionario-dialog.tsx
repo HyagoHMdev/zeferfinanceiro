@@ -27,20 +27,40 @@ export interface AdiantamentoAberto {
   descricao: string | null;
 }
 
+/** Conta a pagar em aberto do colaborador (o salário do mês, tipicamente). */
+export interface ContaAberta {
+  id: string;
+  descricao: string;
+  valor: number;
+  competencia: string;
+  dataVencimento: string | null;
+}
+
+// Vem marcada a conta cuja competência já chegou. Pagar adiantado é possível,
+// mas é o usuário quem marca.
+function jaVenceu(c: ContaAberta): boolean {
+  return c.competencia.slice(0, 7) <= new Date().toISOString().slice(0, 7);
+}
+
 export function PagarFuncionarioDialog({
   funcionarioId,
   nome,
   adiantamentos,
+  contas,
 }: {
   funcionarioId: string;
   nome: string;
   adiantamentos: AdiantamentoAberto[];
+  contas: ContaAberta[];
 }) {
   const [aberto, setAberto] = useState(false);
   const [valor, setValor] = useState("");
   const [obs, setObs] = useState("");
   // Todos os adiantamentos vêm marcados: descontar é o caminho esperado.
   const [marcados, setMarcados] = useState<string[]>(adiantamentos.map((a) => a.id));
+  const [contasMarcadas, setContasMarcadas] = useState<string[]>(
+    contas.filter(jaVenceu).map((c) => c.id),
+  );
   const [salvando, setSalvando] = useState(false);
   const router = useRouter();
 
@@ -50,7 +70,12 @@ export function PagarFuncionarioDialog({
   function alternarDialogo(abrir: boolean) {
     if (abrir) {
       setMarcados(adiantamentos.map((a) => a.id));
-      setValor("");
+      const devidas = contas.filter(jaVenceu);
+      setContasMarcadas(devidas.map((c) => c.id));
+      // O valor do pagamento já vem somado do que está em aberto: é o caso
+      // normal (pagar o salário do mês). Dá para editar.
+      const total = devidas.reduce((s, c) => s + Number(c.valor), 0);
+      setValor(total > 0 ? total.toFixed(2).replace(".", ",") : "");
       setObs("");
     }
     setAberto(abrir);
@@ -65,6 +90,9 @@ export function PagarFuncionarioDialog({
     .filter((a) => marcados.includes(a.id))
     .reduce((s, a) => s + Number(a.valor), 0);
   const liquido = bruto - totalDesconto;
+  const totalContas = contas
+    .filter((c) => contasMarcadas.includes(c.id))
+    .reduce((s, c) => s + Number(c.valor), 0);
 
   async function confirmar() {
     if (bruto <= 0) {
@@ -77,11 +105,18 @@ export function PagarFuncionarioDialog({
       });
       return;
     }
+    if (totalContas > bruto) {
+      toast.error("As contas selecionadas passam do valor do pagamento.", {
+        description: "Desmarque alguma ou aumente o valor.",
+      });
+      return;
+    }
     setSalvando(true);
     const res = await registrarPagamentoFuncionario({
       corretorId: funcionarioId,
       valorBruto: bruto,
       adiantamentoIds: marcados,
+      lancamentoIds: contasMarcadas,
       observacoes: obs.trim() || null,
     });
     setSalvando(false);
@@ -124,6 +159,47 @@ export function PagarFuncionarioDialog({
               autoFocus
             />
           </div>
+
+          {contas.length > 0 ? (
+            <div className="space-y-2">
+              <Label>Contas a pagar a quitar</Label>
+              <div className="space-y-1 rounded-md border p-2">
+                {contas.map((c) => (
+                  <label
+                    key={c.id}
+                    className="flex cursor-pointer items-center justify-between gap-3 rounded p-2 text-sm hover:bg-muted/50"
+                  >
+                    <span className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={contasMarcadas.includes(c.id)}
+                        onChange={(e) =>
+                          setContasMarcadas((atual) =>
+                            e.target.checked
+                              ? [...atual, c.id]
+                              : atual.filter((x) => x !== c.id),
+                          )
+                        }
+                        className="h-4 w-4"
+                      />
+                      <span>
+                        {c.descricao}
+                        <span className="text-muted-foreground">
+                          {" · "}
+                          {c.competencia.slice(0, 7).split("-").reverse().join("/")}
+                        </span>
+                      </span>
+                    </span>
+                    <span className="tabular-nums">{formatBRL(c.valor)}</span>
+                  </label>
+                ))}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                O que for marcado baixa em contas a pagar. O que sobrar do valor
+                vira uma despesa nova.
+              </p>
+            </div>
+          ) : null}
 
           {adiantamentos.length > 0 ? (
             <div className="space-y-2">

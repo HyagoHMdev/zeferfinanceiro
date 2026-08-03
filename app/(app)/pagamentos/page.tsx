@@ -27,6 +27,7 @@ import { RegistrarPagamentoDialog } from "@/components/pagamentos/registrar-paga
 import {
   PagarFuncionarioDialog,
   type AdiantamentoAberto,
+  type ContaAberta,
 } from "@/components/pagamentos/pagar-funcionario-dialog";
 import { EstornarPagamentoButton } from "@/components/pagamentos/estornar-pagamento-button";
 import { ReciboAssinado } from "@/components/recibo/recibo-assinado";
@@ -41,7 +42,7 @@ export default async function PagamentosPage() {
   // Funcionário não tem comissão de venda, então não entra na lista de cima.
   // Aqui ele aparece sempre, com os adiantamentos em aberto ao lado.
   const supabase = await createClient();
-  const [funcRes, adiRes] = await Promise.all([
+  const [funcRes, adiRes, contasRes] = await Promise.all([
     supabase
       .from("corretores")
       .select("id, nome")
@@ -53,6 +54,14 @@ export default async function PagamentosPage() {
       .select("id, corretor_id, data, valor, descricao")
       .is("pagamento_id", null)
       .order("data"),
+    // Contas a pagar em aberto de cada colaborador (o salário do mês, tipicamente).
+    // Pagar tem que baixar essas, não criar uma despesa nova ao lado.
+    supabase
+      .from("lancamentos")
+      .select("id, colaborador_id, descricao, valor, competencia, data_vencimento")
+      .not("colaborador_id", "is", null)
+      .neq("status", "pago")
+      .order("competencia"),
   ]);
 
   const adiPorPessoa = new Map<string, AdiantamentoAberto[]>();
@@ -61,9 +70,30 @@ export default async function PagamentosPage() {
     lista.push({ id: a.id, data: a.data, valor: Number(a.valor), descricao: a.descricao });
     adiPorPessoa.set(a.corretor_id, lista);
   }
+  const contasPorPessoa = new Map<string, ContaAberta[]>();
+  for (const c of (contasRes.data ?? []) as {
+    id: string;
+    colaborador_id: string;
+    descricao: string;
+    valor: number;
+    competencia: string;
+    data_vencimento: string | null;
+  }[]) {
+    const lista = contasPorPessoa.get(c.colaborador_id) ?? [];
+    lista.push({
+      id: c.id,
+      descricao: c.descricao,
+      valor: Number(c.valor),
+      competencia: c.competencia,
+      dataVencimento: c.data_vencimento,
+    });
+    contasPorPessoa.set(c.colaborador_id, lista);
+  }
+
   const funcionarios = ((funcRes.data ?? []) as { id: string; nome: string }[]).map((f) => ({
     ...f,
     adiantamentos: adiPorPessoa.get(f.id) ?? [],
+    contas: contasPorPessoa.get(f.id) ?? [],
   }));
 
   const totalAPagar = round2(pendentes.reduce((s, c) => s + c.liquido, 0));
@@ -182,6 +212,7 @@ export default async function PagamentosPage() {
                           funcionarioId={f.id}
                           nome={f.nome}
                           adiantamentos={f.adiantamentos}
+                          contas={f.contas}
                         />
                       </TableCell>
                     </TableRow>
