@@ -36,6 +36,17 @@ export function RegistrarPagamentoDialog({ corretor }: { corretor: CorretorPende
     () => new Set(corretor.adiantamentos.map((a) => a.id)),
   );
 
+  // Ressincroniza a cada abertura. A seleção acima é capturada no primeiro
+  // render e não acompanha sozinha uma comissão ou adiantamento lançado depois:
+  // o item apareceria na lista já DESMARCADO e sairia do pagamento calado.
+  function alternarDialogo(abrir: boolean) {
+    if (abrir) {
+      setVendasSel(new Set(corretor.comissoes.map((c) => c.vendaId)));
+      setAdiSel(new Set(corretor.adiantamentos.map((a) => a.id)));
+    }
+    setOpen(abrir);
+  }
+
   // Um adiantamento atrelado a uma venda só entra se aquela venda for paga.
   // Vales avulsos (vendaId null) ficam sempre disponíveis.
   const adiDisponivel = (vendaId: string | null) => vendaId === null || vendasSel.has(vendaId);
@@ -110,7 +121,7 @@ export function RegistrarPagamentoDialog({ corretor }: { corretor: CorretorPende
   }
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={alternarDialogo}>
       <DialogTrigger asChild>
         <Button size="sm">
           <HandCoins className="size-4" />

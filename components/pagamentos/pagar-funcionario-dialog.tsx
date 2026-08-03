@@ -44,6 +44,22 @@ export function PagarFuncionarioDialog({
   const [salvando, setSalvando] = useState(false);
   const router = useRouter();
 
+  // Ressincroniza a cada abertura. Sem isto a marcação fica congelada no
+  // primeiro render da página: um adiantamento lançado depois aparece na lista
+  // mas DESMARCADO, e o pagamento sai sem descontá-lo sem ninguém perceber.
+  function alternarDialogo(abrir: boolean) {
+    if (abrir) {
+      setMarcados(adiantamentos.map((a) => a.id));
+      setValor("");
+      setObs("");
+    }
+    setAberto(abrir);
+  }
+
+  // Ter adiantamento em aberto e não descontar nenhum é possível (o usuário pode
+  // querer pagar cheio), mas é raro o bastante para merecer confirmação.
+  const nenhumMarcado = adiantamentos.length > 0 && marcados.length === 0;
+
   const bruto = parseNumeroBR(valor);
   const totalDesconto = adiantamentos
     .filter((a) => marcados.includes(a.id))
@@ -83,7 +99,7 @@ export function PagarFuncionarioDialog({
   }
 
   return (
-    <Dialog open={aberto} onOpenChange={setAberto}>
+    <Dialog open={aberto} onOpenChange={alternarDialogo}>
       <DialogTrigger asChild>
         <Button size="sm">Pagar</Button>
       </DialogTrigger>
@@ -142,6 +158,12 @@ export function PagarFuncionarioDialog({
                   </label>
                 ))}
               </div>
+              {nenhumMarcado ? (
+                <p className="rounded-md border border-amber-500/40 bg-amber-500/10 p-2 text-sm text-amber-700 dark:text-amber-400">
+                  Nenhum adiantamento marcado. O pagamento vai sair cheio e os
+                  adiantamentos continuarão em aberto.
+                </p>
+              ) : null}
             </div>
           ) : (
             <p className="text-sm text-muted-foreground">
