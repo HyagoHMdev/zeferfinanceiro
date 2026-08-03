@@ -119,21 +119,6 @@ export default async function ReciboPagamentoPage({
           <div>{pagamento.corretores?.nome ?? "—"}</div>
         </div>
 
-        {vendas.length === 0 ? (
-          <section className="mb-4">
-            <div className="mb-1 text-sm font-semibold">Pagamento</div>
-            <table className="w-full text-sm">
-              <tbody>
-                <tr className="border-t">
-                  <td className="py-1">Valor do pagamento</td>
-                  <td className="py-1 text-right tabular-nums">
-                    {formatBRL(pagamento.valor_bruto)}
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </section>
-        ) : null}
 
         {vendas.length > 0 ? (
           <section className="mb-4">
@@ -203,18 +188,30 @@ export default async function ReciboPagamentoPage({
         ) : null}
 
         <div className="mt-6 space-y-1 border-t pt-4 text-sm">
-          <div className="flex justify-between">
-            <span>Comissão bruta</span>
-            <span className="tabular-nums">{formatBRL(totalComissaoBruta)}</span>
-          </div>
-          <div className="flex justify-between text-zinc-500">
-            <span>(−) Imposto (NF)</span>
-            <span className="tabular-nums">- {formatBRL(totalImposto)}</span>
-          </div>
-          <div className="flex justify-between border-t pt-2">
-            <span>Comissão líquida</span>
-            <span className="tabular-nums">{formatBRL(pagamento.valor_bruto)}</span>
-          </div>
+          {/* Funcionário não tem comissão nem imposto de NF: as linhas viriam
+              zeradas e o rótulo "Comissão" seria falso num documento assinado.
+              Nesse caso o recibo mostra só o valor do pagamento. */}
+          {vendas.length > 0 ? (
+            <>
+              <div className="flex justify-between">
+                <span>Comissão bruta</span>
+                <span className="tabular-nums">{formatBRL(totalComissaoBruta)}</span>
+              </div>
+              <div className="flex justify-between text-zinc-500">
+                <span>(−) Imposto (NF)</span>
+                <span className="tabular-nums">- {formatBRL(totalImposto)}</span>
+              </div>
+              <div className="flex justify-between border-t pt-2">
+                <span>Comissão líquida</span>
+                <span className="tabular-nums">{formatBRL(pagamento.valor_bruto)}</span>
+              </div>
+            </>
+          ) : (
+            <div className="flex justify-between">
+              <span>Pagamento</span>
+              <span className="tabular-nums">{formatBRL(pagamento.valor_bruto)}</span>
+            </div>
+          )}
           {pagamento.total_bonificacoes > 0 ? (
             <div className="flex justify-between">
               <span>(+) Bonificações</span>
