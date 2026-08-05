@@ -1,6 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 
-/** Um vale/adiantamento avulso (não amarrado a uma venda). */
+/** Um vale/adiantamento, avulso ou amarrado a uma venda. */
 export interface AdiantamentoAvulsoRow {
   id: string;
   corretorId: string;
@@ -15,17 +15,28 @@ export interface AdiantamentoAvulsoRow {
   assinado: boolean;
   /** Já foi descontado num pagamento (pagamento_id preenchido). */
   descontado: boolean;
+  /** Venda a que o adiantamento está amarrado. Null = vale avulso. */
+  vendaId: string | null;
+  /** Cliente da venda de origem, para a lista dizer de onde ele veio. */
+  vendaCliente: string | null;
 }
 
-/** Lista os adiantamentos avulsos (venda_id nulo), mais recentes primeiro. */
+/**
+ * Lista TODOS os adiantamentos, mais recentes primeiro.
+ *
+ * Antes trazia só os avulsos (venda_id nulo). O resultado é que adiantamento
+ * amarrado a uma venda não aparecia em lugar nenhum além da própria venda:
+ * numa tela chamada "Adiantamentos", metade deles ficava invisível e parecia
+ * ter sumido. O vínculo com a venda agora vem junto, como coluna, em vez de
+ * virar critério de exclusão.
+ */
 export async function listarAdiantamentosAvulsos(): Promise<AdiantamentoAvulsoRow[]> {
   const supabase = await createClient();
   const { data } = await supabase
     .from("adiantamentos")
     .select(
-      "id, corretor_id, data, valor, descricao, recibo_ok, recibo_url, assinado_em, pagamento_id, corretores(nome)",
+      "id, corretor_id, data, valor, descricao, recibo_ok, recibo_url, assinado_em, pagamento_id, venda_id, corretores(nome), vendas(cliente)",
     )
-    .is("venda_id", null)
     .order("data", { ascending: false });
 
   const rows = (data ?? []) as unknown as {
@@ -38,7 +49,9 @@ export async function listarAdiantamentosAvulsos(): Promise<AdiantamentoAvulsoRo
     recibo_url: string | null;
     assinado_em: string | null;
     pagamento_id: string | null;
+    venda_id: string | null;
     corretores: { nome: string } | null;
+    vendas: { cliente: string | null } | null;
   }[];
 
   return rows.map((r) => ({
@@ -52,6 +65,8 @@ export async function listarAdiantamentosAvulsos(): Promise<AdiantamentoAvulsoRo
     reciboUrl: r.recibo_url,
     assinado: r.assinado_em != null,
     descontado: r.pagamento_id != null,
+    vendaId: r.venda_id,
+    vendaCliente: r.vendas?.cliente ?? null,
   }));
 }
 

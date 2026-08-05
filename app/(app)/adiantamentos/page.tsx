@@ -36,7 +36,7 @@ export default async function AdiantamentosPage() {
     <div>
       <PageHeader
         title="Adiantamentos"
-        description="Vales dos corretores, descontados quando houver comissões a receber."
+        description="Todos os adiantamentos, avulsos e os amarrados a uma venda, descontados quando houver o que receber."
         help={<OnboardingHelp screen="adiantamentos" />}
       >
         {podeEditar ? (

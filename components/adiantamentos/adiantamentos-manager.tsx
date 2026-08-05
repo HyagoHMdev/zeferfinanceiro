@@ -171,6 +171,7 @@ export function AdiantamentosManager({
             <TableRow>
               <TableHead>Corretor</TableHead>
               <TableHead>Descrição</TableHead>
+              <TableHead>Origem</TableHead>
               <TableHead>Data</TableHead>
               <TableHead className="text-right">Valor</TableHead>
               <TableHead className="text-center">Recibo</TableHead>
@@ -185,6 +186,20 @@ export function AdiantamentosManager({
                   {a.corretorNome ?? "—"}
                 </TableCell>
                 <TableCell>{a.descricao ?? "—"}</TableCell>
+                {/* Origem: sem isto, um vale avulso e um adiantamento amarrado
+                    a uma venda ficam indistinguíveis na mesma lista. */}
+                <TableCell className="text-sm">
+                  {a.vendaId ? (
+                    <Link
+                      href={`/vendas/${a.vendaId}`}
+                      className="text-muted-foreground underline-offset-2 hover:underline"
+                    >
+                      Venda · {a.vendaCliente ?? "sem cliente"}
+                    </Link>
+                  ) : (
+                    <span className="text-muted-foreground">Avulso</span>
+                  )}
+                </TableCell>
                 <TableCell className="whitespace-nowrap">
                   {formatData(a.data)}
                 </TableCell>
@@ -251,7 +266,23 @@ export function AdiantamentosManager({
                           </Button>
                         }
                       />
-                      <ExcluirAdiantamento id={a.id} />
+                      {/* Já descontado faz parte de um pagamento fechado: o
+                          caminho para desfazer é estornar o pagamento. A
+                          action recusa de qualquer forma; aqui é para o botão
+                          não prometer o que não vai acontecer. */}
+                      {a.descontado ? (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          disabled
+                          aria-label="Excluir"
+                          title="Já descontado num pagamento. Estorne o pagamento para excluir."
+                        >
+                          <Trash2 className="size-4" />
+                        </Button>
+                      ) : (
+                        <ExcluirAdiantamento id={a.id} />
+                      )}
                     </div>
                   </TableCell>
                 ) : null}
@@ -260,7 +291,9 @@ export function AdiantamentosManager({
           </TableBody>
           <TableFooter>
             <TableRow>
-              <TableCell colSpan={3}>
+              {/* Corretor + Descrição + Origem + Data. Coluna nova na tabela
+                  exige acertar este colSpan, senão o total desalinha. */}
+              <TableCell colSpan={4}>
                 Total{temFiltro ? " (filtrado)" : ""}
               </TableCell>
               <TableCell className="text-right tabular-nums">

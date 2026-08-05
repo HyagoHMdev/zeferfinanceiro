@@ -134,6 +134,23 @@ export async function excluirAdiantamento(
 ): Promise<ActionResult> {
   await requireRole(ADMIN_FIN_ROLES);
   const supabase = await createClient();
+
+  // Adiantamento já descontado faz parte de um pagamento fechado: o total e o
+  // recibo daquele pagamento foram calculados com ele. Apagar aqui deixaria o
+  // pagamento afirmando um desconto que não existe mais, e nada avisaria.
+  // Para desfazer, o caminho é estornar o pagamento, que devolve o vínculo.
+  const { data: atual } = await supabase
+    .from("adiantamentos")
+    .select("pagamento_id")
+    .eq("id", id)
+    .maybeSingle<{ pagamento_id: string | null }>();
+  if (atual?.pagamento_id) {
+    return {
+      error:
+        "Este adiantamento já foi descontado num pagamento. Estorne o pagamento antes de excluí-lo.",
+    };
+  }
+
   // O trigger no banco apaga o lançamento-espelho junto.
   const { error } = await supabase.from("adiantamentos").delete().eq("id", id);
   if (error) return { error: error.message };
