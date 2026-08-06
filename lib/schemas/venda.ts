@@ -43,6 +43,10 @@ export const vendaSchema = z.object({
     .trim()
     .max(2000, "A observação passou de 2000 caracteres.")
     .nullable(),
+  // Caminho no bucket privado `contratos`, não URL: em bucket privado o link é
+  // assinado e expira, então guardar a URL deixaria o contrato inacessível
+  // depois de algumas horas.
+  contrato_path: z.string().trim().max(400).nullable().optional(),
 });
 
 export type VendaInput = z.infer<typeof vendaSchema>;

@@ -160,6 +160,8 @@ export interface Venda {
   status: VendaStatus;
   pagamento_id: string | null;
   observacoes: string | null;
+  /** Caminho do contrato no bucket privado `contratos` (não é URL: expira). */
+  contrato_path: string | null;
   // Parceria (modelo manual)
   possui_parceria: boolean;
   empresa_parceira: string | null;

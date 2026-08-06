@@ -101,6 +101,7 @@ function montarLinha(input: VendaInput, corr: CorretorDefaults) {
     liquido_corretor: r.liquidoCorretor,
     lucro_liquido: r.lucroLiquido,
     observacoes: input.observacoes,
+    contrato_path: input.contrato_path ?? null,
   };
 }
 
@@ -241,4 +242,27 @@ export async function excluirVenda(id: string): Promise<ActionResult> {
 
   revalidar();
   redirect("/vendas");
+}
+
+/**
+ * Gera uma URL assinada para ver o contrato.
+ *
+ * O bucket é privado, então não existe link fixo: cada visualização pede um
+ * link com validade curta. É o que impede o contrato de circular por URL solta
+ * depois que alguém abriu uma vez.
+ */
+export async function abrirContrato(
+  path: string,
+): Promise<{ erro?: string; url?: string }> {
+  await requireRole(ADMIN_FIN_ROLES);
+  if (!path.trim()) return { erro: "Contrato sem caminho." };
+
+  const supabase = await createClient();
+  const { data, error } = await supabase.storage
+    .from("contratos")
+    .createSignedUrl(path, 300); // 5 minutos: tempo de abrir, não de compartilhar
+  if (error || !data?.signedUrl) {
+    return { erro: error?.message ?? "Não foi possível gerar o link." };
+  }
+  return { url: data.signedUrl };
 }

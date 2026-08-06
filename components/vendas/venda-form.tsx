@@ -10,6 +10,7 @@ import { calcularVenda } from "@/lib/calculos";
 import { parseNumeroBR, formatBRL, formatarCpf } from "@/lib/format";
 import { percentualComFallback } from "@/lib/percentuais";
 import { criarVenda, atualizarVenda } from "@/app/(app)/vendas/actions";
+import { ContratoUpload } from "@/components/contrato-upload";
 import type { VendaInput } from "@/lib/schemas/venda";
 import type {
   Configuracoes,
@@ -160,6 +161,9 @@ export function VendaForm({
     ),
   );
   const [observacoes, setObservacoes] = useState(venda?.observacoes ?? "");
+  const [contratoPath, setContratoPath] = useState<string | null>(
+    venda?.contrato_path ?? null,
+  );
   const [saving, setSaving] = useState(false);
 
   const empreendimentosFiltrados = useMemo(
@@ -305,6 +309,7 @@ export function VendaForm({
       percentual_comissao: pctToFrac(pctComissao),
       percentual_imposto_imobiliaria: pctToFrac(pctImpostoImob),
       observacoes: observacoes.trim() || null,
+      contrato_path: contratoPath,
       investidores: investidoresSel,
     };
 
@@ -653,6 +658,10 @@ export function VendaForm({
               <p className="text-xs text-muted-foreground">
                 {observacoes.length}/2000
               </p>
+            </div>
+            <div className="space-y-2 sm:col-span-2">
+              <Label>Contrato assinado</Label>
+              <ContratoUpload value={contratoPath} onChange={setContratoPath} />
             </div>
           </CardContent>
         </Card>
