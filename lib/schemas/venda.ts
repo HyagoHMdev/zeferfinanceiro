@@ -47,6 +47,17 @@ export const vendaSchema = z.object({
   // assinado e expira, então guardar a URL deixaria o contrato inacessível
   // depois de algumas horas.
   contrato_path: z.string().trim().max(400).nullable().optional(),
+  // Documentos do cliente: caminho + nome original, para a lista não virar um
+  // monte de UUID sem sentido.
+  documentos: z
+    .array(
+      z.object({
+        path: z.string().trim().min(1).max(400),
+        nome: z.string().trim().max(200),
+      }),
+    )
+    .max(20, "Máximo de 20 documentos por venda.")
+    .optional(),
 });
 
 export type VendaInput = z.infer<typeof vendaSchema>;

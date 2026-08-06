@@ -162,6 +162,8 @@ export interface Venda {
   observacoes: string | null;
   /** Caminho do contrato no bucket privado `contratos` (não é URL: expira). */
   contrato_path: string | null;
+  /** Documentos do cliente no mesmo bucket privado: [{ path, nome }]. */
+  documentos: { path: string; nome: string }[] | null;
   // Parceria (modelo manual)
   possui_parceria: boolean;
   empresa_parceira: string | null;

@@ -6,7 +6,7 @@ import { Loader2, FileText, X } from "lucide-react";
 
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
-import { abrirContrato } from "@/app/(app)/vendas/actions";
+import { abrirArquivoVenda } from "@/app/(app)/vendas/actions";
 
 const MAX_MB = 20;
 
@@ -62,7 +62,7 @@ export function ContratoUpload({
   async function ver() {
     if (!value) return;
     setAbrindo(true);
-    const r = await abrirContrato(value);
+    const r = await abrirArquivoVenda(value);
     setAbrindo(false);
     if (r.erro || !r.url) {
       toast.error("Não foi possível abrir", { description: r.erro });

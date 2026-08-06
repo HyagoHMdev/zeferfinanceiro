@@ -11,6 +11,7 @@ import { parseNumeroBR, formatBRL, formatarCpf } from "@/lib/format";
 import { percentualComFallback } from "@/lib/percentuais";
 import { criarVenda, atualizarVenda } from "@/app/(app)/vendas/actions";
 import { ContratoUpload } from "@/components/contrato-upload";
+import { DocumentosUpload, type DocumentoVenda } from "@/components/documentos-upload";
 import type { VendaInput } from "@/lib/schemas/venda";
 import type {
   Configuracoes,
@@ -164,6 +165,13 @@ export function VendaForm({
   const [contratoPath, setContratoPath] = useState<string | null>(
     venda?.contrato_path ?? null,
   );
+  // Vem do banco como jsonb: pode chegar com formato antigo ou nulo, então a
+  // leitura filtra em vez de confiar.
+  const [documentos, setDocumentos] = useState<DocumentoVenda[]>(() =>
+    Array.isArray(venda?.documentos)
+      ? (venda.documentos as DocumentoVenda[]).filter((d) => d?.path)
+      : [],
+  );
   const [saving, setSaving] = useState(false);
 
   const empreendimentosFiltrados = useMemo(
@@ -310,6 +318,7 @@ export function VendaForm({
       percentual_imposto_imobiliaria: pctToFrac(pctImpostoImob),
       observacoes: observacoes.trim() || null,
       contrato_path: contratoPath,
+      documentos,
       investidores: investidoresSel,
     };
 
@@ -662,6 +671,10 @@ export function VendaForm({
             <div className="space-y-2 sm:col-span-2">
               <Label>Contrato assinado</Label>
               <ContratoUpload value={contratoPath} onChange={setContratoPath} />
+            </div>
+            <div className="space-y-2 sm:col-span-2">
+              <Label>Documentos do cliente</Label>
+              <DocumentosUpload value={documentos} onChange={setDocumentos} />
             </div>
           </CardContent>
         </Card>

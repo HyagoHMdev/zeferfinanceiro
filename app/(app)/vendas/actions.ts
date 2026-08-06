@@ -102,6 +102,7 @@ function montarLinha(input: VendaInput, corr: CorretorDefaults) {
     lucro_liquido: r.lucroLiquido,
     observacoes: input.observacoes,
     contrato_path: input.contrato_path ?? null,
+    documentos: input.documentos ?? [],
   };
 }
 
@@ -245,17 +246,18 @@ export async function excluirVenda(id: string): Promise<ActionResult> {
 }
 
 /**
- * Gera uma URL assinada para ver o contrato.
+ * Gera uma URL assinada para ver um arquivo da venda: o contrato ou um
+ * documento do cliente.
  *
  * O bucket é privado, então não existe link fixo: cada visualização pede um
- * link com validade curta. É o que impede o contrato de circular por URL solta
+ * link com validade curta. É o que impede o arquivo de circular por URL solta
  * depois que alguém abriu uma vez.
  */
-export async function abrirContrato(
+export async function abrirArquivoVenda(
   path: string,
 ): Promise<{ erro?: string; url?: string }> {
   await requireRole(ADMIN_FIN_ROLES);
-  if (!path.trim()) return { erro: "Contrato sem caminho." };
+  if (!path.trim()) return { erro: "Arquivo sem caminho." };
 
   const supabase = await createClient();
   const { data, error } = await supabase.storage
