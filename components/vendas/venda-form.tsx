@@ -13,6 +13,7 @@ import { criarVenda, atualizarVenda } from "@/app/(app)/vendas/actions";
 import { ContratoUpload } from "@/components/contrato-upload";
 import { DocumentosUpload, type DocumentoVenda } from "@/components/documentos-upload";
 import type { VendaInput } from "@/lib/schemas/venda";
+import type { ChecklistPendente } from "@/lib/data/checklist";
 import type {
   Configuracoes,
   Venda,
@@ -97,6 +98,8 @@ interface VendaFormProps {
   percentuaisMensais?: PercentualMensal[];
   investidores?: InvestidorOpcao[];
   venda?: Venda;
+  /** Submissão do corretor sendo aprovada. Pré-preenche e fecha o checklist. */
+  checklist?: ChecklistPendente | null;
 }
 
 export function VendaForm({
@@ -109,6 +112,7 @@ export function VendaForm({
   percentuaisMensais = [],
   investidores = [],
   venda,
+  checklist = null,
 }: VendaFormProps) {
   // Quais investidores participam desta venda. O repasse (lucro × percentual)
   // entra sozinho como despesa variável assim que a venda é salva.
@@ -122,25 +126,25 @@ export function VendaForm({
   const [empreendimentoId, setEmpreendimentoId] = useState(
     venda?.empreendimento_id ?? NONE,
   );
-  const [unidade, setUnidade] = useState(venda?.unidade ?? "");
-  const [torre, setTorre] = useState(venda?.torre ?? "");
-  const [cliente, setCliente] = useState(venda?.cliente ?? "");
+  const [unidade, setUnidade] = useState(venda?.unidade ?? checklist?.unidade ?? "");
+  const [torre, setTorre] = useState(venda?.torre ?? checklist?.torre ?? "");
+  const [cliente, setCliente] = useState(venda?.cliente ?? checklist?.clienteNome ?? "");
   const [clienteNascimento, setClienteNascimento] = useState(
-    venda?.cliente_nascimento ?? "",
+    venda?.cliente_nascimento ?? checklist?.clienteNascimento ?? "",
   );
   const [clienteCpf, setClienteCpf] = useState(venda?.cliente_cpf ?? "");
-  const [origem, setOrigem] = useState(venda?.origem ?? "");
+  const [origem, setOrigem] = useState(venda?.origem ?? checklist?.origem ?? "");
   const [origemDetalhe, setOrigemDetalhe] = useState(venda?.origem_detalhe ?? "");
-  const [finalidade, setFinalidade] = useState(venda?.cliente_finalidade ?? "");
+  const [finalidade, setFinalidade] = useState(venda?.cliente_finalidade ?? checklist?.finalidade ?? "");
   const [profissao, setProfissao] = useState(venda?.cliente_profissao ?? "");
-  const [clienteCidade, setClienteCidade] = useState(venda?.cliente_cidade ?? "");
-  const [clienteEstado, setClienteEstado] = useState(venda?.cliente_estado ?? "");
-  const [clienteEmail, setClienteEmail] = useState(venda?.cliente_email ?? "");
+  const [clienteCidade, setClienteCidade] = useState(venda?.cliente_cidade ?? checklist?.clienteCidade ?? "");
+  const [clienteEstado, setClienteEstado] = useState(venda?.cliente_estado ?? checklist?.clienteEstado ?? "");
+  const [clienteEmail, setClienteEmail] = useState(venda?.cliente_email ?? checklist?.clienteEmail ?? "");
   const [clienteTelefone, setClienteTelefone] = useState(
-    venda?.cliente_telefone ?? "",
+    venda?.cliente_telefone ?? checklist?.clienteTelefone ?? "",
   );
   const [corretorId, setCorretorId] = useState(venda?.corretor_id ?? NONE);
-  const [vgv, setVgv] = useState(venda ? String(venda.vgv) : "");
+  const [vgv, setVgv] = useState(venda ? String(venda.vgv) : checklist ? String(checklist.valorContrato) : "");
 
   const [possuiParceria, setPossuiParceria] = useState(
     venda?.possui_parceria ?? false,
@@ -324,7 +328,7 @@ export function VendaForm({
 
     const res =
       mode === "create"
-        ? await criarVenda(input)
+        ? await criarVenda(input, checklist?.id)
         : await atualizarVenda(venda!.id, input);
     if (res?.error) {
       toast.error("Erro ao salvar a venda", { description: res.error });

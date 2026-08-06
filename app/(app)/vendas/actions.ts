@@ -146,7 +146,16 @@ function revalidar(id?: string) {
   revalidatePath("/dashboard");
 }
 
-export async function criarVenda(input: VendaInput): Promise<ActionResult> {
+/**
+ * `checklistId` chega quando a venda nasceu de uma submissão do corretor.
+ * O fechamento do checklist acontece AQUI dentro, e não na tela, porque esta
+ * action termina em redirect: quem chama nunca recebe o retorno para fazer o
+ * segundo passo.
+ */
+export async function criarVenda(
+  input: VendaInput,
+  checklistId?: string,
+): Promise<ActionResult> {
   await requireRole(ADMIN_FIN_ROLES);
   const parsed = vendaSchema.safeParse(input);
   if (!parsed.success) return { error: erroDeValidacao(parsed.error) };
@@ -173,6 +182,10 @@ export async function criarVenda(input: VendaInput): Promise<ActionResult> {
   }
 
   await sincronizarInvestidores(nova.id, parsed.data.investidores ?? []);
+
+  // Aprovar é criar a venda. Se este passo falhar, a venda existe e a submissão
+  // continua pendente: reaparece na fila em vez de sumir, que é o erro seguro.
+  if (checklistId) await aprovarChecklist(checklistId, nova.id);
 
   revalidar();
   redirect("/vendas");
@@ -266,5 +279,68 @@ export async function abrirArquivoVenda(
   if (error || !data?.signedUrl) {
     return { erro: error?.message ?? "Não foi possível gerar o link." };
   }
+  return { url: data.signedUrl };
+}
+
+/**
+ * Marca a submissão do corretor como aprovada e a liga à venda criada.
+ *
+ * Chamada depois que a venda foi gravada: aprovar é criar a venda, não mudar
+ * um status solto. Se falhar aqui, a venda existe e a submissão fica pendente,
+ * o que é o erro seguro (aparece de novo na fila em vez de sumir).
+ */
+export async function aprovarChecklist(
+  checklistId: string,
+  vendaId: string,
+): Promise<ActionResult> {
+  const sessao = await requireRole(ADMIN_FIN_ROLES);
+  const pub = createAdminClient().schema("public");
+  const { error } = await pub
+    .from("vendas_checklist")
+    .update({
+      status: "aprovada",
+      venda_id: vendaId,
+      avaliado_por: sessao.profile.id,
+      avaliado_em: new Date().toISOString(),
+    })
+    .eq("id", checklistId)
+    .eq("status", "aguardando_aprovacao");
+  if (error) return { error: error.message };
+  revalidatePath("/vendas");
+  return {};
+}
+
+/** Recusa a submissão. O motivo volta para o corretor corrigir e reenviar. */
+export async function recusarChecklist(
+  checklistId: string,
+  motivo: string,
+): Promise<ActionResult> {
+  const sessao = await requireRole(ADMIN_FIN_ROLES);
+  if (!motivo.trim()) return { error: "Diga o motivo: sem ele o corretor não sabe o que corrigir." };
+
+  const pub = createAdminClient().schema("public");
+  const { error } = await pub
+    .from("vendas_checklist")
+    .update({
+      status: "recusada",
+      motivo_recusa: motivo.trim().slice(0, 500),
+      avaliado_por: sessao.profile.id,
+      avaliado_em: new Date().toISOString(),
+    })
+    .eq("id", checklistId)
+    .eq("status", "aguardando_aprovacao");
+  if (error) return { error: error.message };
+  revalidatePath("/vendas");
+  return {};
+}
+
+/** URL assinada para o financeiro abrir um anexo do checklist. */
+export async function abrirAnexoChecklist(
+  path: string,
+): Promise<{ erro?: string; url?: string }> {
+  await requireRole(ADMIN_FIN_ROLES);
+  const admin = createAdminClient();
+  const { data, error } = await admin.storage.from("contratos").createSignedUrl(path, 300);
+  if (error || !data?.signedUrl) return { erro: error?.message ?? "Falha ao gerar o link." };
   return { url: data.signedUrl };
 }

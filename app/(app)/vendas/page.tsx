@@ -11,6 +11,8 @@ import { OnboardingHelp } from "@/components/onboarding/onboarding-help";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { FiltroCorretor } from "@/components/vendas/filtro-corretor";
+import { ChecklistsPendentes } from "@/components/vendas/checklists-pendentes";
+import { listarChecklistsPendentes } from "@/lib/data/checklist";
 import { VendaStatusBadge } from "@/components/vendas/status-badge";
 import { VendaStatusSelect } from "@/components/vendas/venda-status-select";
 import {
@@ -87,6 +89,8 @@ export default async function VendasPage({
           </Button>
         ) : null}
       </PageHeader>
+
+      {podeEditar ? <ChecklistsPendentes itens={await listarChecklistsPendentes()} /> : null}
 
       <Card>
         <CardHeader className="pb-3">
