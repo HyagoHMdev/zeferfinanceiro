@@ -15,6 +15,8 @@ export interface LeadDaVenda {
   origemForm: string | null;
   utm: string | null;
   campanhaId: string | null;
+  campanhaNome: string | null;
+  plataforma: string | null;
   primeiroContato: string;
 }
 
@@ -26,10 +28,26 @@ type LinhaLead = {
   origem_form: string | null;
   utm: string | null;
   campanha_id: string | null;
+  campanhas: Campanha | Campanha[] | null;
   created_at: string;
 };
 
-const CAMPOS = "id,nome,fonte,origem,origem_form,utm,campanha_id,created_at";
+// O nome da campanha vem junto: "Formulario de CRM" diz o canal, mas nao diz
+// qual anuncio trouxe o cliente, que e o que decide onde investir.
+const CAMPOS =
+  "id,nome,fonte,origem,origem_form,utm,campanha_id,created_at,campanhas:campanha_id(nome,plataforma)";
+
+
+/**
+ * O embed do PostgREST vem como objeto numa relação muitos-para-um, mas o tipo
+ * gerado o descreve como lista. Normalizar aqui evita depender de qual das
+ * duas formas chega.
+ */
+type Campanha = { nome: string | null; plataforma: string | null };
+export function umaCampanha(c: Campanha | Campanha[] | null | undefined): Campanha | null {
+  if (!c) return null;
+  return Array.isArray(c) ? (c[0] ?? null) : c;
+}
 
 const mapear = (r: LinhaLead): LeadDaVenda => ({
   id: r.id,
@@ -39,6 +57,8 @@ const mapear = (r: LinhaLead): LeadDaVenda => ({
   origemForm: r.origem_form,
   utm: r.utm,
   campanhaId: r.campanha_id,
+  campanhaNome: umaCampanha(r.campanhas)?.nome ?? null,
+  plataforma: umaCampanha(r.campanhas)?.plataforma ?? null,
   primeiroContato: r.created_at,
 });
 

@@ -27,6 +27,10 @@ export function OrigemLead({
         )
       : null;
 
+  // O nome da campanha é a resposta útil; "Formulário de CRM" é só o canal e
+  // não diz qual anúncio trouxe o cliente. Sem campanha ligada, cai no canal,
+  // que ainda separa mídia paga de indicação e cliente antigo.
+  const campanha = lead?.campanhaNome;
   const canal = [lead?.fonte, lead?.origemForm, lead?.utm].filter(Boolean).join(" · ");
 
   return (
@@ -43,10 +47,26 @@ export function OrigemLead({
           </p>
         ) : (
           <div className="space-y-1">
-            <p>
-              <span className="text-muted-foreground">Canal: </span>
-              {canal || "não informado no CRM"}
-            </p>
+            {campanha ? (
+              <>
+                <p>
+                  <span className="text-muted-foreground">Campanha: </span>
+                  <span className="font-medium">{campanha}</span>
+                  {lead.plataforma && (
+                    <span className="text-muted-foreground"> · {lead.plataforma}</span>
+                  )}
+                </p>
+                {canal && (
+                  <p className="text-xs text-muted-foreground">Canal: {canal}</p>
+                )}
+              </>
+            ) : (
+              <p>
+                <span className="text-muted-foreground">Canal: </span>
+                {canal || "não informado no CRM"}
+                <span className="text-muted-foreground"> · sem campanha ligada</span>
+              </p>
+            )}
             <p>
               <span className="text-muted-foreground">Primeiro contato: </span>
               {formatData(lead.primeiroContato)}

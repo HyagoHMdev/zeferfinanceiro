@@ -72,8 +72,9 @@ export function ChecklistsPendentes({ itens }: { itens: ChecklistPendente[] }) {
                     existir: de onde o cliente veio pesa na hora de decidir. */}
                 {c.lead && (
                   <p className="text-xs text-emerald-700 dark:text-emerald-400">
-                    Veio do CRM: {c.lead.fonte ?? "canal não informado"} · primeiro
-                    contato em {formatData(c.lead.primeiroContato)}
+                    Veio de{" "}
+                    {c.lead.campanhaNome ?? c.lead.fonte ?? "origem não informada"} ·
+                    primeiro contato em {formatData(c.lead.primeiroContato)}
                   </p>
                 )}
               </div>

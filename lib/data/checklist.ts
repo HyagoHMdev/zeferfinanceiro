@@ -1,5 +1,5 @@
 import { createAdminClient } from "@/lib/supabase/admin";
-import { telefoneChave, type LeadDaVenda } from "@/lib/data/lead";
+import { telefoneChave, umaCampanha, type LeadDaVenda } from "@/lib/data/lead";
 
 /**
  * Submissões de venda feitas pelos corretores no painel, aguardando aprovação.
@@ -68,6 +68,7 @@ type LinhaLeadFila = {
   origem_form: string | null;
   utm: string | null;
   campanha_id: string | null;
+  campanhas: unknown;
   created_at: string;
 };
 
@@ -89,10 +90,10 @@ export async function listarChecklistsPendentes(): Promise<ChecklistPendente[]> 
   if (chaves.length) {
     const { data: leads } = await pub
       .from("leads")
-      .select("id,nome,fonte,origem,origem_form,utm,campanha_id,created_at,telefone_chave")
+      .select("id,nome,fonte,origem,origem_form,utm,campanha_id,created_at,telefone_chave,campanhas:campanha_id(nome,plataforma)")
       .in("telefone_chave", chaves)
       .order("created_at", { ascending: true });
-    for (const l of (leads ?? []) as (LinhaLeadFila & { telefone_chave: string })[]) {
+    for (const l of (leads ?? []) as unknown as (LinhaLeadFila & { telefone_chave: string })[]) {
       if (!porChave.has(l.telefone_chave)) {
         porChave.set(l.telefone_chave, {
           id: l.id,
@@ -102,6 +103,8 @@ export async function listarChecklistsPendentes(): Promise<ChecklistPendente[]> 
           origemForm: l.origem_form,
           utm: l.utm,
           campanhaId: l.campanha_id,
+          campanhaNome: umaCampanha(l.campanhas as never)?.nome ?? null,
+          plataforma: umaCampanha(l.campanhas as never)?.plataforma ?? null,
           primeiroContato: l.created_at,
         });
       }
