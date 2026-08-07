@@ -16,6 +16,7 @@ export interface ChecklistPendente {
   torre: string | null;
   valorContrato: number;
   clienteNome: string;
+  clienteCpf: string | null;
   clienteTelefone: string | null;
   clienteEmail: string | null;
   clienteNascimento: string | null;
@@ -38,6 +39,7 @@ type Linha = {
   torre: string | null;
   valor_contrato: number;
   cliente_nome: string;
+  cliente_cpf: string | null;
   cliente_telefone: string | null;
   cliente_email: string | null;
   cliente_nascimento: string | null;
@@ -70,6 +72,7 @@ export async function listarChecklistsPendentes(): Promise<ChecklistPendente[]> 
     torre: r.torre,
     valorContrato: Number(r.valor_contrato),
     clienteNome: r.cliente_nome,
+    clienteCpf: r.cliente_cpf,
     clienteTelefone: r.cliente_telefone,
     clienteEmail: r.cliente_email,
     clienteNascimento: r.cliente_nascimento,

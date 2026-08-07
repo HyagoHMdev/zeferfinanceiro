@@ -170,7 +170,11 @@ export function VendaForm({
   const [clienteNascimento, setClienteNascimento] = useState(
     venda?.cliente_nascimento ?? checklist?.clienteNascimento ?? "",
   );
-  const [clienteCpf, setClienteCpf] = useState(venda?.cliente_cpf ?? "");
+  // O checklist guarda só os dígitos; aqui o campo é mascarado, então o valor
+  // vindo de lá entra já formatado, senão apareceria "12345678900".
+  const [clienteCpf, setClienteCpf] = useState(
+    venda?.cliente_cpf ?? (checklist?.clienteCpf ? formatarCpf(checklist.clienteCpf) : ""),
+  );
   const [origem, setOrigem] = useState(venda?.origem ?? checklist?.origem ?? "");
   const [origemDetalhe, setOrigemDetalhe] = useState(venda?.origem_detalhe ?? "");
   const [finalidade, setFinalidade] = useState(venda?.cliente_finalidade ?? checklist?.finalidade ?? "");

@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { FileText, Loader2 } from "lucide-react";
 
-import { formatBRL, formatData } from "@/lib/format";
+import { formatarCpf, formatBRL, formatData } from "@/lib/format";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -58,7 +58,8 @@ export function ChecklistsPendentes({ itens }: { itens: ChecklistPendente[] }) {
                   {c.torre ? ` · torre ${c.torre}` : ""}
                 </p>
                 <p className="text-sm text-muted-foreground">
-                  {c.clienteNome} · {formatBRL(c.valorContrato)} · {c.construtora}
+                  {c.clienteNome}{c.clienteCpf ? ` · CPF ${formatarCpf(c.clienteCpf)}` : ""} ·{" "}
+                  {formatBRL(c.valorContrato)} · {c.construtora}
                 </p>
                 <p className="text-xs text-muted-foreground">
                   Enviado por {c.corretorNome ?? "corretor"} em {formatData(c.criadoEm)}
