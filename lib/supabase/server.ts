@@ -16,6 +16,10 @@ export async function createClient() {
       // Schema dedicado apos a unificacao (ver client.ts). profiles usa
       // `.schema("public")` nos poucos pontos que o consultam.
       db: { schema: "financeiro" },
+      // Mesmo motivo do cliente admin: o Next guarda resposta de GET e o
+      // supabase-js le por GET. Aqui e pior, porque a leitura passa por RLS:
+      // uma resposta guardada poderia ser servida a outro usuario.
+      global: { fetch: (url, init) => fetch(url, { ...init, cache: "no-store" }) },
       cookies: {
         getAll() {
           return cookieStore.getAll();

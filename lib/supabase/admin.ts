@@ -14,6 +14,11 @@ export function createAdminClient() {
       // Schema dedicado apos a unificacao (ver client.ts). profiles e auth.users
       // sao acessados com `.schema("public")` / auth.admin onde necessario.
       db: { schema: "financeiro" },
+      // O Next embrulha o fetch global e guarda resposta de GET. Como o
+      // supabase-js le por GET, a consulta ao banco vinha do cache: uma venda
+      // recem-enviada pelo corretor simplesmente nao aparecia na fila. Leitura
+      // de banco nao e conteudo estatico.
+      global: { fetch: (url, init) => fetch(url, { ...init, cache: "no-store" }) },
     },
   );
 }
