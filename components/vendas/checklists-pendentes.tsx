@@ -68,9 +68,18 @@ export function ChecklistsPendentes({ itens }: { itens: ChecklistPendente[] }) {
                 </p>
               </div>
               <div className="flex shrink-0 gap-2">
-                <Button asChild size="sm">
-                  <Link href={`/vendas/nova?checklist=${c.id}`}>Aprovar</Link>
-                </Button>
+                {/* Sem contrato e comprovante o aceite é barrado no servidor.
+                    Deixar o botão vivo faria o financeiro preencher a venda
+                    inteira para só então descobrir. */}
+                {c.podeAprovar ? (
+                  <Button asChild size="sm">
+                    <Link href={`/vendas/nova?checklist=${c.id}`}>Aprovar</Link>
+                  </Button>
+                ) : (
+                  <Button size="sm" disabled title="Falta contrato ou comprovante de pagamento">
+                    Aguardando documentos
+                  </Button>
+                )}
                 <Button
                   variant="outline"
                   size="sm"

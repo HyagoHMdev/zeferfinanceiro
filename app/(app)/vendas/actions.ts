@@ -160,6 +160,14 @@ export async function criarVenda(
   const parsed = vendaSchema.safeParse(input);
   if (!parsed.success) return { error: erroDeValidacao(parsed.error) };
 
+  // Documentação conferida ANTES de gravar: se a venda nascesse primeiro e o
+  // aceite fosse barrado depois, sobraria venda criada com a submissão ainda
+  // na fila, e a próxima tentativa criaria uma segunda venda do mesmo negócio.
+  if (checklistId) {
+    const falta = await documentacaoFaltante(checklistId);
+    if (falta) return { error: falta };
+  }
+
   const supabase = await createClient();
   const config = await getConfig();
   const corr = await defaultsCorretor(supabase, parsed.data.corretor_id, config);
@@ -283,6 +291,31 @@ export async function abrirArquivoVenda(
 }
 
 /**
+ * Devolve a mensagem do que falta anexar, ou null se a papelada está completa.
+ *
+ * O corretor agora envia a venda assim que ela fecha e junta contrato e
+ * comprovante conforme chegam, então a exigência mora aqui, no aceite. Sem
+ * isto ela teria simplesmente deixado de existir quando o envio foi liberado.
+ */
+async function documentacaoFaltante(checklistId: string): Promise<string | null> {
+  const { data } = await createAdminClient()
+    .schema("public")
+    .from("vendas_checklist")
+    .select("doc_contrato, doc_pagamento")
+    .eq("id", checklistId)
+    .maybeSingle<{ doc_contrato: unknown[] | null; doc_pagamento: unknown[] | null }>();
+  if (!data) return "Submissão não encontrada.";
+
+  const falta = [
+    (data.doc_contrato ?? []).length === 0 && "o contrato",
+    (data.doc_pagamento ?? []).length === 0 && "o comprovante de pagamento",
+  ].filter(Boolean);
+  return falta.length
+    ? `Não dá para aprovar: falta ${falta.join(" e ")}. Peça ao corretor para anexar.`
+    : null;
+}
+
+/**
  * Marca a submissão do corretor como aprovada e a liga à venda criada.
  *
  * Chamada depois que a venda foi gravada: aprovar é criar a venda, não mudar
@@ -295,6 +328,12 @@ export async function aprovarChecklist(
 ): Promise<ActionResult> {
   const sessao = await requireRole(ADMIN_FIN_ROLES);
   const pub = createAdminClient().schema("public");
+
+  // Rede de segurança: `criarVenda` já barrou antes de gravar, mas esta action
+  // é exportada e pode ser chamada por outro caminho amanhã.
+  const falta = await documentacaoFaltante(checklistId);
+  if (falta) return { error: falta };
+
   const { error } = await pub
     .from("vendas_checklist")
     .update({

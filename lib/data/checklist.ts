@@ -24,6 +24,9 @@ export interface ChecklistPendente {
   finalidade: string | null;
   origem: string | null;
   docs: { rotulo: string; arquivos: { path: string; nome: string }[] }[];
+  // Contrato e comprovante de pagamento sao o que o aceite exige; o corretor
+  // pode enviar a venda sem eles e anexar depois.
+  podeAprovar: boolean;
   criadoEm: string;
 }
 
@@ -80,6 +83,7 @@ export async function listarChecklistsPendentes(): Promise<ChecklistPendente[]> 
       { rotulo: "Contrato", arquivos: r.doc_contrato ?? [] },
       { rotulo: "Comprovante de pagamento", arquivos: r.doc_pagamento ?? [] },
     ],
+    podeAprovar: (r.doc_contrato ?? []).length > 0 && (r.doc_pagamento ?? []).length > 0,
     criadoEm: r.created_at,
   }));
 }
