@@ -88,6 +88,23 @@ export interface InvestidorOpcao {
   participa: boolean;
 }
 
+/**
+ * O corretor digita construtora e empreendimento como texto livre; aqui eles
+ * são listas cadastradas, com id. Sem casar os dois, aprovar uma submissão
+ * abria o formulário com esses dois campos vazios, e quem aprova tinha que
+ * adivinhar o que o corretor escreveu.
+ *
+ * A comparação ignora acento, caixa e espaço sobrando, que é justamente o que
+ * separa "Rogga " de "rogga".
+ */
+const chaveNome = (s: string | null | undefined) =>
+  (s ?? "")
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .toLowerCase()
+    .replace(/\s+/g, " ")
+    .trim();
+
 interface VendaFormProps {
   mode: "create" | "edit";
   config: Configuracoes;
@@ -122,9 +139,30 @@ export function VendaForm({
   const [dataVenda, setDataVenda] = useState(
     venda?.data_venda ?? new Date().toISOString().slice(0, 10),
   );
-  const [construtoraId, setConstrutoraId] = useState(venda?.construtora_id ?? NONE);
+  // Casa o texto do checklist com o cadastro. Só aceita acerto exato de nome:
+  // um palpite por semelhança poderia lançar a venda na construtora errada, e
+  // a comissão sai daí.
+  const doChecklist = useMemo(() => {
+    if (!checklist) return { construtoraId: null, empreendimentoId: null };
+    const c = construtoras.find((x) => chaveNome(x.nome) === chaveNome(checklist.construtora));
+    const candidatos = empreendimentos.filter(
+      (e) => chaveNome(e.nome) === chaveNome(checklist.empreendimento),
+    );
+    // Preferência para o da construtora reconhecida; senão, o único candidato,
+    // inclusive quando ele está sem construtora vinculada. Com mais de um
+    // homônimo e nenhum da construtora certa, não escolhe: lançar na
+    // construtora errada mexe na comissão.
+    const e =
+      (c ? candidatos.find((x) => x.construtora_id === c.id) : undefined) ??
+      (candidatos.length === 1 ? candidatos[0] : undefined);
+    return { construtoraId: c?.id ?? null, empreendimentoId: e?.id ?? null };
+  }, [checklist, construtoras, empreendimentos]);
+
+  const [construtoraId, setConstrutoraId] = useState(
+    venda?.construtora_id ?? doChecklist.construtoraId ?? NONE,
+  );
   const [empreendimentoId, setEmpreendimentoId] = useState(
-    venda?.empreendimento_id ?? NONE,
+    venda?.empreendimento_id ?? doChecklist.empreendimentoId ?? NONE,
   );
   const [unidade, setUnidade] = useState(venda?.unidade ?? checklist?.unidade ?? "");
   const [torre, setTorre] = useState(venda?.torre ?? checklist?.torre ?? "");
@@ -178,10 +216,16 @@ export function VendaForm({
   );
   const [saving, setSaving] = useState(false);
 
+  // Empreendimento sem construtora vinculada aparece sempre. Antes ele sumia
+  // ao escolher qualquer construtora, e o campo ficava impossível de
+  // preencher: era o caso do Baía Azul, cadastrado solto.
   const empreendimentosFiltrados = useMemo(
     () =>
       empreendimentos.filter(
-        (e) => construtoraId === NONE || e.construtora_id === construtoraId,
+        (e) =>
+          construtoraId === NONE ||
+          e.construtora_id === construtoraId ||
+          e.construtora_id === null,
       ),
     [empreendimentos, construtoraId],
   );
@@ -370,6 +414,14 @@ export function VendaForm({
                   ))}
                 </SelectContent>
               </Select>
+              {/* Sem correspondência no cadastro, mostra o que o corretor
+                  escreveu: senão quem aprova não tem como saber. */}
+              {checklist && construtoraId === NONE && checklist.construtora?.trim() && (
+                <p className="text-xs text-amber-600 dark:text-amber-400">
+                  O corretor escreveu &ldquo;{checklist.construtora.trim()}&rdquo;, que não
+                  está no cadastro. Selecione a correta ou cadastre.
+                </p>
+              )}
             </div>
             <div className="space-y-2">
               <Label>Empreendimento</Label>
@@ -386,6 +438,12 @@ export function VendaForm({
                   ))}
                 </SelectContent>
               </Select>
+              {checklist && empreendimentoId === NONE && checklist.empreendimento?.trim() && (
+                <p className="text-xs text-amber-600 dark:text-amber-400">
+                  O corretor escreveu &ldquo;{checklist.empreendimento.trim()}&rdquo;, que não
+                  está no cadastro. Selecione o correto ou cadastre.
+                </p>
+              )}
             </div>
             <div className="space-y-2">
               <Label htmlFor="unidade">Unidade</Label>
