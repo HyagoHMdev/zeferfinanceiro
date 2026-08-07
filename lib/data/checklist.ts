@@ -1,4 +1,5 @@
 import { createAdminClient } from "@/lib/supabase/admin";
+import { telefoneChave, type LeadDaVenda } from "@/lib/data/lead";
 
 /**
  * Submissões de venda feitas pelos corretores no painel, aguardando aprovação.
@@ -28,6 +29,10 @@ export interface ChecklistPendente {
   // Contrato e comprovante de pagamento sao o que o aceite exige; o corretor
   // pode enviar a venda sem eles e anexar depois.
   podeAprovar: boolean;
+  // Lead do CRM com o mesmo telefone. Aparece já na fila, antes de a venda
+  // existir: quem aprova quer saber de onde o cliente veio na hora de decidir,
+  // não depois.
+  lead: LeadDaVenda | null;
   criadoEm: string;
 }
 
@@ -55,6 +60,17 @@ type Linha = {
   profiles: { nome: string | null } | null;
 };
 
+type LinhaLeadFila = {
+  id: string;
+  nome: string | null;
+  fonte: string | null;
+  origem: string | null;
+  origem_form: string | null;
+  utm: string | null;
+  campanha_id: string | null;
+  created_at: string;
+};
+
 export async function listarChecklistsPendentes(): Promise<ChecklistPendente[]> {
   const pub = createAdminClient().schema("public");
   const { data } = await pub
@@ -63,7 +79,36 @@ export async function listarChecklistsPendentes(): Promise<ChecklistPendente[]> 
     .eq("status", "aguardando_aprovacao")
     .order("created_at", { ascending: true });
 
-  return ((data ?? []) as unknown as Linha[]).map((r) => ({
+  const linhas = (data ?? []) as unknown as Linha[];
+
+  // Leads de todos os telefones da fila numa consulta só, em vez de uma por
+  // submissão. Mais antigo por telefone: contato repetido é o mesmo cliente
+  // voltando, e a pergunta é quando ele chegou.
+  const chaves = [...new Set(linhas.map((r) => telefoneChave(r.cliente_telefone)).filter(Boolean))] as string[];
+  const porChave = new Map<string, LeadDaVenda>();
+  if (chaves.length) {
+    const { data: leads } = await pub
+      .from("leads")
+      .select("id,nome,fonte,origem,origem_form,utm,campanha_id,created_at,telefone_chave")
+      .in("telefone_chave", chaves)
+      .order("created_at", { ascending: true });
+    for (const l of (leads ?? []) as (LinhaLeadFila & { telefone_chave: string })[]) {
+      if (!porChave.has(l.telefone_chave)) {
+        porChave.set(l.telefone_chave, {
+          id: l.id,
+          nome: l.nome,
+          fonte: l.fonte,
+          origem: l.origem,
+          origemForm: l.origem_form,
+          utm: l.utm,
+          campanhaId: l.campanha_id,
+          primeiroContato: l.created_at,
+        });
+      }
+    }
+  }
+
+  return linhas.map((r) => ({
     id: r.id,
     corretorNome: r.profiles?.nome ?? null,
     construtora: r.construtora,
@@ -87,6 +132,7 @@ export async function listarChecklistsPendentes(): Promise<ChecklistPendente[]> 
       { rotulo: "Comprovante de pagamento", arquivos: r.doc_pagamento ?? [] },
     ],
     podeAprovar: (r.doc_contrato ?? []).length > 0 && (r.doc_pagamento ?? []).length > 0,
+    lead: porChave.get(telefoneChave(r.cliente_telefone) ?? "") ?? null,
     criadoEm: r.created_at,
   }));
 }

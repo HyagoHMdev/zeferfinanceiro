@@ -67,6 +67,15 @@ export function ChecklistsPendentes({ itens }: { itens: ChecklistPendente[] }) {
                   {c.finalidade ? ` · ${c.finalidade}` : ""}
                   {c.origem ? ` · origem: ${c.origem}` : ""}
                 </p>
+                {/* Atribuição pelo CRM, cruzada pelo telefone. Aparece aqui e
+                    não só depois de aprovar, que é quando a venda passa a
+                    existir: de onde o cliente veio pesa na hora de decidir. */}
+                {c.lead && (
+                  <p className="text-xs text-emerald-700 dark:text-emerald-400">
+                    Veio do CRM: {c.lead.fonte ?? "canal não informado"} · primeiro
+                    contato em {formatData(c.lead.primeiroContato)}
+                  </p>
+                )}
               </div>
               <div className="flex shrink-0 gap-2">
                 {/* Sem contrato e comprovante o aceite é barrado no servidor.
