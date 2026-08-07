@@ -12,6 +12,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { VendaForm } from "@/components/vendas/venda-form";
 import { VendaAcoes } from "@/components/vendas/venda-acoes";
+import { OrigemLead } from "@/components/vendas/origem-lead";
+import { buscarLead, acharLeadPorTelefone } from "@/lib/data/lead";
 
 export default async function EditarVendaPage({
   params,
@@ -26,9 +28,14 @@ export default async function EditarVendaPage({
   if (!data) notFound();
   const venda = data as Venda;
 
-  const [cadastros, investidores] = await Promise.all([
+  const [cadastros, investidores, lead] = await Promise.all([
     carregarCadastrosVenda(),
     carregarInvestidoresDaVenda(id),
+    // Venda antiga pode nao ter passado pelo vinculo automatico; nesse caso
+    // procura na hora, pelo telefone, sem gravar nada.
+    venda.lead_id
+      ? buscarLead(venda.lead_id)
+      : acharLeadPorTelefone(venda.cliente_telefone ?? null),
   ]);
 
   return (
@@ -45,6 +52,12 @@ export default async function EditarVendaPage({
           </Link>
         </Button>
       </PageHeader>
+
+      <OrigemLead
+        lead={lead}
+        telefone={venda.cliente_telefone ?? null}
+        dataVenda={venda.data_venda ?? null}
+      />
 
       <Card className="mb-6">
         <CardHeader>

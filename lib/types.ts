@@ -132,6 +132,8 @@ export interface Venda {
   cliente: string | null;
   cliente_nascimento: string | null;
   cliente_telefone: string | null;
+  /** Lead do CRM de mesmo telefone, quando existe. Diz de onde a venda veio. */
+  lead_id: string | null;
   cliente_cpf: string | null;
   origem: string | null;
   origem_detalhe: string | null;

@@ -1,5 +1,6 @@
 "use server";
 
+import { acharLeadPorTelefone } from "@/lib/data/lead";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import type { z } from "zod";
@@ -139,6 +140,29 @@ async function sincronizarInvestidores(vendaId: string, ids: string[]) {
   }
 }
 
+/**
+ * Liga a venda ao lead de mesmo telefone, quando existir.
+ *
+ * É o que responde "essa venda veio de qual campanha, e quando o cliente
+ * apareceu". Roda na criação e sempre que o telefone muda, porque telefone
+ * corrigido pode revelar um lead que antes não casava.
+ *
+ * Falha aqui não derruba a venda: atribuição é informação de apoio, e o
+ * telefone continua gravado para uma nova tentativa depois.
+ */
+async function vincularLead(vendaId: string, telefone: string | null) {
+  try {
+    const lead = await acharLeadPorTelefone(telefone);
+    await createAdminClient()
+      .schema("financeiro")
+      .from("vendas")
+      .update({ lead_id: lead?.id ?? null })
+      .eq("id", vendaId);
+  } catch {
+    // silêncio de propósito: a venda importa mais que a atribuição
+  }
+}
+
 function revalidar(id?: string) {
   revalidatePath("/vendas");
   if (id) revalidatePath(`/vendas/${id}`);
@@ -190,6 +214,7 @@ export async function criarVenda(
   }
 
   await sincronizarInvestidores(nova.id, parsed.data.investidores ?? []);
+  await vincularLead(nova.id, parsed.data.cliente_telefone ?? null);
 
   // Aprovar é criar a venda. Se este passo falhar, a venda existe e a submissão
   // continua pendente: reaparece na fila em vez de sumir, que é o erro seguro.
@@ -238,6 +263,7 @@ export async function atualizarVenda(
   if (error) return { error: error.message };
 
   await sincronizarInvestidores(id, parsed.data.investidores ?? []);
+  await vincularLead(id, parsed.data.cliente_telefone ?? null);
 
   revalidar(id);
   redirect("/vendas");
