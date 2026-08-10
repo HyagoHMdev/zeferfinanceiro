@@ -20,6 +20,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { MultiSelect } from "@/components/ui/multi-select";
 import {
   Table,
   TableBody,
@@ -48,7 +49,6 @@ export interface EntradaRow extends Entrada {
   } | null;
 }
 
-const TODOS = "__todos__";
 const TIPOS: EntradaTipo[] = [
   "comissao",
   "bonificacao",
@@ -93,9 +93,11 @@ export function EntradasTable({
   percentuaisMensais: PercentualMensal[];
 }) {
   const [busca, setBusca] = useState("");
-  const [tipo, setTipo] = useState(TODOS);
-  const [mes, setMes] = useState(TODOS);
-  const [descricao, setDescricao] = useState(TODOS);
+  // Listas em vez de valor único: dá para comparar dois meses, ou somar dois
+  // tipos, sem precisar olhar uma tela por vez. Vazio significa "todos".
+  const [tipos, setTipos] = useState<string[]>([]);
+  const [meses, setMeses] = useState<string[]>([]);
+  const [descricoes, setDescricoes] = useState<string[]>([]);
   const [agrupar, setAgrupar] = useState<Agrupamento>("nenhum");
   const [colapsados, setColapsados] = useState<Set<string>>(new Set());
 
@@ -150,11 +152,12 @@ export function EntradasTable({
         (e) =>
           (busca === "" ||
             (e.descricao ?? "").toLowerCase().includes(busca.toLowerCase())) &&
-          (tipo === TODOS || e.tipo === tipo) &&
-          (mes === TODOS || e.data.slice(0, 7) === mes) &&
-          (descricao === TODOS || e.descricao === descricao),
+          (tipos.length === 0 || tipos.includes(e.tipo)) &&
+          (meses.length === 0 || meses.includes(e.data.slice(0, 7))) &&
+          (descricoes.length === 0 ||
+            (e.descricao != null && descricoes.includes(e.descricao))),
       ),
-    [entradas, busca, tipo, mes, descricao],
+    [entradas, busca, tipos, meses, descricoes],
   );
 
   // Agrupamento (tabela dinâmica): quebra as linhas filtradas em grupos com subtotal.
@@ -188,13 +191,16 @@ export function EntradasTable({
 
   const totalGeral = somar(filtradas);
   const temFiltro =
-    busca !== "" || tipo !== TODOS || mes !== TODOS || descricao !== TODOS;
+    busca !== "" ||
+    tipos.length > 0 ||
+    meses.length > 0 ||
+    descricoes.length > 0;
 
   function limpar() {
     setBusca("");
-    setTipo(TODOS);
-    setMes(TODOS);
-    setDescricao(TODOS);
+    setTipos([]);
+    setMeses([]);
+    setDescricoes([]);
   }
 
   function toggleGrupo(chave: string) {
@@ -303,48 +309,29 @@ export function EntradasTable({
           />
         </div>
 
-        <Select value={mes} onValueChange={setMes}>
-          <SelectTrigger size="sm" className="w-36">
-            <SelectValue placeholder="Mês" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value={TODOS}>Todos os meses</SelectItem>
-            {mesesOpts.map((m) => (
-              <SelectItem key={m} value={m}>
-                {mesLabel(m)}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <MultiSelect
+          opcoes={mesesOpts.map((m) => ({ valor: m, label: mesLabel(m) }))}
+          selecionados={meses}
+          onChange={setMeses}
+          rotuloTodos="Todos os meses"
+          larguraClasse="w-36"
+        />
 
-        <Select value={tipo} onValueChange={setTipo}>
-          <SelectTrigger size="sm" className="w-44">
-            <SelectValue placeholder="Tipo" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value={TODOS}>Todos os tipos</SelectItem>
-            {tiposOpts.map((t) => (
-              <SelectItem key={t} value={t}>
-                {ENTRADA_TIPO_LABEL[t]}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <MultiSelect
+          opcoes={tiposOpts.map((t) => ({ valor: t, label: ENTRADA_TIPO_LABEL[t] }))}
+          selecionados={tipos}
+          onChange={setTipos}
+          rotuloTodos="Todos os tipos"
+        />
 
         {descricoesOpts.length > 0 ? (
-          <Select value={descricao} onValueChange={setDescricao}>
-            <SelectTrigger size="sm" className="w-52">
-              <SelectValue placeholder="Descrição" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value={TODOS}>Todas as descrições</SelectItem>
-              {descricoesOpts.map((d) => (
-                <SelectItem key={d} value={d}>
-                  {d}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <MultiSelect
+            opcoes={descricoesOpts.map((d) => ({ valor: d, label: d }))}
+            selecionados={descricoes}
+            onChange={setDescricoes}
+            rotuloTodos="Todas as descrições"
+            larguraClasse="w-52"
+          />
         ) : null}
 
         <Select value={agrupar} onValueChange={(v) => setAgrupar(v as Agrupamento)}>
