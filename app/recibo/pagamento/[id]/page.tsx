@@ -15,6 +15,8 @@ interface PagamentoRecibo {
   total_adiantamentos: number;
   valor_liquido: number;
   observacoes: string | null;
+  /** Texto próprio do recibo; quando preenchido, substitui o parágrafo padrão. */
+  descricao_recibo: string | null;
   assinatura_url: string | null;
   assinado_em: string | null;
   corretores: { nome: string; telefone: string | null } | null;
@@ -100,17 +102,27 @@ export default async function ReciboPagamentoPage({
           </div>
         </div>
 
-        <p className="mb-6 text-sm leading-relaxed">
-          Recebi da <strong>Zefer Imóveis</strong> a importância de{" "}
-          <strong>{formatBRL(pagamento.valor_liquido)}</strong>, referente{" "}
-          {/* Sem comissão o texto muda: pagamento de funcionário não tem venda,
-              e "referente às comissões" seria falso no documento assinado. */}
-          {vendas.length > 0
-            ? "às comissões e valores discriminados abaixo"
-            : "aos valores discriminados abaixo"}
-          {pagamento.observacoes ? ` (${pagamento.observacoes})` : ""}, dando
-          plena e geral quitação.
-        </p>
+        {/* Descrição própria substitui o parágrafo inteiro. Existe porque
+            alguns pagamentos precisam de redação específica (dias
+            trabalhados, valor dividido entre PIX e dinheiro), e forçar isso
+            no texto genérico mudaria o recibo de todo mundo por causa de um. */}
+        {pagamento.descricao_recibo ? (
+          <p className="mb-6 whitespace-pre-line text-sm leading-relaxed">
+            {pagamento.descricao_recibo}
+          </p>
+        ) : (
+          <p className="mb-6 text-sm leading-relaxed">
+            Recebi da <strong>Zefer Imóveis</strong> a importância de{" "}
+            <strong>{formatBRL(pagamento.valor_liquido)}</strong>, referente{" "}
+            {/* Sem comissão o texto muda: pagamento de funcionário não tem venda,
+                e "referente às comissões" seria falso no documento assinado. */}
+            {vendas.length > 0
+              ? "às comissões e valores discriminados abaixo"
+              : "aos valores discriminados abaixo"}
+            {pagamento.observacoes ? ` (${pagamento.observacoes})` : ""}, dando
+            plena e geral quitação.
+          </p>
+        )}
 
         <div className="mb-4">
           <div className="text-sm font-semibold">
