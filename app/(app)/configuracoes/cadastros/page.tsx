@@ -91,11 +91,16 @@ export default async function CadastrosPage({
           registros={(construtoras.data ?? []) as unknown as Registro[]}
           campos={[
             { name: "nome", label: "Nome", tipo: "text", required: true },
+            { name: "cnpj", label: "CNPJ", tipo: "text" },
+            { name: "chave_pix", label: "Chave PIX", tipo: "text" },
+            { name: "dados_bancarios", label: "Dados bancários (banco, agência, conta)", tipo: "text" },
             { name: "comissao_padrao", label: "% Comissão padrão", tipo: "percent" },
             { name: "ativo", label: "Ativo", tipo: "switch" },
           ]}
           colunas={[
             { key: "nome", label: "Nome" },
+            { key: "cnpj", label: "CNPJ" },
+            { key: "chave_pix", label: "PIX" },
             { key: "comissao_padrao", label: "% Comissão", formato: "percent", alignRight: true },
             { key: "ativo", label: "Status", formato: "bool" },
           ]}
