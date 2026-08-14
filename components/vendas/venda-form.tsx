@@ -234,12 +234,12 @@ export function VendaForm({
     [empreendimentos, construtoraId],
   );
 
-  // Percentuais do corretor (geridos no módulo Corretores) — usados só para
-  // pré-visualizar o resultado. Na edição preserva os valores salvos, a menos
-  // que o corretor tenha sido trocado.
+  // Imposto de NF e desconto de parceria seguem no módulo Corretores; aqui
+  // entram só para pré-visualizar o resultado. A % de comissão, ao contrário,
+  // é editável nesta tela: varia por acordo específico da venda.
   const corretorSel = corretores.find((c) => c.id === corretorId);
   const corretorMudou = venda ? corretorId !== (venda.corretor_id ?? NONE) : true;
-  const pctCorretorPreview =
+  const pctCorretorPadrao =
     venda && !corretorMudou
       ? venda.percentual_corretor
       : (corretorSel?.percentual_comissao_padrao ??
@@ -251,6 +251,13 @@ export function VendaForm({
         config.percentual_imposto_nf_corretor);
   const pctDescontoPreview =
     venda && !corretorMudou ? venda.percentual_desconto_parceiro : 0;
+
+  // Campo editável da % do corretor. `null` = ainda não mexeram nesta sessão,
+  // então segue o padrão (que muda sozinho ao trocar de corretor). Assim que o
+  // usuário digita, o valor dele manda.
+  const [pctCorretorEdit, setPctCorretorEdit] = useState<string | null>(null);
+  const pctCorretorPreview =
+    pctCorretorEdit === null ? pctCorretorPadrao : pctToFrac(pctCorretorEdit);
 
   const calc = useMemo(
     () =>
@@ -361,6 +368,7 @@ export function VendaForm({
       cliente_estado: clienteEstado || null,
       cliente_email: clienteEmail.trim() || null,
       corretor_id: corretorId === NONE ? null : corretorId,
+      percentual_corretor: pctCorretorPreview,
       possui_parceria: possuiParceria,
       parceiro_id: possuiParceria && parceiroId !== NONE ? parceiroId : null,
       empresa_parceira: possuiParceria ? empresaParceira.trim() || null : null,
@@ -721,6 +729,26 @@ export function VendaForm({
             </div>
             <Calculado label="R$ imposto" valor={calc.valorImposto} />
             <Calculado label="Líquido pós imposto" valor={calc.liquidoZefer} />
+            <div className="space-y-2">
+              <Label htmlFor="pctCorretor">% comissão do corretor</Label>
+              <Input
+                id="pctCorretor"
+                inputMode="decimal"
+                value={
+                  pctCorretorEdit === null
+                    ? fracaoParaPctStr(pctCorretorPadrao)
+                    : pctCorretorEdit
+                }
+                onChange={(e) => setPctCorretorEdit(e.target.value)}
+                placeholder="30"
+              />
+              <p className="text-xs text-muted-foreground">
+                {pctCorretorEdit === null
+                  ? "Padrão do cadastro do corretor. Altere para acordos específicos desta venda."
+                  : `Padrão do cadastro: ${fracaoParaPctStr(pctCorretorPadrao)}%.`}
+              </p>
+            </div>
+            <Calculado label="Comissão do corretor" valor={calc.comissaoCorretorBruto} />
             <div className="space-y-2 sm:col-span-2">
               <Label htmlFor="obs">Observações</Label>
               <Textarea

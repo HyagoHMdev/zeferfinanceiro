@@ -2,8 +2,12 @@ import { z } from "zod";
 
 /**
  * Schema de entrada de uma venda (percentuais já em fração: 5% → 0.05).
- * Os percentuais do corretor NÃO fazem parte do formulário de venda — são
- * geridos no módulo Corretores. Aqui ficam só os dados e a cadeia da imobiliária.
+ *
+ * A comissão do corretor é editável aqui E no módulo Corretores: ela sai do
+ * padrão do cadastro dele, mas varia em caso específico (venda dividida,
+ * condição negociada), e quem lança a venda precisa poder ajustar na hora, sem
+ * ter de lembrar de abrir outra tela depois. O resto da cadeia do corretor
+ * (imposto de NF, desconto de parceria) segue só no módulo Corretores.
  */
 export const vendaSchema = z.object({
   data_venda: z.string().min(1, "Informe a data da venda"),
@@ -27,6 +31,9 @@ export const vendaSchema = z.object({
   // Investidores que participam desta venda (ids de public.investidores).
   investidores: z.array(z.string().uuid()).optional(),
   corretor_id: z.string().uuid().nullable(),
+  // Ausente = mantém o que já estava na venda (ou o padrão do cadastro, na
+  // criação). Só entra na conta quando vem preenchido de propósito.
+  percentual_corretor: z.number().min(0).max(1).optional(),
   // Parceria (parceiro do cadastro)
   possui_parceria: z.boolean(),
   parceiro_id: z.string().uuid().nullable(),

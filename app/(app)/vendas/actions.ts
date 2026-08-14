@@ -194,7 +194,13 @@ export async function criarVenda(
 
   const supabase = await createClient();
   const config = await getConfig();
-  const corr = await defaultsCorretor(supabase, parsed.data.corretor_id, config);
+  const padrao = await defaultsCorretor(supabase, parsed.data.corretor_id, config);
+  // O formulário pode sobrescrever a % do corretor (caso específico); o resto
+  // da cadeia dele continua vindo do cadastro.
+  const corr: CorretorDefaults = {
+    ...padrao,
+    corretorPct: parsed.data.percentual_corretor ?? padrao.corretorPct,
+  };
 
   const row = montarLinha(parsed.data, corr);
   const { data: nova, error } = await supabase
@@ -254,6 +260,11 @@ export async function atualizarVenda(
     };
   } else {
     corr = await defaultsCorretor(supabase, parsed.data.corretor_id, config);
+  }
+  // A % digitada no formulário vence o que estava salvo: é ela que carrega o
+  // acordo específico daquela venda.
+  if (parsed.data.percentual_corretor !== undefined) {
+    corr = { ...corr, corretorPct: parsed.data.percentual_corretor };
   }
 
   const { error } = await supabase
