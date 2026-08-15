@@ -6,7 +6,7 @@ import Link from "next/link";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 
-import { calcularVenda } from "@/lib/calculos";
+import { calcularVenda, round2 } from "@/lib/calculos";
 import { parseNumeroBR, formatBRL, formatarCpf } from "@/lib/format";
 import { percentualComFallback } from "@/lib/percentuais";
 import { criarVenda, atualizarVenda } from "@/app/(app)/vendas/actions";
@@ -115,9 +115,18 @@ interface VendaFormProps {
   percentuaisMensais?: PercentualMensal[];
   investidores?: InvestidorOpcao[];
   venda?: Venda;
+  /** Parcelas que a construtora vai liberar (quando a venda é parcelada). */
+  parcelas?: ParcelaLinha[];
   /** Submissão do corretor sendo aprovada. Pré-preenche e fecha o checklist. */
   checklist?: ChecklistPendente | null;
 }
+
+export type ParcelaLinha = {
+  numero: number;
+  vencimento: string;
+  valor: number;
+  recebido_em: string | null;
+};
 
 export function VendaForm({
   mode,
@@ -129,6 +138,7 @@ export function VendaForm({
   percentuaisMensais = [],
   investidores = [],
   venda,
+  parcelas: parcelasIniciais = [],
   checklist = null,
 }: VendaFormProps) {
   // Quais investidores participam desta venda. O repasse (lucro × percentual)
@@ -252,6 +262,42 @@ export function VendaForm({
   const pctDescontoPreview =
     venda && !corretorMudou ? venda.percentual_desconto_parceiro : 0;
 
+  // Recebimento parcelado pela construtora.
+  const [parcelado, setParcelado] = useState(venda?.recebimento_parcelado ?? false);
+  const [parcelas, setParcelas] = useState<ParcelaLinha[]>(parcelasIniciais);
+  const [qtdGerar, setQtdGerar] = useState("12");
+  const [primeiroVenc, setPrimeiroVenc] = useState(
+    parcelasIniciais[0]?.vencimento ??
+      new Date(new Date().setMonth(new Date().getMonth() + 1)).toISOString().slice(0, 10),
+  );
+
+  const somaParcelas = round2(parcelas.reduce((s, p) => s + p.valor, 0));
+
+  /** Divide a comissão bruta em N parcelas mensais iguais (a última fecha). */
+  function gerarParcelas() {
+    const n = Math.max(1, Math.min(120, Math.floor(Number(qtdGerar) || 1)));
+    const total = round2(calc.comissaoBruta);
+    const base = Math.floor((total / n) * 100) / 100;
+    const [ano, mes, dia] = primeiroVenc.split("-").map(Number);
+    const novas: ParcelaLinha[] = Array.from({ length: n }, (_, i) => {
+      const d = new Date(ano, mes - 1 + i, 1);
+      const ultimoDia = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+      d.setDate(Math.min(dia, ultimoDia));
+      return {
+        numero: i + 1,
+        vencimento: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`,
+        // A última absorve o resto para a soma bater com a comissão bruta.
+        valor: i === n - 1 ? round2(total - base * (n - 1)) : base,
+        recebido_em: null,
+      };
+    });
+    setParcelas(novas);
+  }
+
+  function editarParcela(idx: number, patch: Partial<ParcelaLinha>) {
+    setParcelas((ps) => ps.map((p, i) => (i === idx ? { ...p, ...patch } : p)));
+  }
+
   // Campo editável da % do corretor. `null` = ainda não mexeram nesta sessão,
   // então segue o padrão (que muda sozinho ao trocar de corretor). Assim que o
   // usuário digita, o valor dele manda.
@@ -369,6 +415,8 @@ export function VendaForm({
       cliente_email: clienteEmail.trim() || null,
       corretor_id: corretorId === NONE ? null : corretorId,
       percentual_corretor: pctCorretorPreview,
+      recebimento_parcelado: parcelado,
+      parcelas: parcelado ? parcelas : [],
       possui_parceria: possuiParceria,
       parceiro_id: possuiParceria && parceiroId !== NONE ? parceiroId : null,
       empresa_parceira: possuiParceria ? empresaParceira.trim() || null : null,
@@ -770,6 +818,124 @@ export function VendaForm({
               <Label>Documentos do cliente</Label>
               <DocumentosUpload value={documentos} onChange={setDocumentos} />
             </div>
+          </CardContent>
+        </Card>
+
+        {/* CARD — Recebimento da construtora (parcelado) */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Recebimento da construtora</CardTitle>
+            <p className="text-sm text-muted-foreground">
+              Em algumas vendas a construtora libera a comissão mês a mês, conforme o cliente
+              paga. Marcando aqui, o repasse do investidor deixa de sair de uma vez e passa a
+              acompanhar cada parcela liberada.
+            </p>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <label className="flex cursor-pointer items-center gap-3">
+              <input
+                type="checkbox"
+                checked={parcelado}
+                onChange={(e) => setParcelado(e.target.checked)}
+                className="h-4 w-4"
+              />
+              <span className="text-sm font-medium">
+                A construtora paga esta comissão parcelada
+              </span>
+            </label>
+
+            {parcelado && (
+              <>
+                <div className="flex flex-wrap items-end gap-3 rounded-md border p-3">
+                  <div className="space-y-2">
+                    <Label htmlFor="qtdParcelas">Parcelas</Label>
+                    <Input
+                      id="qtdParcelas"
+                      inputMode="numeric"
+                      value={qtdGerar}
+                      onChange={(e) => setQtdGerar(e.target.value)}
+                      className="w-24"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="primeiroVenc">1º vencimento</Label>
+                    <Input
+                      id="primeiroVenc"
+                      type="date"
+                      value={primeiroVenc}
+                      onChange={(e) => setPrimeiroVenc(e.target.value)}
+                      className="w-44"
+                    />
+                  </div>
+                  <Button type="button" variant="outline" onClick={gerarParcelas}>
+                    Gerar parcelas
+                  </Button>
+                  <p className="text-xs text-muted-foreground">
+                    Divide a comissão bruta ({formatBRL(calc.comissaoBruta)}) em parcelas mensais
+                    iguais. Depois dá para ajustar cada uma.
+                  </p>
+                </div>
+
+                {parcelas.length > 0 && (
+                  <div className="space-y-2">
+                    {parcelas.map((p, idx) => (
+                      <div
+                        key={p.numero}
+                        className="grid grid-cols-[2rem_1fr_1fr_1fr_auto] items-center gap-2"
+                      >
+                        <span className="text-sm text-muted-foreground">{p.numero}</span>
+                        <Input
+                          type="date"
+                          value={p.vencimento}
+                          onChange={(e) => editarParcela(idx, { vencimento: e.target.value })}
+                        />
+                        <Input
+                          inputMode="decimal"
+                          value={String(p.valor).replace(".", ",")}
+                          onChange={(e) =>
+                            editarParcela(idx, { valor: parseNumeroBR(e.target.value) })
+                          }
+                        />
+                        <Input
+                          type="date"
+                          value={p.recebido_em ?? ""}
+                          onChange={(e) =>
+                            editarParcela(idx, { recebido_em: e.target.value || null })
+                          }
+                          title="Data em que a construtora efetivamente pagou"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setParcelas((ps) => ps.filter((_, i) => i !== idx))}
+                          className="px-2 text-sm text-muted-foreground hover:text-destructive"
+                        >
+                          remover
+                        </button>
+                      </div>
+                    ))}
+                    <div className="grid grid-cols-[2rem_1fr_1fr_1fr_auto] gap-2 text-xs text-muted-foreground">
+                      <span />
+                      <span>vencimento previsto</span>
+                      <span>valor liberado</span>
+                      <span>recebido em (real)</span>
+                      <span />
+                    </div>
+                    <p
+                      className={`text-sm ${
+                        Math.abs(somaParcelas - round2(calc.comissaoBruta)) < 0.01
+                          ? "text-muted-foreground"
+                          : "text-amber-600"
+                      }`}
+                    >
+                      Soma das parcelas: <b>{formatBRL(somaParcelas)}</b>
+                      {Math.abs(somaParcelas - round2(calc.comissaoBruta)) < 0.01
+                        ? " · fecha com a comissão bruta"
+                        : ` · comissão bruta é ${formatBRL(calc.comissaoBruta)}`}
+                    </p>
+                  </div>
+                )}
+              </>
+            )}
           </CardContent>
         </Card>
 

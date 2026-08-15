@@ -28,7 +28,7 @@ export default async function EditarVendaPage({
   if (!data) notFound();
   const venda = data as Venda;
 
-  const [cadastros, investidores, lead] = await Promise.all([
+  const [cadastros, investidores, lead, parcelas] = await Promise.all([
     carregarCadastrosVenda(),
     carregarInvestidoresDaVenda(id),
     // Venda antiga pode nao ter passado pelo vinculo automatico; nesse caso
@@ -36,6 +36,12 @@ export default async function EditarVendaPage({
     venda.lead_id
       ? buscarLead(venda.lead_id)
       : acharLeadPorTelefone(venda.cliente_telefone ?? null),
+    supabase
+      .from("venda_parcelas")
+      .select("numero, vencimento, valor, recebido_em")
+      .eq("venda_id", id)
+      .order("numero")
+      .then((r) => r.data ?? []),
   ]);
 
   return (
@@ -68,7 +74,7 @@ export default async function EditarVendaPage({
         </CardContent>
       </Card>
 
-      <VendaForm mode="edit" venda={venda} {...cadastros} investidores={investidores} />
+      <VendaForm mode="edit" venda={venda} {...cadastros} investidores={investidores} parcelas={parcelas} />
     </div>
   );
 }

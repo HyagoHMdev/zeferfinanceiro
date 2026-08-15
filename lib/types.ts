@@ -159,6 +159,8 @@ export interface Venda {
   valor_imposto_nf: number;
   liquido_corretor: number;
   lucro_liquido: number;
+  /** Construtora libera a comissão mês a mês (ver financeiro.venda_parcelas). */
+  recebimento_parcelado: boolean;
   status: VendaStatus;
   pagamento_id: string | null;
   observacoes: string | null;

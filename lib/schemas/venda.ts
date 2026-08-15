@@ -34,6 +34,20 @@ export const vendaSchema = z.object({
   // Ausente = mantém o que já estava na venda (ou o padrão do cadastro, na
   // criação). Só entra na conta quando vem preenchido de propósito.
   percentual_corretor: z.number().min(0).max(1).optional(),
+  // Construtora libera a comissão mês a mês, conforme o cliente paga. Com isso
+  // ligado, o repasse do investidor vira um lançamento por parcela.
+  recebimento_parcelado: z.boolean().optional(),
+  parcelas: z
+    .array(
+      z.object({
+        numero: z.number().int().min(1),
+        vencimento: z.string().min(1),
+        valor: z.number().nonnegative(),
+        recebido_em: z.string().nullable().optional(),
+      }),
+    )
+    .max(120, "Máximo de 120 parcelas.")
+    .optional(),
   // Parceria (parceiro do cadastro)
   possui_parceria: z.boolean(),
   parceiro_id: z.string().uuid().nullable(),

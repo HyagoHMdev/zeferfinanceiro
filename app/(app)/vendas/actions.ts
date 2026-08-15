@@ -101,6 +101,7 @@ function montarLinha(input: VendaInput, corr: CorretorDefaults) {
     valor_imposto_nf: r.valorImpostoNf,
     liquido_corretor: r.liquidoCorretor,
     lucro_liquido: r.lucroLiquido,
+    recebimento_parcelado: input.recebimento_parcelado ?? false,
     observacoes: input.observacoes,
     contrato_path: input.contrato_path ?? null,
     documentos: input.documentos ?? [],
@@ -138,6 +139,33 @@ async function sincronizarInvestidores(vendaId: string, ids: string[]) {
       { onConflict: "investidor_id,venda_id", ignoreDuplicates: true },
     );
   }
+}
+
+/**
+ * Grava as parcelas que a construtora vai liberar.
+ *
+ * Reescreve a lista inteira (apaga e insere) porque ela é curta e editada em
+ * bloco na tela; assim não sobra parcela fantasma de uma edição anterior. O
+ * gatilho no banco refaz os repasses do investidor a cada mudança.
+ */
+async function sincronizarParcelas(
+  vendaId: string,
+  parcelado: boolean,
+  parcelas: NonNullable<VendaInput["parcelas"]>,
+) {
+  const supabase = await createClient();
+  await supabase.from("venda_parcelas").delete().eq("venda_id", vendaId);
+
+  if (!parcelado || parcelas.length === 0) return;
+  await supabase.from("venda_parcelas").insert(
+    parcelas.map((p, i) => ({
+      venda_id: vendaId,
+      numero: p.numero || i + 1,
+      vencimento: p.vencimento,
+      valor: p.valor,
+      recebido_em: p.recebido_em || null,
+    })),
+  );
 }
 
 /**
@@ -220,6 +248,11 @@ export async function criarVenda(
   }
 
   await sincronizarInvestidores(nova.id, parsed.data.investidores ?? []);
+  await sincronizarParcelas(
+    nova.id,
+    parsed.data.recebimento_parcelado ?? false,
+    parsed.data.parcelas ?? [],
+  );
   await vincularLead(nova.id, parsed.data.cliente_telefone ?? null);
 
   // Aprovar é criar a venda. Se este passo falhar, a venda existe e a submissão
@@ -274,6 +307,11 @@ export async function atualizarVenda(
   if (error) return { error: error.message };
 
   await sincronizarInvestidores(id, parsed.data.investidores ?? []);
+  await sincronizarParcelas(
+    id,
+    parsed.data.recebimento_parcelado ?? false,
+    parsed.data.parcelas ?? [],
+  );
   await vincularLead(id, parsed.data.cliente_telefone ?? null);
 
   revalidar(id);
