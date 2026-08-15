@@ -75,6 +75,51 @@ describe("calcularVenda — sem parceria e com desconto do corretor", () => {
     expect(r.valorImpostoNf).toBe(100);
     expect(r.liquidoCorretor).toBe(900);
   });
+
+  // O desconto de parceria virou VALOR em reais (era percentual). O percentual
+  // continua atendido para vendas antigas, que só têm ele gravado.
+  const comParceria = {
+    vgv: 500000,
+    percentualComissao: 0.05,
+    possuiParceria: true,
+    percentualParceria: 0,
+    percentualImpostoImobiliaria: 0,
+    percentualCorretor: 0.02, // comissão bruta do corretor = 10.000
+    percentualImpostoNf: 0,
+  };
+
+  it("desconto em reais entra pelo valor informado", () => {
+    const r = calcularVenda({ ...comParceria, descontoParceiroValor: 1500 });
+    expect(r.comissaoCorretorBruto).toBe(10000);
+    expect(r.descontoCorretor).toBe(1500);
+    expect(r.liquidoCorretor).toBe(8500);
+  });
+
+  it("desconto não passa da comissão bruta do corretor", () => {
+    const r = calcularVenda({ ...comParceria, descontoParceiroValor: 99999 });
+    expect(r.descontoCorretor).toBe(10000);
+    expect(r.liquidoCorretor).toBe(0);
+  });
+
+  it("desconto negativo é tratado como zero", () => {
+    const r = calcularVenda({ ...comParceria, descontoParceiroValor: -50 });
+    expect(r.descontoCorretor).toBe(0);
+  });
+
+  it("sem parceria o desconto é ignorado", () => {
+    const r = calcularVenda({
+      ...comParceria,
+      possuiParceria: false,
+      descontoParceiroValor: 1500,
+    });
+    expect(r.descontoCorretor).toBe(0);
+    expect(r.liquidoCorretor).toBe(10000);
+  });
+
+  it("venda antiga (só percentual) continua calculando igual", () => {
+    const r = calcularVenda({ ...comParceria, percentualDescontoParceiro: 0.1 });
+    expect(r.descontoCorretor).toBe(1000);
+  });
 });
 
 describe("resumoCorretor", () => {

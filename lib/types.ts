@@ -175,6 +175,8 @@ export interface Venda {
   valor_parceria: number;
   liquido_pos_parceria: number;
   percentual_desconto_parceiro: number;
+  /** Desconto de parceria em reais (fonte da verdade; o % acima é espelho). */
+  desconto_parceiro_valor: number;
   // Pagamento do corretor (por venda)
   status_pagamento_corretor: StatusPagamentoCorretor;
   created_at: string;

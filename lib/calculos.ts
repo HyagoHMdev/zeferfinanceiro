@@ -52,6 +52,12 @@ export interface VendaCalcInput {
   percentualCorretor: number;
   /** % de desconto na comissão do corretor quando há parceria, em fração (0 = nenhum). */
   percentualDescontoParceiro?: number;
+  /**
+   * Desconto de parceria em REAIS. É o campo que a tela usa hoje; o percentual
+   * acima só entra quando este não vem (vendas antigas). Nunca passa da
+   * comissão bruta do corretor, senão a comissão ficaria negativa.
+   */
+  descontoParceiroValor?: number;
   /** % de imposto retido na NF do corretor, em fração. */
   percentualImpostoNf: number;
 }
@@ -85,6 +91,7 @@ export function calcularVenda(input: VendaCalcInput): VendaCalcResultado {
     percentualImpostoImobiliaria,
     percentualCorretor,
     percentualDescontoParceiro = 0,
+    descontoParceiroValor,
     percentualImpostoNf,
   } = input;
 
@@ -98,9 +105,11 @@ export function calcularVenda(input: VendaCalcInput): VendaCalcResultado {
 
   // Cadeia do corretor (comissão sobre o VGV; desconto opcional quando há parceria).
   const comissaoCorretorBrutoRaw = vgv * percentualCorretor;
-  const descontoCorretorRaw = possuiParceria
-    ? comissaoCorretorBrutoRaw * percentualDescontoParceiro
-    : 0;
+  const descontoCorretorRaw = !possuiParceria
+    ? 0
+    : descontoParceiroValor !== undefined
+      ? Math.min(Math.max(descontoParceiroValor, 0), comissaoCorretorBrutoRaw)
+      : comissaoCorretorBrutoRaw * percentualDescontoParceiro;
   const comissaoCorretorAjustadaRaw = comissaoCorretorBrutoRaw - descontoCorretorRaw;
   const valorImpostoNfRaw = comissaoCorretorAjustadaRaw * percentualImpostoNf;
   const liquidoCorretorRaw = comissaoCorretorAjustadaRaw - valorImpostoNfRaw;

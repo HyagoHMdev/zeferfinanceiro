@@ -83,9 +83,15 @@ export function ProcessamentoCorretor({
   const [pctCorretor, setPctCorretor] = useState(
     fracaoParaInputPct(Number(venda.percentual_corretor)),
   );
-  const [pctDesconto, setPctDesconto] = useState(
-    fracaoParaInputPct(Number(venda.percentual_desconto_parceiro)),
-  );
+  // Desconto de parceria em reais. Vendas antigas guardavam só o percentual,
+  // então o valor é derivado dele quando a coluna nova ainda está zerada.
+  const [descontoValor, setDescontoValor] = useState(() => {
+    const salvo = Number(venda.desconto_parceiro_valor ?? 0);
+    const legado =
+      Number(venda.comissao_corretor_bruto) * Number(venda.percentual_desconto_parceiro ?? 0);
+    const v = salvo > 0 ? salvo : legado;
+    return v > 0 ? String(v).replace(".", ",") : "";
+  });
   const [pctImpostoNf, setPctImpostoNf] = useState(
     fracaoParaInputPct(Number(venda.percentual_imposto_nf)),
   );
@@ -98,9 +104,7 @@ export function ProcessamentoCorretor({
     percentualParceria: Number(venda.percentual_parceria),
     percentualImpostoImobiliaria: Number(venda.percentual_imposto_imobiliaria),
     percentualCorretor: inputPctParaFracao(pctCorretor),
-    percentualDescontoParceiro: venda.possui_parceria
-      ? inputPctParaFracao(pctDesconto)
-      : 0,
+    descontoParceiroValor: venda.possui_parceria ? parseNumeroBR(descontoValor) : 0,
     percentualImpostoNf: inputPctParaFracao(pctImpostoNf),
   });
 
@@ -115,9 +119,7 @@ export function ProcessamentoCorretor({
     setSaving(true);
     const res = await salvarCorretorVenda(venda.id, {
       percentual_corretor: inputPctParaFracao(pctCorretor),
-      percentual_desconto_parceiro: venda.possui_parceria
-        ? inputPctParaFracao(pctDesconto)
-        : 0,
+      desconto_parceiro_valor: venda.possui_parceria ? parseNumeroBR(descontoValor) : 0,
       percentual_imposto_nf: inputPctParaFracao(pctImpostoNf),
     });
     setSaving(false);
@@ -175,15 +177,18 @@ export function ProcessamentoCorretor({
             </div>
             {venda.possui_parceria ? (
               <div className="space-y-2">
-                <Label htmlFor="pc-desc">% desconto (parceria)</Label>
+                <Label htmlFor="pc-desc">R$ desconto (parceria)</Label>
                 <Input
                   id="pc-desc"
                   inputMode="decimal"
-                  value={pctDesconto}
-                  onChange={(e) => setPctDesconto(e.target.value)}
+                  value={descontoValor}
+                  onChange={(e) => setDescontoValor(e.target.value)}
                   disabled={!podeEditar}
-                  placeholder="0"
+                  placeholder="0,00"
                 />
+                <p className="text-xs text-muted-foreground">
+                  Valor descontado da comissão bruta ({formatBRL(calc.comissaoCorretorBruto)}).
+                </p>
               </div>
             ) : null}
             <div className="space-y-2">

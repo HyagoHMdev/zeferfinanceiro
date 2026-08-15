@@ -21,7 +21,8 @@ function revalidar(vendaId?: string) {
 
 const corretorVendaSchema = z.object({
   percentual_corretor: z.number().min(0).max(1),
-  percentual_desconto_parceiro: z.number().min(0).max(1),
+  /** Desconto de parceria em reais (o percentual vira só espelho legado). */
+  desconto_parceiro_valor: z.number().nonnegative(),
   percentual_imposto_nf: z.number().min(0).max(1),
 });
 
@@ -54,15 +55,21 @@ export async function salvarCorretorVenda(
     percentualParceria: Number(v.percentual_parceria),
     percentualImpostoImobiliaria: Number(v.percentual_imposto_imobiliaria),
     percentualCorretor: parsed.data.percentual_corretor,
-    percentualDescontoParceiro: parsed.data.percentual_desconto_parceiro,
+    descontoParceiroValor: parsed.data.desconto_parceiro_valor,
     percentualImpostoNf: parsed.data.percentual_imposto_nf,
   });
+
+  // Mantém o percentual legado em sincronia com o valor, para relatório antigo
+  // que ainda lê a coluna não passar a mentir.
+  const pctEquivalente =
+    r.comissaoCorretorBruto > 0 ? r.descontoCorretor / r.comissaoCorretorBruto : 0;
 
   const { error } = await supabase
     .from("vendas")
     .update({
       percentual_corretor: parsed.data.percentual_corretor,
-      percentual_desconto_parceiro: parsed.data.percentual_desconto_parceiro,
+      desconto_parceiro_valor: r.descontoCorretor,
+      percentual_desconto_parceiro: pctEquivalente,
       percentual_imposto_nf: parsed.data.percentual_imposto_nf,
       comissao_corretor_bruto: r.comissaoCorretorBruto,
       valor_imposto_nf: r.valorImpostoNf,
