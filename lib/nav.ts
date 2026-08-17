@@ -7,6 +7,7 @@ import {
   Receipt,
   Landmark,
   BarChart3,
+  CalendarDays,
   Cake,
   Settings,
   type LucideIcon,
@@ -85,6 +86,12 @@ export const NAV_ITEMS: NavItem[] = [
     label: "Relatórios",
     href: "/relatorios",
     icon: BarChart3,
+    roles: ["admin", "financeiro", "diretor"],
+  },
+  {
+    label: "Calendário",
+    href: "/calendario",
+    icon: CalendarDays,
     roles: ["admin", "financeiro", "diretor"],
   },
   {
