@@ -34,7 +34,7 @@ export default async function CalendarioPage({
   const supabase = await createClient();
   const { data } = await supabase
     .from("agenda")
-    .select("id, data, titulo, descricao, categoria, hora, concluida")
+    .select("id, data, titulo, descricao, categoria, hora, concluida, serie_id, repeticao")
     .gte("data", de)
     .lte("data", ate)
     .order("data")

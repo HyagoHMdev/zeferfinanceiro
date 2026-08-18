@@ -29,6 +29,7 @@ import {
   atualizarAtividade,
   criarAtividade,
   excluirAtividade,
+  excluirSerie,
   moverAtividade,
   type AtividadeInput,
 } from "./actions";
@@ -41,6 +42,8 @@ export type Atividade = {
   categoria: AtividadeInput["categoria"];
   hora: string | null;
   concluida: boolean;
+  serie_id: string | null;
+  repeticao: string;
 };
 
 const CATEGORIAS: { valor: Atividade["categoria"]; label: string; cor: string }[] = [
@@ -52,6 +55,13 @@ const CATEGORIAS: { valor: Atividade["categoria"]; label: string; cor: string }[
 ];
 const corDe = (c: Atividade["categoria"]) =>
   CATEGORIAS.find((x) => x.valor === c)?.cor ?? CATEGORIAS[0].cor;
+
+const REPETICOES: { valor: string; label: string; resumo: string }[] = [
+  { valor: "nenhuma", label: "Não repete", resumo: "" },
+  { valor: "semanal", label: "Toda semana", resumo: "26 semanas (6 meses)" },
+  { valor: "quinzenal", label: "A cada 15 dias", resumo: "13 vezes (6 meses)" },
+  { valor: "mensal", label: "Todo mês", resumo: "12 meses" },
+];
 
 const DIAS = ["dom", "seg", "ter", "qua", "qui", "sex", "sáb"];
 const MESES = [
@@ -99,12 +109,16 @@ function gradeDoMes(mes: string): { iso: string; dia: number; doMes: boolean }[]
   return semanas;
 }
 
-const VAZIO = (data: string): AtividadeInput & { id?: string } => ({
+/** O que o formulário carrega: a atividade + de onde ela veio. */
+type FormAtividade = AtividadeInput & { id?: string; serie_id?: string | null };
+
+const VAZIO = (data: string): FormAtividade => ({
   data,
   titulo: "",
   descricao: "",
   categoria: "geral",
   hora: "",
+  repeticao: "nenhuma",
 });
 
 export function CalendarioView({
@@ -117,7 +131,7 @@ export function CalendarioView({
   podeEditar: boolean;
 }) {
   const router = useRouter();
-  const [form, setForm] = useState<(AtividadeInput & { id?: string }) | null>(null);
+  const [form, setForm] = useState<FormAtividade | null>(null);
   const [salvando, setSalvando] = useState(false);
   const [arrastando, setArrastando] = useState<string | null>(null);
 
@@ -157,9 +171,22 @@ export function CalendarioView({
 
   async function remover() {
     if (!form?.id) return;
-    if (!window.confirm("Excluir esta atividade?")) return;
-    const res = await excluirAtividade(form.id);
-    if (res?.error) return toast.error("Erro", { description: res.error });
+    // Numa série, apagar só a ocorrência ou todas daqui pra frente são coisas
+    // muito diferentes: perguntar evita apagar meio ano por engano.
+    const daSerie = !!form.serie_id;
+    if (daSerie) {
+      const todas = window.confirm(
+        "Esta atividade se repete.\n\n" +
+          "OK apaga esta e TODAS as futuras da série.\n" +
+          "Cancelar apaga só esta.",
+      );
+      const res = todas ? await excluirSerie(form.id) : await excluirAtividade(form.id);
+      if (res?.error) return toast.error("Erro", { description: res.error });
+    } else {
+      if (!window.confirm("Excluir esta atividade?")) return;
+      const res = await excluirAtividade(form.id);
+      if (res?.error) return toast.error("Erro", { description: res.error });
+    }
     setForm(null);
     router.refresh();
   }
@@ -279,11 +306,14 @@ export function CalendarioView({
                               descricao: a.descricao ?? "",
                               categoria: a.categoria,
                               hora: a.hora ? a.hora.slice(0, 5) : "",
+                              repeticao: "nenhuma",
+                              serie_id: a.serie_id,
                             })
                           }
                           className={`min-w-0 flex-1 text-left ${a.concluida ? "line-through" : ""}`}
                         >
                           {a.hora ? <b className="mr-1">{a.hora.slice(0, 5)}</b> : null}
+                          {a.serie_id ? <span title="Se repete">↻ </span> : null}
                           {a.titulo}
                         </button>
                       </div>
@@ -355,6 +385,41 @@ export function CalendarioView({
                   </Select>
                 </div>
               </div>
+
+              {form.id ? (
+                form.serie_id ? (
+                  <p className="rounded-md border border-border bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
+                    Faz parte de uma série que se repete. A edição aqui vale só para este dia.
+                  </p>
+                ) : null
+              ) : (
+                <div className="space-y-2">
+                  <Label>Repetir</Label>
+                  <Select
+                    value={form.repeticao ?? "nenhuma"}
+                    onValueChange={(v) =>
+                      setForm({ ...form, repeticao: v as AtividadeInput["repeticao"] })
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {REPETICOES.map((r) => (
+                        <SelectItem key={r.valor} value={r.valor}>
+                          {r.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {form.repeticao && form.repeticao !== "nenhuma" && (
+                    <p className="text-xs text-muted-foreground">
+                      Serão criadas {REPETICOES.find((r) => r.valor === form.repeticao)?.resumo}, a
+                      partir do dia escolhido. Cada uma pode ser marcada, movida ou apagada sozinha.
+                    </p>
+                  )}
+                </div>
+              )}
 
               <div className="space-y-2">
                 <Label htmlFor="ag-desc">Observações</Label>
