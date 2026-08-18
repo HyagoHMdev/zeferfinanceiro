@@ -152,12 +152,16 @@ async function sincronizarParcelas(
   vendaId: string,
   parcelado: boolean,
   parcelas: NonNullable<VendaInput["parcelas"]>,
-) {
+): Promise<string | null> {
   const supabase = await createClient();
-  await supabase.from("venda_parcelas").delete().eq("venda_id", vendaId);
+  const { error: erroDelete } = await supabase
+    .from("venda_parcelas")
+    .delete()
+    .eq("venda_id", vendaId);
+  if (erroDelete) return erroDelete.message;
 
-  if (!parcelado || parcelas.length === 0) return;
-  await supabase.from("venda_parcelas").insert(
+  if (!parcelado || parcelas.length === 0) return null;
+  const { error } = await supabase.from("venda_parcelas").insert(
     parcelas.map((p, i) => ({
       venda_id: vendaId,
       numero: p.numero || i + 1,
@@ -166,6 +170,10 @@ async function sincronizarParcelas(
       recebido_em: p.recebido_em || null,
     })),
   );
+  // Silêncio aqui custou caro: a RLS recusava a escrita, o erro era jogado
+  // fora e a tela dizia que salvou com o banco vazio. Falhou, o usuário fica
+  // sabendo.
+  return error?.message ?? null;
 }
 
 /**
@@ -248,12 +256,20 @@ export async function criarVenda(
   }
 
   await sincronizarInvestidores(nova.id, parsed.data.investidores ?? []);
-  await sincronizarParcelas(
+  const erroParcelas = await sincronizarParcelas(
     nova.id,
     parsed.data.recebimento_parcelado ?? false,
     parsed.data.parcelas ?? [],
   );
   await vincularLead(nova.id, parsed.data.cliente_telefone ?? null);
+  // A venda já existe: em vez de desfazer, mostra o que faltou para o usuário
+  // reabrir e salvar as parcelas de novo.
+  if (erroParcelas) {
+    revalidar(nova.id);
+    return {
+      error: `A venda foi salva, mas as parcelas não: ${erroParcelas}. Abra a venda e informe as parcelas de novo.`,
+    };
+  }
 
   // Aprovar é criar a venda. Se este passo falhar, a venda existe e a submissão
   // continua pendente: reaparece na fila em vez de sumir, que é o erro seguro.
@@ -307,12 +323,16 @@ export async function atualizarVenda(
   if (error) return { error: error.message };
 
   await sincronizarInvestidores(id, parsed.data.investidores ?? []);
-  await sincronizarParcelas(
+  const erroParcelas = await sincronizarParcelas(
     id,
     parsed.data.recebimento_parcelado ?? false,
     parsed.data.parcelas ?? [],
   );
   await vincularLead(id, parsed.data.cliente_telefone ?? null);
+  if (erroParcelas) {
+    revalidar(id);
+    return { error: `A venda foi salva, mas as parcelas não: ${erroParcelas}` };
+  }
 
   revalidar(id);
   redirect("/vendas");
