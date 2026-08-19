@@ -1,9 +1,14 @@
 import { createClient } from "@/lib/supabase/server";
-import { round2 } from "@/lib/calculos";
+import { ratearPorParcelas, round2 } from "@/lib/calculos";
 
-/** Uma venda cuja comissão está aguardando liberação (a pagar). */
+/** Uma comissão aguardando liberação (a pagar). */
 export interface ComissaoAPagar {
+  /** Identifica a linha na seleção: id da venda, ou da parcela quando parcelada. */
+  chave: string;
   vendaId: string;
+  /** Preenchido quando a venda é parcelada: a parcela que liberou esta fatia. */
+  parcelaId?: string;
+  parcela?: { numero: number; total: number };
   empreendimento: string | null;
   cliente: string | null;
   dataVenda: string;
@@ -44,7 +49,7 @@ export async function listarPagamentosPendentes(): Promise<CorretorPendente[]> {
   const { data: vendasData } = await supabase
     .from("vendas")
     .select(
-      "id, cliente, data_venda, liquido_corretor, comissao_corretor_bruto, valor_imposto_nf, corretor_id, corretores(nome), empreendimentos(nome)",
+      "id, cliente, data_venda, liquido_corretor, comissao_corretor_bruto, valor_imposto_nf, corretor_id, recebimento_parcelado, corretores(nome), empreendimentos(nome)",
     )
     .eq("status_pagamento_corretor", "aguardando_liberacao")
     .not("corretor_id", "is", null)
@@ -58,11 +63,46 @@ export async function listarPagamentosPendentes(): Promise<CorretorPendente[]> {
     comissao_corretor_bruto: number;
     valor_imposto_nf: number;
     corretor_id: string;
+    recebimento_parcelado: boolean;
     corretores: { nome: string } | null;
     empreendimentos: { nome: string } | null;
   }[];
 
   if (vendas.length === 0) return [];
+
+  // Venda parcelada não libera a comissão inteira de uma vez: só a fatia das
+  // parcelas que a construtora JÁ pagou (recebido_em preenchido) e que ainda
+  // não entraram em nenhum pagamento.
+  const idsParceladas = vendas.filter((v) => v.recebimento_parcelado).map((v) => v.id);
+  const porVenda = new Map<
+    string,
+    { id: string; numero: number; valor: number; recebido: boolean; pago: boolean }[]
+  >();
+  if (idsParceladas.length > 0) {
+    const { data: parcData } = await supabase
+      .from("venda_parcelas")
+      .select("id, venda_id, numero, valor, recebido_em, pagamento_id")
+      .in("venda_id", idsParceladas)
+      .order("numero");
+    for (const p of (parcData ?? []) as {
+      id: string;
+      venda_id: string;
+      numero: number;
+      valor: number;
+      recebido_em: string | null;
+      pagamento_id: string | null;
+    }[]) {
+      const lista = porVenda.get(p.venda_id) ?? [];
+      lista.push({
+        id: p.id,
+        numero: p.numero,
+        valor: Number(p.valor),
+        recebido: p.recebido_em != null,
+        pago: p.pagamento_id != null,
+      });
+      porVenda.set(p.venda_id, lista);
+    }
+  }
 
   const vendaIds = vendas.map((v) => v.id);
   const { data: adiData } = await supabase
@@ -94,15 +134,40 @@ export async function listarPagamentosPendentes(): Promise<CorretorPendente[]> {
         totalAdiantamentos: 0,
         liquido: 0,
       } satisfies CorretorPendente);
-    atual.comissoes.push({
-      vendaId: v.id,
-      empreendimento: v.empreendimentos?.nome ?? null,
-      cliente: v.cliente,
-      dataVenda: v.data_venda,
-      comissaoBruta: Number(v.comissao_corretor_bruto),
-      imposto: Number(v.valor_imposto_nf),
-      liquidoCorretor: Number(v.liquido_corretor),
-    });
+    const parcelas = porVenda.get(v.id) ?? [];
+    if (v.recebimento_parcelado && parcelas.length > 0) {
+      // Rateia sobre TODAS as parcelas (o peso de cada uma no total não muda
+      // por já ter sido paga) e só oferece as liberadas e ainda não pagas.
+      const liquidos = ratearPorParcelas(Number(v.liquido_corretor), parcelas.map((p) => p.valor));
+      const brutos = ratearPorParcelas(Number(v.comissao_corretor_bruto), parcelas.map((p) => p.valor));
+      const impostos = ratearPorParcelas(Number(v.valor_imposto_nf), parcelas.map((p) => p.valor));
+      parcelas.forEach((p, i) => {
+        if (!p.recebido || p.pago) return;
+        atual.comissoes.push({
+          chave: p.id,
+          vendaId: v.id,
+          parcelaId: p.id,
+          parcela: { numero: p.numero, total: parcelas.length },
+          empreendimento: v.empreendimentos?.nome ?? null,
+          cliente: v.cliente,
+          dataVenda: v.data_venda,
+          comissaoBruta: brutos[i],
+          imposto: impostos[i],
+          liquidoCorretor: liquidos[i],
+        });
+      });
+    } else {
+      atual.comissoes.push({
+        chave: v.id,
+        vendaId: v.id,
+        empreendimento: v.empreendimentos?.nome ?? null,
+        cliente: v.cliente,
+        dataVenda: v.data_venda,
+        comissaoBruta: Number(v.comissao_corretor_bruto),
+        imposto: Number(v.valor_imposto_nf),
+        liquidoCorretor: Number(v.liquido_corretor),
+      });
+    }
     mapa.set(v.corretor_id, atual);
   }
   for (const a of adiantamentos) {
@@ -146,7 +211,10 @@ export async function listarPagamentosPendentes(): Promise<CorretorPendente[]> {
     }
   }
 
-  const lista = [...mapa.values()];
+  // Corretor cuja unica venda e parcelada e ainda nao teve parcela liberada
+  // some da fila: nao ha o que pagar hoje, e mostrar linha zerada convida a
+  // registrar pagamento de nada.
+  const lista = [...mapa.values()].filter((c) => c.comissoes.length > 0);
   for (const c of lista) {
     c.totalBruto = round2(c.comissoes.reduce((s, x) => s + x.liquidoCorretor, 0));
     c.totalAdiantamentos = round2(

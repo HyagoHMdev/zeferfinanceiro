@@ -5,6 +5,7 @@ import {
   resumoCorretor,
   calcularDistribuicao,
   calcularSaldoCorretor,
+  ratearPorParcelas,
 } from "./calculos";
 
 describe("round2", () => {
@@ -151,5 +152,26 @@ describe("calcularSaldoCorretor", () => {
     expect(
       calcularSaldoCorretor({ comissoesAReceber: 6657.12, bonificacoes: 500, adiantamentos: 1075.42 }),
     ).toBe(6081.7);
+  });
+});
+
+describe("ratearPorParcelas", () => {
+  it("divide pelo peso de cada parcela", () => {
+    expect(ratearPorParcelas(3000, [20000, 15000, 15000])).toEqual([1200, 900, 900]);
+  });
+
+  it("fecha o total mesmo quando a divisão não é exata", () => {
+    const fatias = ratearPorParcelas(1000, [1, 1, 1]);
+    expect(fatias).toEqual([333.33, 333.33, 333.34]);
+    expect(round2(fatias.reduce((s, f) => s + f, 0))).toBe(1000);
+  });
+
+  it("parcela única leva tudo", () => {
+    expect(ratearPorParcelas(1234.56, [500])).toEqual([1234.56]);
+  });
+
+  it("sem parcela, ou com parcelas zeradas, não inventa valor", () => {
+    expect(ratearPorParcelas(1000, [])).toEqual([]);
+    expect(ratearPorParcelas(1000, [0, 0])).toEqual([0, 0]);
   });
 });

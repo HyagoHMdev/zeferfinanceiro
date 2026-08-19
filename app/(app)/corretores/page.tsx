@@ -70,11 +70,19 @@ export default async function CorretoresPage() {
               </TableHeader>
               <TableBody>
                 {comissoes.map((c) => (
-                  <TableRow key={c.vendaId}>
+                  <TableRow key={c.chave}>
                     <TableCell className="font-medium">
                       {c.corretorNome ?? "—"}
                     </TableCell>
-                    <TableCell>{c.empreendimento ?? "—"}</TableCell>
+                    <TableCell>
+                      {c.empreendimento ?? "—"}
+                      {c.parcela && (
+                        <span className="block text-xs text-muted-foreground">
+                          parcela {c.parcela.numero}/{c.parcela.total}
+                          {c.parcela.liberada ? "" : " · aguardando a construtora"}
+                        </span>
+                      )}
+                    </TableCell>
                     <TableCell className="whitespace-nowrap">
                       {formatData(c.dataVenda)}
                     </TableCell>
@@ -82,7 +90,7 @@ export default async function CorretoresPage() {
                       {formatBRL(c.liquidoCorretor)}
                     </TableCell>
                     <TableCell>
-                      {podeEditar ? (
+                      {podeEditar && !c.parcela ? (
                         <CorretorStatusSelect
                           vendaId={c.vendaId}
                           status={c.statusPagamento}

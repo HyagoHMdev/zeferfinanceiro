@@ -75,9 +75,15 @@ export default async function MeuExtratoPage() {
               </TableHeader>
               <TableBody>
                 {comissoes.map((c) => (
-                  <TableRow key={c.vendaId}>
+                  <TableRow key={c.chave}>
                     <TableCell className="font-medium">
                       {c.empreendimento ?? "—"}
+                      {c.parcela && (
+                        <span className="block text-xs font-normal text-muted-foreground">
+                          parcela {c.parcela.numero}/{c.parcela.total}
+                          {c.parcela.liberada ? "" : " · aguardando a construtora"}
+                        </span>
+                      )}
                     </TableCell>
                     <TableCell className="whitespace-nowrap">
                       {formatData(c.dataVenda)}

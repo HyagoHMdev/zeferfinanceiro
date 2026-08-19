@@ -29,8 +29,10 @@ export function RegistrarPagamentoDialog({ corretor }: { corretor: CorretorPende
 
   // Seleção: começa com tudo marcado (pagar todas as comissões e descontar todos
   // os adiantamentos), mas dá para escolher só algumas.
-  const [vendasSel, setVendasSel] = useState<Set<string>>(
-    () => new Set(corretor.comissoes.map((c) => c.vendaId)),
+  // A chave é a venda quando ela é paga de uma vez, e a PARCELA quando a
+  // construtora libera parcelado: aí cada parcela recebida é uma linha própria.
+  const [sel, setSel] = useState<Set<string>>(
+    () => new Set(corretor.comissoes.map((c) => c.chave)),
   );
   const [adiSel, setAdiSel] = useState<Set<string>>(
     () => new Set(corretor.adiantamentos.map((a) => a.id)),
@@ -41,7 +43,7 @@ export function RegistrarPagamentoDialog({ corretor }: { corretor: CorretorPende
   // o item apareceria na lista já DESMARCADO e sairia do pagamento calado.
   function alternarDialogo(abrir: boolean) {
     if (abrir) {
-      setVendasSel(new Set(corretor.comissoes.map((c) => c.vendaId)));
+      setSel(new Set(corretor.comissoes.map((c) => c.chave)));
       setAdiSel(new Set(corretor.adiantamentos.map((a) => a.id)));
     }
     setOpen(abrir);
@@ -49,10 +51,13 @@ export function RegistrarPagamentoDialog({ corretor }: { corretor: CorretorPende
 
   // Um adiantamento atrelado a uma venda só entra se aquela venda for paga.
   // Vales avulsos (vendaId null) ficam sempre disponíveis.
-  const adiDisponivel = (vendaId: string | null) => vendaId === null || vendasSel.has(vendaId);
+  const vendasMarcadas = new Set(
+    corretor.comissoes.filter((c) => sel.has(c.chave)).map((c) => c.vendaId),
+  );
+  const adiDisponivel = (vendaId: string | null) => vendaId === null || vendasMarcadas.has(vendaId);
 
   const resumo = useMemo(() => {
-    const comissoes = corretor.comissoes.filter((c) => vendasSel.has(c.vendaId));
+    const comissoes = corretor.comissoes.filter((c) => sel.has(c.chave));
     const adiantamentos = corretor.adiantamentos.filter(
       (a) => adiDisponivel(a.vendaId) && adiSel.has(a.id),
     );
@@ -71,18 +76,18 @@ export function RegistrarPagamentoDialog({ corretor }: { corretor: CorretorPende
       liquido,
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [corretor, vendasSel, adiSel]);
+  }, [corretor, sel, adiSel]);
 
-  function toggleVenda(vendaId: string, on: boolean) {
-    setVendasSel((prev) => {
+  function toggleComissao(chave: string, on: boolean) {
+    setSel((prev) => {
       const n = new Set(prev);
-      if (on) n.add(vendaId);
-      else n.delete(vendaId);
+      if (on) n.add(chave);
+      else n.delete(chave);
       return n;
     });
   }
   function toggleTodasComissoes(on: boolean) {
-    setVendasSel(on ? new Set(corretor.comissoes.map((c) => c.vendaId)) : new Set());
+    setSel(on ? new Set(corretor.comissoes.map((c) => c.chave)) : new Set());
   }
   function toggleAdi(id: string, on: boolean) {
     setAdiSel((prev) => {
@@ -93,7 +98,7 @@ export function RegistrarPagamentoDialog({ corretor }: { corretor: CorretorPende
     });
   }
 
-  const todasComissoes = vendasSel.size === corretor.comissoes.length;
+  const todasComissoes = sel.size === corretor.comissoes.length;
 
   async function confirmar() {
     if (resumo.nComissoes === 0) {
@@ -103,7 +108,7 @@ export function RegistrarPagamentoDialog({ corretor }: { corretor: CorretorPende
     setSaving(true);
     const res = await registrarPagamento({
       corretorId: corretor.corretorId,
-      vendaIds: [...vendasSel],
+      chaves: [...sel],
       adiantamentoIds: resumo.adiantamentosIds,
     });
     setSaving(false);
@@ -151,20 +156,21 @@ export function RegistrarPagamentoDialog({ corretor }: { corretor: CorretorPende
             </div>
             <ul className="space-y-1">
               {corretor.comissoes.map((c) => {
-                const marcada = vendasSel.has(c.vendaId);
+                const marcada = sel.has(c.chave);
                 return (
-                  <li key={c.vendaId} className="flex items-start gap-2">
+                  <li key={c.chave} className="flex items-start gap-2">
                     <Checkbox
-                      id={`c-${c.vendaId}`}
+                      id={`c-${c.chave}`}
                       checked={marcada}
-                      onCheckedChange={(v) => toggleVenda(c.vendaId, v === true)}
+                      onCheckedChange={(v) => toggleComissao(c.chave, v === true)}
                       className="mt-0.5"
                     />
-                    <label htmlFor={`c-${c.vendaId}`} className="flex flex-1 cursor-pointer justify-between gap-4">
+                    <label htmlFor={`c-${c.chave}`} className="flex flex-1 cursor-pointer justify-between gap-4">
                       <span className={marcada ? "" : "text-muted-foreground line-through"}>
                         <span className="block truncate">
                           {c.empreendimento ?? "Venda"}
                           {c.cliente ? ` — ${c.cliente}` : ""} · {formatData(c.dataVenda)}
+                          {c.parcela ? ` · parcela ${c.parcela.numero}/${c.parcela.total}` : ""}
                         </span>
                         <span className="text-xs text-muted-foreground">
                           Bruto {formatBRL(c.comissaoBruta)} · imposto {formatBRL(c.imposto)}

@@ -190,3 +190,33 @@ export interface ExtratoCorretorInput {
 export function calcularSaldoCorretor(input: ExtratoCorretorInput): number {
   return round2(input.comissoesAReceber + input.bonificacoes - input.adiantamentos);
 }
+
+/**
+ * Divide um valor entre parcelas de tamanhos diferentes, proporcionalmente.
+ *
+ * Usado toda vez que algo da venda precisa acompanhar o dinheiro que a
+ * construtora libera mês a mês: a comissão do corretor e o repasse do
+ * investidor. A última parcela absorve a sobra de centavos, então a soma das
+ * fatias é EXATAMENTE o total, sem sobrar nem faltar um centavo.
+ *
+ * A mesma regra vive na função sincronizar_repasse_investidor, no banco. As
+ * duas precisam concordar: divergência aqui vira diferença entre o que a tela
+ * mostra e o que o financeiro paga.
+ */
+export function ratearPorParcelas(total: number, valores: number[]): number[] {
+  const soma = valores.reduce((s, v) => s + v, 0);
+  if (valores.length === 0 || soma <= 0) return valores.map(() => 0);
+
+  const fatias: number[] = [];
+  let acumulado = 0;
+  valores.forEach((v, i) => {
+    if (i === valores.length - 1) {
+      fatias.push(round2(total - acumulado));
+    } else {
+      const fatia = round2(total * (v / soma));
+      acumulado = round2(acumulado + fatia);
+      fatias.push(fatia);
+    }
+  });
+  return fatias;
+}

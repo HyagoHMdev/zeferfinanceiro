@@ -1,5 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
-import { round2, resumoCorretor } from "@/lib/calculos";
+import { ratearPorParcelas, round2, resumoCorretor } from "@/lib/calculos";
 import type {
   Adiantamento,
   StatusPagamentoCorretor,
@@ -8,6 +8,8 @@ import type {
 } from "@/lib/types";
 
 export interface ComissaoLinha {
+  /** Chave única da linha: a venda, ou a parcela quando o recebimento é parcelado. */
+  chave: string;
   vendaId: string;
   corretorNome: string | null;
   empreendimento: string | null;
@@ -15,6 +17,8 @@ export interface ComissaoLinha {
   liquidoCorretor: number;
   statusVenda: VendaStatus;
   statusPagamento: StatusPagamentoCorretor;
+  /** Só em venda parcelada. `liberada` = a construtora já pagou esta parcela. */
+  parcela?: { numero: number; total: number; liberada: boolean };
 }
 
 interface ComissaoRow {
@@ -27,7 +31,13 @@ interface ComissaoRow {
   empreendimentos: { nome: string } | null;
 }
 
-/** Lista as comissões (uma por venda com corretor). Opcionalmente por corretor. */
+/**
+ * Lista as comissões de venda. Uma linha por venda, EXCETO quando a
+ * construtora libera parcelado: aí é uma linha por parcela, com a fatia da
+ * comissão que aquela parcela carrega. Sem isso o corretor via o valor cheio
+ * como "a receber" mesmo já tendo recebido parte, e a venda só mudava de
+ * status quando a última parcela caísse.
+ */
 export async function listarComissoesCorretor(
   corretorId?: string,
 ): Promise<ComissaoLinha[]> {
@@ -35,23 +45,80 @@ export async function listarComissoesCorretor(
   let q = supabase
     .from("vendas")
     .select(
-      "id, data_venda, liquido_corretor, status, status_pagamento_corretor, corretores(nome), empreendimentos(nome)",
+      "id, data_venda, liquido_corretor, status, status_pagamento_corretor, recebimento_parcelado, corretores(nome), empreendimentos(nome)",
     )
     .not("corretor_id", "is", null)
     .order("data_venda", { ascending: false });
   if (corretorId) q = q.eq("corretor_id", corretorId);
 
   const { data } = await q;
-  const rows = (data ?? []) as unknown as ComissaoRow[];
-  return rows.map((v) => ({
-    vendaId: v.id,
-    corretorNome: v.corretores?.nome ?? null,
-    empreendimento: v.empreendimentos?.nome ?? null,
-    dataVenda: v.data_venda,
-    liquidoCorretor: Number(v.liquido_corretor),
-    statusVenda: v.status,
-    statusPagamento: v.status_pagamento_corretor,
-  }));
+  const rows = (data ?? []) as unknown as (ComissaoRow & { recebimento_parcelado: boolean })[];
+
+  const idsParceladas = rows.filter((v) => v.recebimento_parcelado).map((v) => v.id);
+  const porVenda = new Map<
+    string,
+    { id: string; numero: number; valor: number; recebido: boolean; pago: boolean }[]
+  >();
+  if (idsParceladas.length > 0) {
+    const { data: parc } = await supabase
+      .from("venda_parcelas")
+      .select("id, venda_id, numero, valor, recebido_em, pagamento_id")
+      .in("venda_id", idsParceladas)
+      .order("numero");
+    for (const p of (parc ?? []) as {
+      id: string;
+      venda_id: string;
+      numero: number;
+      valor: number;
+      recebido_em: string | null;
+      pagamento_id: string | null;
+    }[]) {
+      const lista = porVenda.get(p.venda_id) ?? [];
+      lista.push({
+        id: p.id,
+        numero: p.numero,
+        valor: Number(p.valor),
+        recebido: p.recebido_em != null,
+        pago: p.pagamento_id != null,
+      });
+      porVenda.set(p.venda_id, lista);
+    }
+  }
+
+  const linhas: ComissaoLinha[] = [];
+  for (const v of rows) {
+    const parcelas = porVenda.get(v.id) ?? [];
+    const base = {
+      vendaId: v.id,
+      corretorNome: v.corretores?.nome ?? null,
+      empreendimento: v.empreendimentos?.nome ?? null,
+      dataVenda: v.data_venda,
+      statusVenda: v.status,
+    };
+    if (v.recebimento_parcelado && parcelas.length > 0) {
+      const fatias = ratearPorParcelas(
+        Number(v.liquido_corretor),
+        parcelas.map((p) => p.valor),
+      );
+      parcelas.forEach((p, i) => {
+        linhas.push({
+          ...base,
+          chave: p.id,
+          liquidoCorretor: fatias[i],
+          statusPagamento: p.pago ? "pago" : "aguardando_liberacao",
+          parcela: { numero: p.numero, total: parcelas.length, liberada: p.recebido },
+        });
+      });
+    } else {
+      linhas.push({
+        ...base,
+        chave: v.id,
+        liquidoCorretor: Number(v.liquido_corretor),
+        statusPagamento: v.status_pagamento_corretor,
+      });
+    }
+  }
+  return linhas;
 }
 
 export interface VendaComNomes extends Venda {

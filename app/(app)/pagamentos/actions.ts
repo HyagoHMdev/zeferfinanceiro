@@ -6,6 +6,7 @@ import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { requireRole, ADMIN_FIN_ROLES } from "@/lib/auth";
 import { round2 } from "@/lib/calculos";
+import { listarPagamentosPendentes } from "@/lib/data/pagamentos";
 
 type ActionResult = { error?: string; pagamentoId?: string };
 
@@ -19,8 +20,9 @@ function revalidar() {
 
 const registrarSchema = z.object({
   corretorId: z.string().uuid(),
-  // Comissões (vendas) a pagar. Ausente = pagar todas as pendentes do corretor.
-  vendaIds: z.array(z.string().uuid()).optional(),
+  // Comissões a pagar, pela CHAVE da linha: id da venda quando à vista, id da
+  // parcela quando a construtora libera parcelado. Ausente = todas as pendentes.
+  chaves: z.array(z.string().uuid()).optional(),
   // Adiantamentos a descontar. Ausente = descontar todos os elegíveis.
   adiantamentoIds: z.array(z.string().uuid()).optional(),
 });
@@ -42,26 +44,31 @@ export async function registrarPagamento(
 
   const supabase = await createClient();
 
-  // Comissões aguardando liberação deste corretor.
-  const { data: vendasData, error: vErr } = await supabase
-    .from("vendas")
-    .select("id, liquido_corretor, data_venda")
-    .eq("corretor_id", corretorId)
-    .eq("status_pagamento_corretor", "aguardando_liberacao");
-  if (vErr) return { error: vErr.message };
-  const todasVendas = (vendasData ?? []) as { id: string; liquido_corretor: number; data_venda: string }[];
-  if (todasVendas.length === 0) {
+  // Fonte única do que está liberado: a MESMA função que monta a tela. Em
+  // venda parcelada, cada linha é uma parcela já recebida da construtora, com
+  // a fatia da comissão dela. Nada do que veio do cliente vira dinheiro sem
+  // passar por aqui.
+  const pendentes = await listarPagamentosPendentes();
+  const doCorretor = pendentes.find((c) => c.corretorId === corretorId);
+  if (!doCorretor || doCorretor.comissoes.length === 0) {
     return { error: "Nenhuma comissão aguardando liberação para este corretor." };
   }
-  // Se o cliente escolheu comissões específicas, paga só essas (validadas contra
-  // as realmente pendentes deste corretor). Sem seleção, paga todas.
-  const vendas = parsed.data.vendaIds
-    ? todasVendas.filter((v) => parsed.data.vendaIds!.includes(v.id))
-    : todasVendas;
-  if (vendas.length === 0) {
+  const comissoes = parsed.data.chaves
+    ? doCorretor.comissoes.filter((c) => parsed.data.chaves!.includes(c.chave))
+    : doCorretor.comissoes;
+  if (comissoes.length === 0) {
     return { error: "Selecione ao menos uma comissão válida para pagar." };
   }
-  const vendaIds = vendas.map((v) => v.id);
+  const parcelaIds = comissoes.map((c) => c.parcelaId).filter((id): id is string => !!id);
+  // Venda entra como "paga" só quando não sobra parcela dela para pagar depois.
+  const vendaIds = [
+    ...new Set(
+      comissoes
+        .filter((c) => !c.parcelaId)
+        .map((c) => c.vendaId),
+    ),
+  ];
+  const vendasParciais = [...new Set(comissoes.filter((c) => c.parcelaId).map((c) => c.vendaId))];
 
   // Adiantamentos ainda não vinculados a descontar: os das vendas que serão
   // pagas (por venda_id) + os vales avulsos do corretor (venda_id nulo).
@@ -69,7 +76,7 @@ export async function registrarPagamento(
     supabase
       .from("adiantamentos")
       .select("id, valor")
-      .in("venda_id", vendaIds)
+      .in("venda_id", [...vendaIds, ...vendasParciais])
       .is("pagamento_id", null),
     supabase
       .from("adiantamentos")
@@ -90,7 +97,7 @@ export async function registrarPagamento(
     adiantamentos = adiantamentos.filter((a) => escolhidos.has(a.id));
   }
 
-  const valorBruto = round2(vendas.reduce((s, v) => s + Number(v.liquido_corretor), 0));
+  const valorBruto = round2(comissoes.reduce((s, c) => s + c.liquidoCorretor, 0));
   const totalAdiantamentos = round2(
     adiantamentos.reduce((s, a) => s + Number(a.valor), 0),
   );
@@ -113,12 +120,40 @@ export async function registrarPagamento(
     .single();
   if (pErr || !pag) return { error: pErr?.message ?? "Falha ao criar o pagamento." };
 
-  // 2) Marca as vendas como pagas e vincula ao pagamento.
-  const { error: uvErr } = await supabase
-    .from("vendas")
-    .update({ status_pagamento_corretor: "pago", pagamento_id: pag.id })
-    .in("id", vendaIds);
-  if (uvErr) return { error: uvErr.message };
+  // 2) Marca as vendas quitadas e vincula ao pagamento.
+  if (vendaIds.length > 0) {
+    const { error: uvErr } = await supabase
+      .from("vendas")
+      .update({ status_pagamento_corretor: "pago", pagamento_id: pag.id })
+      .in("id", vendaIds);
+    if (uvErr) return { error: uvErr.message };
+  }
+
+  // 2b) Parcelas pagas nesta rodada. A venda parcelada só vira "pago" quando a
+  // última cair; até lá ela continua aguardando liberação, com as parcelas que
+  // faltam aparecendo na fila conforme a construtora libera.
+  if (parcelaIds.length > 0) {
+    const { error: upErr } = await supabase
+      .from("venda_parcelas")
+      .update({ pagamento_id: pag.id })
+      .in("id", parcelaIds);
+    if (upErr) return { error: upErr.message };
+
+    for (const vendaId of vendasParciais) {
+      const { count } = await supabase
+        .from("venda_parcelas")
+        .select("id", { count: "exact", head: true })
+        .eq("venda_id", vendaId)
+        .is("pagamento_id", null);
+      if ((count ?? 0) === 0) {
+        const { error } = await supabase
+          .from("vendas")
+          .update({ status_pagamento_corretor: "pago", pagamento_id: pag.id })
+          .eq("id", vendaId);
+        if (error) return { error: error.message };
+      }
+    }
+  }
 
   // 3) Vincula os adiantamentos descontados ao pagamento (para o recibo).
   if (adiantamentos.length > 0) {
@@ -410,14 +445,17 @@ export async function estornarPagamento(
   // NULL). Se apagássemos antes de reverter, não haveria mais como achar as
   // vendas e elas ficariam presas em "pago", fora da lista de a pagar (e os
   // adiantamentos delas somem junto).
-  const [vLig, aLig] = await Promise.all([
+  const [vLig, aLig, pLig] = await Promise.all([
     supabase.from("vendas").select("id").eq("pagamento_id", pagamentoId),
     supabase.from("adiantamentos").select("id").eq("pagamento_id", pagamentoId),
+    supabase.from("venda_parcelas").select("id").eq("pagamento_id", pagamentoId),
   ]);
   if (vLig.error) return { error: vLig.error.message };
   if (aLig.error) return { error: aLig.error.message };
   const vendaIds = (vLig.data ?? []).map((v) => (v as { id: string }).id);
   const adiIds = (aLig.data ?? []).map((a) => (a as { id: string }).id);
+  if (pLig.error) return { error: pLig.error.message };
+  const parcelaIds = (pLig.data ?? []).map((p) => (p as { id: string }).id);
 
   // 1) Reverte as comissões para "aguardando liberação". Confere o número de
   //    linhas: se não voltarem todas (ex.: permissão), ABORTA antes de apagar o
@@ -434,6 +472,15 @@ export async function estornarPagamento(
     if ((count ?? 0) < vendaIds.length) {
       return { error: "Não foi possível reverter todas as comissões. Nada foi estornado." };
     }
+  }
+
+  // 1b) Desvincula as parcelas: voltam a ser comissão a pagar.
+  if (parcelaIds.length > 0) {
+    const { error } = await supabase
+      .from("venda_parcelas")
+      .update({ pagamento_id: null })
+      .in("id", parcelaIds);
+    if (error) return { error: error.message };
   }
 
   // 2) Desvincula os adiantamentos (continuam existindo, voltam a ser descontáveis).
