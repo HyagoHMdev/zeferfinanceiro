@@ -15,12 +15,17 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-const OPCOES: VendaStatus[] = ["aguardando_recebimento", "recebido"];
+const OPCOES: VendaStatus[] = [
+  "aguardando_recebimento",
+  "parcialmente_recebido",
+  "recebido",
+];
 
 // Mesmas cores do badge de status (âmbar → verde → dourado).
 // dark:bg-* explícito para sobrepor o dark:bg-input/30 padrão do SelectTrigger.
 const COR: Record<VendaStatus, string> = {
   aguardando_recebimento: "bg-warning text-black border-transparent dark:bg-warning",
+  parcialmente_recebido: "bg-warning text-black border-transparent dark:bg-warning",
   recebido: "bg-success text-white border-transparent dark:bg-success",
   pago: "bg-primary text-primary-foreground border-transparent dark:bg-primary",
 };

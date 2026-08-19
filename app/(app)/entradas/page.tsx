@@ -40,7 +40,7 @@ export default async function EntradasPage() {
       supabase
         .from("vendas")
         .select("id, cliente, lucro_liquido, empreendimentos(nome)")
-        .eq("status", "aguardando_recebimento")
+        .in("status", ["aguardando_recebimento", "parcialmente_recebido"])
         .order("data_venda", { ascending: false }),
       supabase.from("percentuais_mensais").select("*"),
     ]);

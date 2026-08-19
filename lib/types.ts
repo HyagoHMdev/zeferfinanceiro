@@ -5,7 +5,13 @@
  */
 
 export type AppRole = "admin" | "financeiro" | "diretor" | "corretor";
-export type VendaStatus = "aguardando_recebimento" | "recebido" | "pago";
+export type VendaStatus =
+  | "aguardando_recebimento"
+  // Venda parcelada com parte das parcelas na conta. Quem manda neste estado
+  // é a parcela: o gatilho no banco o liga e desliga sozinho.
+  | "parcialmente_recebido"
+  | "recebido"
+  | "pago";
 export type StatusPagamentoCorretor = "aguardando_liberacao" | "pago";
 export type EntradaTipo =
   | "comissao"
@@ -273,6 +279,7 @@ export interface Lancamento {
 
 export const STATUS_VENDA_LABEL: Record<VendaStatus, string> = {
   aguardando_recebimento: "Aguardando recebimento",
+  parcialmente_recebido: "Parcialmente recebido",
   recebido: "Recebido",
   pago: "Pago",
 };

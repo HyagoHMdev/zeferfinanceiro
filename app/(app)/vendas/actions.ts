@@ -251,7 +251,9 @@ export async function criarVenda(
   // caso um dia se queira religar.)
   //
   // A marcação de "recebido" segue aqui, como sempre foi.
-  if (Number(row.lucro_liquido) > 0) {
+  // Parcelada nasce aguardando: o dinheiro chega mês a mês, e o gatilho das
+  // parcelas move o status conforme cada uma cai.
+  if (Number(row.lucro_liquido) > 0 && !parsed.data.recebimento_parcelado) {
     await supabase.from("vendas").update({ status: "recebido" }).eq("id", nova.id);
   }
 

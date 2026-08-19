@@ -80,11 +80,15 @@ export async function criarEntrada(input: EntradaInput): Promise<ActionResult> {
   if (distErr) return { error: distErr.message };
 
   // Recebimento de comissão liga a entrada à venda e a marca como "recebido".
+  // Em venda PARCELADA quem decide o status é a parcela (gatilho no banco):
+  // marcar "recebido" aqui apagaria o "parcialmente recebido" no meio do
+  // caminho, dizendo que entrou dinheiro que ainda está com a construtora.
   if (e.venda_id) {
     await supabase
       .from("vendas")
       .update({ status: "recebido" })
       .eq("id", e.venda_id)
+      .eq("recebimento_parcelado", false)
       .eq("status", "aguardando_recebimento");
   }
 

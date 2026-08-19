@@ -153,9 +153,14 @@ export async function carregarDashboard(opts?: {
     (v) => (v.status === "recebido" || v.status === "pago") && noPeriodo(v.data_venda),
     (v) => Number(v.liquido_zefer),
   );
+  // Parcialmente recebida entra aqui, e nao em "recebidas": parte do dinheiro
+  // ainda esta com a construtora. Superestima o a receber em vez de
+  // superestimar o caixa, que e o erro seguro dos dois.
   const comissoesPendentes = somar(
     vendas,
-    (v) => v.status === "aguardando_recebimento" && noPeriodo(v.data_venda),
+    (v) =>
+      (v.status === "aguardando_recebimento" || v.status === "parcialmente_recebido") &&
+      noPeriodo(v.data_venda),
     (v) => Number(v.liquido_zefer),
   );
   const pagoCorretores = somar(
