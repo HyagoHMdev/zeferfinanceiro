@@ -43,7 +43,7 @@ export default async function ReciboPagamentoPage({
     supabase
       .from("vendas")
       .select(
-        "id, cliente, liquido_corretor, comissao_corretor_bruto, valor_imposto_nf, empreendimentos(nome)",
+        "id, cliente, liquido_corretor, comissao_corretor_bruto, valor_imposto_nf, desconto_parceiro_valor, possui_parceria, empreendimentos(nome)",
       )
       .eq("pagamento_id", id),
     supabase.from("adiantamentos").select("id, data, descricao, valor").eq("pagamento_id", id),
@@ -56,10 +56,20 @@ export default async function ReciboPagamentoPage({
     liquido_corretor: number;
     comissao_corretor_bruto: number;
     valor_imposto_nf: number;
+    desconto_parceiro_valor: number | null;
+    possui_parceria: boolean;
     empreendimentos: { nome: string } | null;
   }[];
   const totalComissaoBruta = vendas.reduce((s, v) => s + Number(v.comissao_corretor_bruto), 0);
   const totalImposto = vendas.reduce((s, v) => s + Number(v.valor_imposto_nf), 0);
+  // Sem esta coluna o recibo não fechava: comissão menos imposto não dava o
+  // líquido pago, e a diferença (a metade da parceria que sai do corretor)
+  // ficava sem explicação nenhuma no papel.
+  const totalDescontoParceria = vendas.reduce(
+    (s, v) => s + Number(v.desconto_parceiro_valor ?? 0),
+    0,
+  );
+  const temParceria = totalDescontoParceria > 0;
   const adiantamentos = (adiRes.data ?? []) as {
     id: string;
     data: string;
@@ -140,6 +150,9 @@ export default async function ReciboPagamentoPage({
                 <tr className="border-b text-xs text-zinc-500">
                   <th className="py-1 text-left font-medium">Venda</th>
                   <th className="py-1 text-right font-medium">Comissão</th>
+                  {temParceria ? (
+                    <th className="py-1 text-right font-medium">Parceria</th>
+                  ) : null}
                   <th className="py-1 text-right font-medium">Imposto</th>
                   <th className="py-1 text-right font-medium">Líquida</th>
                 </tr>
@@ -154,6 +167,13 @@ export default async function ReciboPagamentoPage({
                     <td className="py-1 text-right tabular-nums">
                       {formatBRL(v.comissao_corretor_bruto)}
                     </td>
+                    {temParceria ? (
+                      <td className="py-1 text-right tabular-nums text-zinc-500">
+                        {Number(v.desconto_parceiro_valor ?? 0) > 0
+                          ? `- ${formatBRL(Number(v.desconto_parceiro_valor))}`
+                          : "—"}
+                      </td>
+                    ) : null}
                     <td className="py-1 text-right tabular-nums text-zinc-500">
                       - {formatBRL(v.valor_imposto_nf)}
                     </td>
@@ -209,6 +229,12 @@ export default async function ReciboPagamentoPage({
                 <span>Comissão bruta</span>
                 <span className="tabular-nums">{formatBRL(totalComissaoBruta)}</span>
               </div>
+              {temParceria ? (
+                <div className="flex justify-between text-zinc-500">
+                  <span>(−) Desconto de parceria</span>
+                  <span className="tabular-nums">- {formatBRL(totalDescontoParceria)}</span>
+                </div>
+              ) : null}
               <div className="flex justify-between text-zinc-500">
                 <span>(−) Imposto (NF)</span>
                 <span className="tabular-nums">- {formatBRL(totalImposto)}</span>

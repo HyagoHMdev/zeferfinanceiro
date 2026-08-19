@@ -19,6 +19,8 @@ export interface ComissaoLinha {
   statusPagamento: StatusPagamentoCorretor;
   /** Só em venda parcelada. `liberada` = a construtora já pagou esta parcela. */
   parcela?: { numero: number; total: number; liberada: boolean };
+  /** Metade da parceria que saiu desta comissão. 0 quando não há parceria. */
+  descontoParceria: number;
 }
 
 interface ComissaoRow {
@@ -45,14 +47,17 @@ export async function listarComissoesCorretor(
   let q = supabase
     .from("vendas")
     .select(
-      "id, data_venda, liquido_corretor, status, status_pagamento_corretor, recebimento_parcelado, corretores(nome), empreendimentos(nome)",
+      "id, data_venda, liquido_corretor, desconto_parceiro_valor, status, status_pagamento_corretor, recebimento_parcelado, corretores(nome), empreendimentos(nome)",
     )
     .not("corretor_id", "is", null)
     .order("data_venda", { ascending: false });
   if (corretorId) q = q.eq("corretor_id", corretorId);
 
   const { data } = await q;
-  const rows = (data ?? []) as unknown as (ComissaoRow & { recebimento_parcelado: boolean })[];
+  const rows = (data ?? []) as unknown as (ComissaoRow & {
+    recebimento_parcelado: boolean;
+    desconto_parceiro_valor: number | null;
+  })[];
 
   const idsParceladas = rows.filter((v) => v.recebimento_parcelado).map((v) => v.id);
   const porVenda = new Map<
@@ -95,16 +100,21 @@ export async function listarComissoesCorretor(
       dataVenda: v.data_venda,
       statusVenda: v.status,
     };
+    const desconto = Number(v.desconto_parceiro_valor ?? 0);
     if (v.recebimento_parcelado && parcelas.length > 0) {
       const fatias = ratearPorParcelas(
         Number(v.liquido_corretor),
         parcelas.map((p) => p.valor),
       );
+      // O desconto de parceria acompanha as parcelas pelo mesmo peso, senão a
+      // soma das linhas não bateria com o desconto da venda.
+      const descontos = ratearPorParcelas(desconto, parcelas.map((p) => p.valor));
       parcelas.forEach((p, i) => {
         linhas.push({
           ...base,
           chave: p.id,
           liquidoCorretor: fatias[i],
+          descontoParceria: descontos[i],
           statusPagamento: p.pago ? "pago" : "aguardando_liberacao",
           parcela: { numero: p.numero, total: parcelas.length, liberada: p.recebido },
         });
@@ -114,6 +124,7 @@ export async function listarComissoesCorretor(
         ...base,
         chave: v.id,
         liquidoCorretor: Number(v.liquido_corretor),
+        descontoParceria: desconto,
         statusPagamento: v.status_pagamento_corretor,
       });
     }

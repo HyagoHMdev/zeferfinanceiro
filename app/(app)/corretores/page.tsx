@@ -82,6 +82,11 @@ export default async function CorretoresPage() {
                           {c.parcela.liberada ? "" : " · aguardando a construtora"}
                         </span>
                       )}
+                      {c.descontoParceria > 0 && (
+                        <span className="block text-xs text-muted-foreground">
+                          desconto de parceria: {formatBRL(c.descontoParceria)}
+                        </span>
+                      )}
                     </TableCell>
                     <TableCell className="whitespace-nowrap">
                       {formatData(c.dataVenda)}

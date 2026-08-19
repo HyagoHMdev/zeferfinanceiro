@@ -103,13 +103,23 @@ export function calcularVenda(input: VendaCalcInput): VendaCalcResultado {
   const valorImpostoRaw = liquidoPosParceriaRaw * percentualImpostoImobiliaria;
   const liquidoZeferRaw = liquidoPosParceriaRaw - valorImpostoRaw;
 
-  // Cadeia do corretor (comissão sobre o VGV; desconto opcional quando há parceria).
+  // Cadeia do corretor (comissão sobre o VGV; desconto quando há parceria).
+  //
+  // REGRA: a parceria é dividida meio a meio. Metade sai da imobiliária (já
+  // saiu acima, no líquido pós-parceria) e metade do corretor, por este
+  // desconto. Como o lucro é o líquido da Zefer MENOS o líquido do corretor, a
+  // metade descontada aqui volta para a empresa: no fim, cada lado banca 50%.
+  //
+  // Um valor digitado à mão vence a regra (acordo específico), e o percentual
+  // legado ainda é respeitado nas vendas antigas que só tinham ele.
   const comissaoCorretorBrutoRaw = vgv * percentualCorretor;
   const descontoCorretorRaw = !possuiParceria
     ? 0
     : descontoParceiroValor !== undefined
       ? Math.min(Math.max(descontoParceiroValor, 0), comissaoCorretorBrutoRaw)
-      : comissaoCorretorBrutoRaw * percentualDescontoParceiro;
+      : percentualDescontoParceiro > 0
+        ? comissaoCorretorBrutoRaw * percentualDescontoParceiro
+        : Math.min(valorParceriaRaw / 2, comissaoCorretorBrutoRaw);
   const comissaoCorretorAjustadaRaw = comissaoCorretorBrutoRaw - descontoCorretorRaw;
   const valorImpostoNfRaw = comissaoCorretorAjustadaRaw * percentualImpostoNf;
   const liquidoCorretorRaw = comissaoCorretorAjustadaRaw - valorImpostoNfRaw;

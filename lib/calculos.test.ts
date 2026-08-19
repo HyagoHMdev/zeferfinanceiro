@@ -28,6 +28,9 @@ describe("calcularVenda — parceria sobre o VGV (base = VGV)", () => {
     percentualDescontoParceiro: 0,
     percentualImpostoNf: 0.119,
   });
+  // Os números do corretor mudaram quando a parceria passou a ser dividida
+  // meio a meio: antes ela saía inteira da imobiliária, e o corretor recebia
+  // sem desconto nenhum.
   it("calcula o valor da parceria sobre o VGV e a cadeia ao centavo", () => {
     expect(r.comissaoBruta).toBe(21589.5);
     expect(r.valorParceria).toBe(4317.9); // 431790 × 1%
@@ -35,9 +38,10 @@ describe("calcularVenda — parceria sobre o VGV (base = VGV)", () => {
     expect(r.valorImposto).toBe(2055.32);
     expect(r.liquidoZefer).toBe(15216.28);
     expect(r.comissaoCorretorBruto).toBe(7556.33);
-    expect(r.valorImpostoNf).toBe(899.2);
-    expect(r.liquidoCorretor).toBe(6657.12);
-    expect(r.lucroLiquido).toBe(8559.16);
+    expect(r.descontoCorretor).toBe(2158.95); // metade de 4317,90
+    expect(r.valorImpostoNf).toBe(642.29);
+    expect(r.liquidoCorretor).toBe(4755.09);
+    expect(r.lucroLiquido).toBe(10461.19);
   });
 });
 
@@ -173,5 +177,45 @@ describe("ratearPorParcelas", () => {
   it("sem parcela, ou com parcelas zeradas, não inventa valor", () => {
     expect(ratearPorParcelas(1000, [])).toEqual([]);
     expect(ratearPorParcelas(1000, [0, 0])).toEqual([0, 0]);
+  });
+});
+
+describe("parceria dividida meio a meio", () => {
+  const base = {
+    vgv: 1_000_000,
+    percentualComissao: 0.05,
+    possuiParceria: true,
+    percentualParceria: 0.01, // R$ 10.000 de parceria
+    percentualImpostoImobiliaria: 0,
+    percentualCorretor: 0.3,
+    percentualImpostoNf: 0,
+  };
+
+  it("desconta metade da parceria do corretor quando ninguém digitou nada", () => {
+    const r = calcularVenda(base);
+    expect(r.valorParceria).toBe(10_000);
+    expect(r.descontoCorretor).toBe(5_000);
+  });
+
+  it("cada lado banca metade: a empresa recupera do corretor a metade dele", () => {
+    const r = calcularVenda(base);
+    // Sem parceria nenhuma, o lucro seria 50.000 - 300.000 = -250.000.
+    const semParceria = calcularVenda({ ...base, possuiParceria: false });
+    // Com parceria, o lucro cai exatamente a METADE da parceria.
+    expect(round2(semParceria.lucroLiquido - r.lucroLiquido)).toBe(5_000);
+  });
+
+  it("valor digitado à mão vence a regra", () => {
+    const r = calcularVenda({ ...base, descontoParceiroValor: 1_500 });
+    expect(r.descontoCorretor).toBe(1_500);
+  });
+
+  it("venda antiga com percentual legado continua pelo percentual", () => {
+    const r = calcularVenda({ ...base, percentualDescontoParceiro: 0.1 });
+    expect(r.descontoCorretor).toBe(30_000); // 10% de 300.000
+  });
+
+  it("sem parceria não há desconto", () => {
+    expect(calcularVenda({ ...base, possuiParceria: false }).descontoCorretor).toBe(0);
   });
 });
