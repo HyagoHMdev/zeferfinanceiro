@@ -218,16 +218,35 @@ export function VendaForm({
     ),
   );
   const [observacoes, setObservacoes] = useState(venda?.observacoes ?? "");
+  // Aprovando uma submissão, os arquivos que o CORRETOR anexou já entram na
+  // venda. Os dois lados guardam no mesmo bucket ("contratos"), então é só
+  // reaproveitar o caminho: nada é copiado nem re-enviado. Sem isto a venda
+  // nascia sem anexo nenhum e os documentos ficavam presos no checklist.
+  const doDocs = (rotulo: string) =>
+    checklist?.docs.find((d) => d.rotulo === rotulo)?.arquivos ?? [];
+
   const [contratoPath, setContratoPath] = useState<string | null>(
-    venda?.contrato_path ?? null,
+    venda?.contrato_path ?? doDocs("Contrato")[0]?.path ?? null,
   );
   // Vem do banco como jsonb: pode chegar com formato antigo ou nulo, então a
   // leitura filtra em vez de confiar.
-  const [documentos, setDocumentos] = useState<DocumentoVenda[]>(() =>
-    Array.isArray(venda?.documentos)
-      ? (venda.documentos as DocumentoVenda[]).filter((d) => d?.path)
-      : [],
-  );
+  const [documentos, setDocumentos] = useState<DocumentoVenda[]>(() => {
+    if (Array.isArray(venda?.documentos)) {
+      return (venda.documentos as DocumentoVenda[]).filter((d) => d?.path);
+    }
+    if (!checklist) return [];
+    // Tudo que não é o contrato principal vira anexo da venda, com o rótulo do
+    // checklist no nome para não virar uma lista de arquivos sem contexto.
+    const contratoPrincipal = doDocs("Contrato")[0]?.path;
+    return checklist.docs
+      .flatMap((grupo) =>
+        grupo.arquivos.map((a) => ({
+          path: a.path,
+          nome: `${grupo.rotulo} · ${a.nome}`,
+        })),
+      )
+      .filter((d) => d.path && d.path !== contratoPrincipal);
+  });
   const [saving, setSaving] = useState(false);
 
   // Empreendimento sem construtora vinculada aparece sempre. Antes ele sumia
