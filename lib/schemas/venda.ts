@@ -35,10 +35,15 @@ export const vendaSchema = z.object({
   // Ausente = mantém o que já estava na venda (ou o padrão do cadastro, na
   // criação). Só entra na conta quando vem preenchido de propósito.
   percentual_corretor: z.number().min(0).max(1).optional(),
-  // Imposto da NF do corretor e desconto de parceria: mesma regra do
-  // percentual acima (ausente = mantém o que a venda já tinha).
+  // Imposto da NF do corretor: mesma regra do percentual acima (ausente =
+  // mantém o que a venda já tinha).
   percentual_imposto_nf: z.number().min(0).max(1).optional(),
-  /** Desconto de parceria em R$ (não em %). Só entra quando há parceria. */
+  /**
+   * Desconto de parceria em R$. NÃO existe campo para ele no formulário da
+   * venda: a parceria sai inteira da imobiliária, e o desconto do corretor é
+   * exceção lançada no módulo Corretores. Fica aqui porque a action aceita o
+   * valor quando ele vem de lá.
+   */
   desconto_parceiro_valor: z.number().nonnegative().optional(),
   // Construtora libera a comissão mês a mês, conforme o cliente paga. Com isso
   // ligado, o repasse do investidor vira um lançamento por parcela.

@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 
 import { calcularVenda, round2 } from "@/lib/calculos";
-import { parseNumeroBR, formatBRL, formatNumero, formatarCpf } from "@/lib/format";
+import { parseNumeroBR, formatBRL, formatarCpf } from "@/lib/format";
 import { percentualComFallback } from "@/lib/percentuais";
 import { criarVenda, atualizarVenda } from "@/app/(app)/vendas/actions";
 import { ContratoUpload } from "@/components/contrato-upload";
@@ -309,11 +309,6 @@ export function VendaForm({
   const pctImpostoNfAtual =
     pctImpostoNfEdit === null ? pctImpostoNfPreview : pctToFrac(pctImpostoNfEdit);
 
-  // Desconto de parceria em R$ (o percentual antigo continua no banco, mas
-  // quem digita pensa em reais).
-  const [descontoEdit, setDescontoEdit] = useState<string | null>(null);
-  const descontoAtual =
-    descontoEdit === null ? undefined : parseNumeroBR(descontoEdit);
 
   const calc = useMemo(
     () =>
@@ -325,7 +320,6 @@ export function VendaForm({
         percentualImpostoImobiliaria: pctToFrac(pctImpostoImob),
         percentualCorretor: pctCorretorPreview,
         percentualDescontoParceiro: pctDescontoPreview,
-        descontoParceiroValor: descontoAtual,
         percentualImpostoNf: pctImpostoNfAtual,
       }),
     [
@@ -336,7 +330,6 @@ export function VendaForm({
       pctImpostoImob,
       pctCorretorPreview,
       pctDescontoPreview,
-      descontoAtual,
       pctImpostoNfAtual,
     ],
   );
@@ -428,9 +421,6 @@ export function VendaForm({
       corretor_id: corretorId === NONE ? null : corretorId,
       percentual_corretor: pctCorretorPreview,
       percentual_imposto_nf: pctImpostoNfAtual,
-      ...(possuiParceria && descontoAtual !== undefined
-        ? { desconto_parceiro_valor: descontoAtual }
-        : {}),
       recebimento_parcelado: parcelado,
       parcelas: parcelado ? parcelas : [],
       possui_parceria: possuiParceria,
@@ -764,10 +754,10 @@ export function VendaForm({
           </CardContent>
         </Card>
 
-        {/* CARD 3 — Valores e percentuais */}
+        {/* CARD 3 — Valores e percentuais gerais (cadeia da imobiliária) */}
         <Card>
           <CardHeader>
-            <CardTitle>Valores e percentuais</CardTitle>
+            <CardTitle>Valores e percentuais gerais</CardTitle>
           </CardHeader>
           <CardContent className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <Calculado label="VGV" valor={parseNumeroBR(vgv)} />
@@ -793,6 +783,15 @@ export function VendaForm({
             </div>
             <Calculado label="R$ imposto" valor={calc.valorImposto} />
             <Calculado label="Líquido pós imposto" valor={calc.liquidoZefer} />
+          </CardContent>
+        </Card>
+
+        {/* CARD 4 — Valores e percentuais do corretor */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Valores e percentuais do corretor</CardTitle>
+          </CardHeader>
+          <CardContent className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="pctCorretor">% comissão do corretor</Label>
               <Input
@@ -813,25 +812,6 @@ export function VendaForm({
               </p>
             </div>
             <Calculado label="Comissão do corretor" valor={calc.comissaoCorretorBruto} />
-            {possuiParceria && (
-              <div className="space-y-2">
-                <Label htmlFor="descontoParceria">R$ desconto de parceria</Label>
-                <Input
-                  id="descontoParceria"
-                  inputMode="decimal"
-                  value={
-                    descontoEdit === null
-                      ? formatNumero(calc.descontoCorretor)
-                      : descontoEdit
-                  }
-                  onChange={(e) => setDescontoEdit(e.target.value)}
-                  placeholder="0,00"
-                />
-                <p className="text-xs text-muted-foreground">
-                  Sai da comissão do corretor. Em reais, não em percentual.
-                </p>
-              </div>
-            )}
             <div className="space-y-2">
               <Label htmlFor="pctImpostoNf">% imposto da NF do corretor</Label>
               <Input
@@ -853,6 +833,15 @@ export function VendaForm({
             </div>
             <Calculado label="R$ imposto da NF" valor={calc.valorImpostoNf} />
             <Calculado label="Líquido do corretor" valor={calc.liquidoCorretor} />
+          </CardContent>
+        </Card>
+
+        {/* CARD 5 — Observações e documentos (não são valores, card próprio) */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Observações e documentos</CardTitle>
+          </CardHeader>
+          <CardContent className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="space-y-2 sm:col-span-2">
               <Label htmlFor="obs">Observações</Label>
               <Textarea
