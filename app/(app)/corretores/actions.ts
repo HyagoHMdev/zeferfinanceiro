@@ -204,3 +204,51 @@ export async function desvincularAdiantamento(
   revalidatePath("/adiantamentos");
   return {};
 }
+
+const parcelaSchema = z.object({
+  parcelaId: z.string().uuid(),
+  /** null = desmarcar (a construtora não liberou, ou foi marcado por engano). */
+  recebidoEm: z.string().min(1).nullable(),
+});
+
+/**
+ * Marca (ou desmarca) que a construtora liberou uma parcela.
+ *
+ * É o que "processar a parcela" significa: enquanto ela não caiu, a fatia da
+ * comissão não entra na fila de pagamento do corretor. Antes disto, só dava
+ * para mexer nisso reabrindo o formulário da venda inteira.
+ *
+ * Parcela já paga ao corretor não se mexe: desfazer aqui deixaria um pagamento
+ * apontando para uma parcela que voltou a não existir. Para isso existe o
+ * estorno do pagamento.
+ */
+export async function marcarParcelaRecebida(
+  input: z.infer<typeof parcelaSchema>,
+): Promise<ActionResult> {
+  await requireRole(ADMIN_FIN_ROLES);
+  const parsed = parcelaSchema.safeParse(input);
+  if (!parsed.success) return { error: "Dados inválidos." };
+
+  const supabase = await createClient();
+  const { data: atual } = await supabase
+    .from("venda_parcelas")
+    .select("venda_id, pagamento_id")
+    .eq("id", parsed.data.parcelaId)
+    .maybeSingle<{ venda_id: string; pagamento_id: string | null }>();
+  if (!atual) return { error: "Parcela não encontrada." };
+  if (atual.pagamento_id) {
+    return { error: "Esta parcela já foi paga ao corretor. Estorne o pagamento antes." };
+  }
+
+  const { error } = await supabase
+    .from("venda_parcelas")
+    .update({ recebido_em: parsed.data.recebidoEm })
+    .eq("id", parsed.data.parcelaId);
+  if (error) return { error: error.message };
+
+  // O gatilho no banco cuida do resto: status da venda e datas do repasse do
+  // investidor acompanham a parcela.
+  revalidar(atual.venda_id);
+  revalidatePath("/pagamentos");
+  return {};
+}

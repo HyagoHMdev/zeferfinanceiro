@@ -19,6 +19,7 @@ import {
   registrarAdiantamento,
   vincularAdiantamento,
   desvincularAdiantamento,
+  marcarParcelaRecebida,
 } from "@/app/(app)/corretores/actions";
 import type { ProcessamentoVenda } from "@/lib/data/corretores";
 import { Button } from "@/components/ui/button";
@@ -52,6 +53,23 @@ export function ProcessamentoCorretor({
 }) {
   const router = useRouter();
   const { venda, adiantamentos, parcelas } = dados;
+  const [parcelaBusy, setParcelaBusy] = useState<string | null>(null);
+
+  /**
+   * Liberar a parcela é o que solta a fatia da comissão para a fila de
+   * pagamento. Fica aqui, e não só no formulário da venda, porque quem
+   * acompanha o recebimento da construtora é quem abre esta tela.
+   */
+  async function alternarParcela(id: string, recebidoEm: string | null) {
+    setParcelaBusy(id);
+    const res = await marcarParcelaRecebida({
+      parcelaId: id,
+      recebidoEm: recebidoEm ? null : new Date().toISOString().slice(0, 10),
+    });
+    setParcelaBusy(null);
+    if (res?.error) return toast.error(res.error);
+    router.refresh();
+  }
 
   // Vales do corretor: os desta venda (incluídos) + os avulsos disponíveis.
   const linhasAdiantamento = [
@@ -350,9 +368,19 @@ export function ProcessamentoCorretor({
                           {p.pago
                             ? "paga ao corretor"
                             : p.recebidoEm
-                              ? "liberada, na fila de pagamento"
+                              ? `liberada em ${formatData(p.recebidoEm)}`
                               : "aguardando a construtora"}
                         </span>
+                        {podeEditar && !p.pago ? (
+                          <button
+                            type="button"
+                            disabled={parcelaBusy === p.id}
+                            onClick={() => alternarParcela(p.id, p.recebidoEm)}
+                            className="mt-0.5 underline underline-offset-2 hover:text-foreground disabled:opacity-50"
+                          >
+                            {p.recebidoEm ? "desfazer" : "marcar como liberada"}
+                          </button>
+                        ) : null}
                       </span>
                       <span
                         className={

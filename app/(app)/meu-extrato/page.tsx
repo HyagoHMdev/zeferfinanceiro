@@ -36,12 +36,10 @@ export default async function MeuExtratoPage() {
 
   const comissoes = await listarComissoesCorretor(profile.corretor_id);
   const total = round2(comissoes.reduce((s, c) => s + c.liquidoCorretor, 0));
-  const pendente = round2(
-    comissoes
-      .filter((c) => c.statusPagamento === "aguardando_liberacao")
-      .reduce((s, c) => s + c.liquidoCorretor, 0),
-  );
-  const pago = round2(total - pendente);
+  // Em venda parcelada parte pode já ter sido paga: o "a receber" é o que
+  // sobra, não a comissão inteira.
+  const pago = round2(comissoes.reduce((s, c) => s + c.liquidoPago, 0));
+  const pendente = round2(total - pago);
 
   return (
     <div>
@@ -78,10 +76,12 @@ export default async function MeuExtratoPage() {
                   <TableRow key={c.chave}>
                     <TableCell className="font-medium">
                       {c.empreendimento ?? "—"}
-                      {c.parcela && (
+                      {c.parcelas && (
                         <span className="block text-xs font-normal text-muted-foreground">
-                          parcela {c.parcela.numero}/{c.parcela.total}
-                          {c.parcela.liberada ? "" : " · aguardando a construtora"}
+                          {c.parcelas.total} parcelas · {c.parcelas.pagas} pagas
+                          {c.parcelas.liberadas > c.parcelas.pagas
+                            ? ` · ${c.parcelas.liberadas - c.parcelas.pagas} liberadas a receber`
+                            : ""}
                         </span>
                       )}
                       {c.descontoParceria > 0 && (

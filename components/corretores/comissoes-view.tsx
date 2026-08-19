@@ -87,12 +87,10 @@ export function ComissoesView({
   // depois de escolher um corretor ou um mês.
   const totais = useMemo(() => {
     const total = round2(filtradas.reduce((s, c) => s + c.liquidoCorretor, 0));
-    const pendente = round2(
-      filtradas
-        .filter((c) => c.statusPagamento === "aguardando_liberacao")
-        .reduce((s, c) => s + c.liquidoCorretor, 0),
-    );
-    return { total, pendente, pago: round2(total - pendente) };
+    // Venda parcelada pode estar meio paga: somar por status jogaria o valor
+    // cheio para um lado só.
+    const pago = round2(filtradas.reduce((s, c) => s + c.liquidoPago, 0));
+    return { total, pendente: round2(total - pago), pago };
   }, [filtradas]);
 
   const temFiltro = corretor !== TODOS || empreendimento !== TODOS || mes !== TODOS;
@@ -202,10 +200,10 @@ export function ComissoesView({
                       {c.unidade ? (
                         <span className="text-muted-foreground"> · {c.unidade}</span>
                       ) : null}
-                      {c.parcela && (
+                      {c.parcelas && (
                         <span className="block text-xs text-muted-foreground">
-                          parcela {c.parcela.numero}/{c.parcela.total}
-                          {c.parcela.liberada ? "" : " · aguardando a construtora"}
+                          {c.parcelas.total} parcelas · {c.parcelas.liberadas} liberadas
+                          {c.parcelas.pagas > 0 ? ` · ${c.parcelas.pagas} pagas` : ""}
                         </span>
                       )}
                       {c.descontoParceria > 0 && (
@@ -218,7 +216,7 @@ export function ComissoesView({
                       {formatBRL(c.liquidoCorretor)}
                     </TableCell>
                     <TableCell>
-                      {podeEditar && !c.parcela ? (
+                      {podeEditar && !c.parcelas ? (
                         <CorretorStatusSelect vendaId={c.vendaId} status={c.statusPagamento} />
                       ) : (
                         <Badge

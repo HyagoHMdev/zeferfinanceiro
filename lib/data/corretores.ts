@@ -19,8 +19,15 @@ export interface ComissaoLinha {
   liquidoCorretor: number;
   statusVenda: VendaStatus;
   statusPagamento: StatusPagamentoCorretor;
-  /** Só em venda parcelada. `liberada` = a construtora já pagou esta parcela. */
-  parcela?: { numero: number; total: number; liberada: boolean };
+  /**
+   * Só em venda parcelada. Resume as parcelas para a lista mostrar UMA linha
+   * por venda; o detalhe parcela a parcela fica na tela de processamento.
+   */
+  parcelas?: { total: number; liberadas: number; pagas: number };
+  /** Da comissão, quanto já foi pago ao corretor (parcelas quitadas). */
+  liquidoPago: number;
+  /** O que falta pagar. Em venda à vista é tudo ou nada. */
+  liquidoPendente: number;
   /** Metade da parceria que saiu desta comissão. 0 quando não há parceria. */
   descontoParceria: number;
 }
@@ -106,29 +113,37 @@ export async function listarComissoesCorretor(
       statusVenda: v.status,
     };
     const desconto = Number(v.desconto_parceiro_valor ?? 0);
+    const total = Number(v.liquido_corretor);
+
     if (v.recebimento_parcelado && parcelas.length > 0) {
-      const fatias = ratearPorParcelas(
-        Number(v.liquido_corretor),
-        parcelas.map((p) => p.valor),
-      );
-      // O desconto de parceria acompanha as parcelas pelo mesmo peso, senão a
-      // soma das linhas não bateria com o desconto da venda.
-      const descontos = ratearPorParcelas(desconto, parcelas.map((p) => p.valor));
-      parcelas.forEach((p, i) => {
-        linhas.push({
-          ...base,
-          chave: p.id,
-          liquidoCorretor: fatias[i],
-          descontoParceria: descontos[i],
-          statusPagamento: p.pago ? "pago" : "aguardando_liberacao",
-          parcela: { numero: p.numero, total: parcelas.length, liberada: p.recebido },
-        });
-      });
-    } else {
+      // A venda parcelada é UMA linha, como qualquer outra: espalhar cinco
+      // linhas da mesma venda enchia a lista e escondia quantas vendas o
+      // corretor tem. O que muda é o rodapé da linha, que conta as parcelas,
+      // e a tela de processamento, onde elas aparecem uma a uma.
+      const fatias = ratearPorParcelas(total, parcelas.map((p) => p.valor));
+      const pago = parcelas.reduce((s, p, i) => (p.pago ? s + fatias[i] : s), 0);
       linhas.push({
         ...base,
         chave: v.id,
-        liquidoCorretor: Number(v.liquido_corretor),
+        liquidoCorretor: total,
+        liquidoPago: round2(pago),
+        liquidoPendente: round2(total - pago),
+        descontoParceria: desconto,
+        statusPagamento: v.status_pagamento_corretor,
+        parcelas: {
+          total: parcelas.length,
+          liberadas: parcelas.filter((p) => p.recebido).length,
+          pagas: parcelas.filter((p) => p.pago).length,
+        },
+      });
+    } else {
+      const pago = v.status_pagamento_corretor === "pago" ? total : 0;
+      linhas.push({
+        ...base,
+        chave: v.id,
+        liquidoCorretor: total,
+        liquidoPago: pago,
+        liquidoPendente: round2(total - pago),
         descontoParceria: desconto,
         statusPagamento: v.status_pagamento_corretor,
       });
