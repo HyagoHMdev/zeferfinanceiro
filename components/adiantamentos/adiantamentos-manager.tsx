@@ -67,6 +67,9 @@ export function AdiantamentosManager({
   const router = useRouter();
   const [corretorId, setCorretorId] = useState(TODOS);
   const [mes, setMes] = useState(TODOS);
+  // Status = já foi descontado num pagamento, ou ainda vai ser. É a pergunta
+  // que se faz nesta tela: quanto ainda tenho para descontar de quem.
+  const [status, setStatus] = useState<typeof TODOS | "aberto" | "descontado">(TODOS);
 
   const corretoresOpts = useMemo(() => {
     const m = new Map<string, string>();
@@ -86,13 +89,14 @@ export function AdiantamentosManager({
       adiantamentos.filter(
         (a) =>
           (corretorId === TODOS || a.corretorId === corretorId) &&
-          (mes === TODOS || a.data.slice(0, 7) === mes),
+          (mes === TODOS || a.data.slice(0, 7) === mes) &&
+          (status === TODOS || (status === "descontado" ? a.descontado : !a.descontado)),
       ),
-    [adiantamentos, corretorId, mes],
+    [adiantamentos, corretorId, mes, status],
   );
 
   const total = filtrados.reduce((s, a) => s + a.valor, 0);
-  const temFiltro = corretorId !== TODOS || mes !== TODOS;
+  const temFiltro = corretorId !== TODOS || mes !== TODOS || status !== TODOS;
 
   async function toggleRecibo(a: AdiantamentoAvulsoRow, v: boolean) {
     const res = await alternarReciboOk(a.id, v);
@@ -142,6 +146,20 @@ export function AdiantamentosManager({
           </SelectContent>
         </Select>
 
+        <Select
+          value={status}
+          onValueChange={(v) => setStatus(v as typeof status)}
+        >
+          <SelectTrigger size="sm" className="w-40">
+            <SelectValue placeholder="Status" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value={TODOS}>Todos os status</SelectItem>
+            <SelectItem value="aberto">A descontar</SelectItem>
+            <SelectItem value="descontado">Descontado</SelectItem>
+          </SelectContent>
+        </Select>
+
         {temFiltro ? (
           <Button
             variant="ghost"
@@ -149,6 +167,7 @@ export function AdiantamentosManager({
             onClick={() => {
               setCorretorId(TODOS);
               setMes(TODOS);
+              setStatus(TODOS);
             }}
           >
             <X className="size-4" />
