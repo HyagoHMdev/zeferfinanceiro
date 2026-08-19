@@ -52,14 +52,6 @@ export const NAV_ITEMS: NavItem[] = [
     roles: ["admin", "financeiro", "diretor"],
   },
   {
-    // Cadastro dos colaboradores (dados, PIX, percentuais). Aponta direto para
-    // a aba certa: antes só se chegava caçando dentro de Configurações.
-    label: "Colaboradores",
-    href: "/configuracoes/cadastros?aba=corretores",
-    icon: Users,
-    roles: ["admin"],
-  },
-  {
     label: "Entradas",
     href: "/entradas",
     icon: Wallet,
@@ -72,7 +64,7 @@ export const NAV_ITEMS: NavItem[] = [
     roles: ["admin", "financeiro"],
   },
   {
-    label: "Pagamentos",
+    label: "Pagamentos colaboradores",
     href: "/pagamentos",
     icon: HandCoins,
     roles: ["admin", "financeiro"],
