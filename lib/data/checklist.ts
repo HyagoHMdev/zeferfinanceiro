@@ -26,6 +26,12 @@ export interface ChecklistPendente {
   finalidade: string | null;
   origem: string | null;
   docs: { rotulo: string; arquivos: { path: string; nome: string }[] }[];
+  /** Bonificação de campanha informada pelo corretor. null = venda sem bônus. */
+  bonificacao: {
+    campanha: string;
+    valor: number;
+    print: { path: string; nome: string }[];
+  } | null;
   // Contrato e comprovante de pagamento sao o que o aceite exige; o corretor
   // pode enviar a venda sem eles e anexar depois.
   podeAprovar: boolean;
@@ -56,6 +62,10 @@ type Linha = {
   doc_residencia: { path: string; nome: string }[];
   doc_contrato: { path: string; nome: string }[];
   doc_pagamento: { path: string; nome: string }[];
+  tem_bonificacao: boolean | null;
+  bonificacao_campanha: string | null;
+  bonificacao_valor: number | null;
+  bonificacao_print: { path: string; nome: string }[] | null;
   created_at: string;
   profiles: { nome: string | null } | null;
 };
@@ -134,6 +144,14 @@ export async function listarChecklistsPendentes(): Promise<ChecklistPendente[]> 
       { rotulo: "Contrato", arquivos: r.doc_contrato ?? [] },
       { rotulo: "Comprovante de pagamento", arquivos: r.doc_pagamento ?? [] },
     ],
+    bonificacao:
+      r.tem_bonificacao && r.bonificacao_campanha && Number(r.bonificacao_valor) > 0
+        ? {
+            campanha: r.bonificacao_campanha,
+            valor: Number(r.bonificacao_valor),
+            print: r.bonificacao_print ?? [],
+          }
+        : null,
     podeAprovar: (r.doc_contrato ?? []).length > 0 && (r.doc_pagamento ?? []).length > 0,
     lead: porChave.get(telefoneChave(r.cliente_telefone) ?? "") ?? null,
     criadoEm: r.created_at,

@@ -127,6 +127,35 @@ export function ChecklistsPendentes({ itens }: { itens: ChecklistPendente[] }) {
               ))}
             </div>
 
+            {/* A bonificação aparece já na fila: ela muda o que a construtora
+                deve, e quem aprova a venda quer ver isso antes de aprovar. */}
+            {c.bonificacao && (
+              <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 rounded-md border border-dashed px-3 py-2 text-xs">
+                <span className="font-medium">Bonificação</span>
+                <span className="text-muted-foreground">
+                  {c.bonificacao.campanha} · {formatBRL(c.bonificacao.valor)}
+                </span>
+                {c.bonificacao.print.length === 0 ? (
+                  <span className="text-amber-600 dark:text-amber-400">sem o print</span>
+                ) : (
+                  c.bonificacao.print.map((a) => (
+                    <button
+                      key={a.path}
+                      type="button"
+                      onClick={() => ver(a.path)}
+                      className="inline-flex items-center gap-1 underline-offset-2 hover:underline"
+                    >
+                      <FileText className="size-3" />
+                      {a.nome}
+                    </button>
+                  ))
+                )}
+                <span className="text-muted-foreground">
+                  entra em Bonificações para conferência
+                </span>
+              </div>
+            )}
+
             {recusando === c.id && (
               <div className="mt-3 flex flex-wrap items-center gap-2">
                 <Input

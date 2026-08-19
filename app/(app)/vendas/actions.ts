@@ -12,6 +12,7 @@ import { getConfig } from "@/lib/data/cadastros";
 import { calcularVenda, calcularDistribuicao } from "@/lib/calculos";
 import { vendaSchema, type VendaInput } from "@/lib/schemas/venda";
 import type { Configuracoes, VendaStatus } from "@/lib/types";
+import { criarBonificacaoDaVenda } from "@/app/(app)/bonificacoes/actions";
 
 type ActionResult = { error?: string };
 
@@ -286,7 +287,13 @@ export async function criarVenda(
 
   // Aprovar é criar a venda. Se este passo falhar, a venda existe e a submissão
   // continua pendente: reaparece na fila em vez de sumir, que é o erro seguro.
-  if (checklistId) await aprovarChecklist(checklistId, nova.id);
+  if (checklistId) {
+    await aprovarChecklist(checklistId, nova.id);
+    // A bonificação informada pelo corretor vira uma linha PENDENTE na aba
+    // Bonificações: aprovar a venda não é aprovar o bônus, que ainda depende
+    // de conferir a campanha e de a construtora pagar.
+    await criarBonificacaoDaVenda(nova.id, checklistId);
+  }
 
   revalidar();
   redirect("/vendas");

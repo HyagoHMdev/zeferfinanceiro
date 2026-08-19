@@ -9,6 +9,7 @@ import {
   BarChart3,
   CalendarDays,
   Cake,
+  Gift,
   Settings,
   type LucideIcon,
 } from "lucide-react";
@@ -74,6 +75,12 @@ export const NAV_ITEMS: NavItem[] = [
     label: "Pagamentos",
     href: "/pagamentos",
     icon: HandCoins,
+    roles: ["admin", "financeiro"],
+  },
+  {
+    label: "Bonificações",
+    href: "/bonificacoes",
+    icon: Gift,
     roles: ["admin", "financeiro"],
   },
   {

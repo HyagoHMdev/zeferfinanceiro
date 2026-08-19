@@ -337,3 +337,33 @@ export const PERCENTUAL_CHAVE_LABEL: Record<PercentualChave, string> = {
   imposto_imobiliaria: "% Imposto imobiliária",
   dizimo: "% Dízimo",
 };
+
+/**
+ * Bonificação de campanha: a construtora promete um bônus por venda dentro de
+ * uma campanha, o corretor informa na venda e o financeiro confere. Só vira
+ * dinheiro quando a construtora libera.
+ */
+export type BonificacaoStatus = "pendente" | "aprovada" | "paga" | "recusada";
+
+export const STATUS_BONIFICACAO_LABEL: Record<BonificacaoStatus, string> = {
+  pendente: "Aguardando conferência",
+  aprovada: "Aprovada · aguardando a construtora",
+  paga: "Paga",
+  recusada: "Recusada",
+};
+
+export interface BonificacaoLinha {
+  id: string;
+  corretorId: string;
+  corretorNome: string | null;
+  vendaId: string | null;
+  cliente: string | null;
+  empreendimento: string | null;
+  campanha: string | null;
+  valor: number;
+  data: string;
+  status: BonificacaoStatus;
+  observacao: string | null;
+  pagoEm: string | null;
+  anexos: { path: string; nome: string }[];
+}
