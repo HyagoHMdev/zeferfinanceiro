@@ -855,37 +855,7 @@ export function VendaForm({
           </CardContent>
         </Card>
 
-        {/* CARD 5 — Observações e documentos (não são valores, card próprio) */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Observações e documentos</CardTitle>
-          </CardHeader>
-          <CardContent className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <div className="space-y-2 sm:col-span-2">
-              <Label htmlFor="obs">Observações</Label>
-              <Textarea
-                id="obs"
-                rows={4}
-                value={observacoes}
-                onChange={(e) => setObservacoes(e.target.value)}
-                placeholder="Condições combinadas, pendências, o que mais precisar registrar."
-              />
-              <p className="text-xs text-muted-foreground">
-                {observacoes.length}/2000
-              </p>
-            </div>
-            <div className="space-y-2 sm:col-span-2">
-              <Label>Contrato assinado</Label>
-              <ContratoUpload value={contratoPath} onChange={setContratoPath} />
-            </div>
-            <div className="space-y-2 sm:col-span-2">
-              <Label>Documentos do cliente</Label>
-              <DocumentosUpload value={documentos} onChange={setDocumentos} />
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* CARD — Recebimento da construtora (parcelado) */}
+        {/* CARD 5 — Recebimento da construtora (parcelado) */}
         <Card>
           <CardHeader>
             <CardTitle>Recebimento da construtora</CardTitle>
@@ -1000,6 +970,36 @@ export function VendaForm({
                 )}
               </>
             )}
+          </CardContent>
+        </Card>
+
+        {/* CARD 6 — Observações e documentos (não são valores, card próprio) */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Observações e documentos</CardTitle>
+          </CardHeader>
+          <CardContent className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div className="space-y-2 sm:col-span-2">
+              <Label htmlFor="obs">Observações</Label>
+              <Textarea
+                id="obs"
+                rows={4}
+                value={observacoes}
+                onChange={(e) => setObservacoes(e.target.value)}
+                placeholder="Condições combinadas, pendências, o que mais precisar registrar."
+              />
+              <p className="text-xs text-muted-foreground">
+                {observacoes.length}/2000
+              </p>
+            </div>
+            <div className="space-y-2 sm:col-span-2">
+              <Label>Contrato assinado</Label>
+              <ContratoUpload value={contratoPath} onChange={setContratoPath} />
+            </div>
+            <div className="space-y-2 sm:col-span-2">
+              <Label>Documentos do cliente</Label>
+              <DocumentosUpload value={documentos} onChange={setDocumentos} />
+            </div>
           </CardContent>
         </Card>
 
