@@ -13,6 +13,8 @@ export interface ComissaoLinha {
   vendaId: string;
   corretorNome: string | null;
   empreendimento: string | null;
+  /** Unidade (e torre) da venda: "Zaya · 1204" identifica melhor que só o nome. */
+  unidade: string | null;
   dataVenda: string;
   liquidoCorretor: number;
   statusVenda: VendaStatus;
@@ -47,7 +49,7 @@ export async function listarComissoesCorretor(
   let q = supabase
     .from("vendas")
     .select(
-      "id, data_venda, liquido_corretor, desconto_parceiro_valor, status, status_pagamento_corretor, recebimento_parcelado, corretores(nome), empreendimentos(nome)",
+      "id, data_venda, unidade, torre, liquido_corretor, desconto_parceiro_valor, status, status_pagamento_corretor, recebimento_parcelado, corretores(nome), empreendimentos(nome)",
     )
     .not("corretor_id", "is", null)
     .order("data_venda", { ascending: false });
@@ -57,6 +59,8 @@ export async function listarComissoesCorretor(
   const rows = (data ?? []) as unknown as (ComissaoRow & {
     recebimento_parcelado: boolean;
     desconto_parceiro_valor: number | null;
+    unidade: string | null;
+    torre: string | null;
   })[];
 
   const idsParceladas = rows.filter((v) => v.recebimento_parcelado).map((v) => v.id);
@@ -97,6 +101,7 @@ export async function listarComissoesCorretor(
       vendaId: v.id,
       corretorNome: v.corretores?.nome ?? null,
       empreendimento: v.empreendimentos?.nome ?? null,
+      unidade: [v.torre, v.unidade].filter(Boolean).join(" ") || null,
       dataVenda: v.data_venda,
       statusVenda: v.status,
     };
