@@ -46,12 +46,6 @@ export const NAV_ITEMS: NavItem[] = [
     roles: ["admin", "financeiro", "diretor"],
   },
   {
-    label: "Corretores",
-    href: "/corretores",
-    icon: Users,
-    roles: ["admin", "financeiro", "diretor"],
-  },
-  {
     label: "Entradas",
     href: "/entradas",
     icon: Wallet,
@@ -64,15 +58,21 @@ export const NAV_ITEMS: NavItem[] = [
     roles: ["admin", "financeiro"],
   },
   {
-    label: "Pagamentos colaboradores",
-    href: "/pagamentos",
-    icon: HandCoins,
-    roles: ["admin", "financeiro"],
+    label: "Corretores",
+    href: "/corretores",
+    icon: Users,
+    roles: ["admin", "financeiro", "diretor"],
   },
   {
     label: "Bonificações",
     href: "/bonificacoes",
     icon: Gift,
+    roles: ["admin", "financeiro"],
+  },
+  {
+    label: "Pagamentos colaboradores",
+    href: "/pagamentos",
+    icon: HandCoins,
     roles: ["admin", "financeiro"],
   },
   {
@@ -100,16 +100,16 @@ export const NAV_ITEMS: NavItem[] = [
     roles: ["admin", "financeiro", "diretor"],
   },
   {
-    label: "Meu extrato",
-    href: "/meu-extrato",
-    icon: Wallet,
-    roles: ["corretor"],
-  },
-  {
     label: "Configurações",
     href: "/configuracoes",
     icon: Settings,
     roles: ["admin"],
+  },
+  {
+    label: "Meu extrato",
+    href: "/meu-extrato",
+    icon: Wallet,
+    roles: ["corretor"],
   },
 ];
 
