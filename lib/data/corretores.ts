@@ -165,6 +165,12 @@ export interface ProcessamentoVenda {
   adiantamentosDisponiveis: Adiantamento[];
   totalAdiantamentos: number;
   liquidoParaPagamento: number;
+  /**
+   * O que dá para pagar desta venda AGORA. Em venda à vista é a comissão
+   * inteira, quando ainda não foi paga; em parcelada, só as parcelas que a
+   * construtora já liberou e que ainda não entraram em nenhum pagamento.
+   */
+  pagavel: { chaves: string[]; bruto: number };
   /** Parcelas da construtora com a fatia da comissao. Vazio em venda a vista. */
   parcelas: {
     id: string;
@@ -247,6 +253,22 @@ export async function carregarProcessamentoVenda(
     pago: p.pagamento_id != null,
   }));
 
+  // As mesmas chaves que a fila de pagamento usa: venda quando à vista,
+  // parcela quando parcelada. Assim o botão daqui e a tela de pagamento
+  // pagam exatamente a mesma coisa.
+  const pagavel = venda.recebimento_parcelado && parcelas.length > 0
+    ? {
+        chaves: parcelas.filter((p) => p.recebidoEm && !p.pago).map((p) => p.id),
+        bruto: round2(
+          parcelas
+            .filter((p) => p.recebidoEm && !p.pago)
+            .reduce((s, p) => s + p.liquidoCorretor, 0),
+        ),
+      }
+    : venda.status_pagamento_corretor === "aguardando_liberacao"
+      ? { chaves: [venda.id], bruto: round2(Number(venda.liquido_corretor)) }
+      : { chaves: [], bruto: 0 };
+
   const totalAdiantamentos = round2(
     adiantamentos.reduce((s, a) => s + Number(a.valor), 0),
   );
@@ -262,5 +284,6 @@ export async function carregarProcessamentoVenda(
     totalAdiantamentos,
     liquidoParaPagamento,
     parcelas,
+    pagavel,
   };
 }

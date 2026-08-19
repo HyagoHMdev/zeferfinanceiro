@@ -21,6 +21,7 @@ import {
   desvincularAdiantamento,
   marcarParcelaRecebida,
 } from "@/app/(app)/corretores/actions";
+import { registrarPagamento } from "@/app/(app)/pagamentos/actions";
 import type { ProcessamentoVenda } from "@/lib/data/corretores";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -52,8 +53,42 @@ export function ProcessamentoCorretor({
   podeEditar: boolean;
 }) {
   const router = useRouter();
-  const { venda, adiantamentos, parcelas } = dados;
+  const { venda, adiantamentos, parcelas, pagavel } = dados;
   const [parcelaBusy, setParcelaBusy] = useState<string | null>(null);
+  const [pagando, setPagando] = useState(false);
+
+  // Adiantamentos DESTA venda que ainda não foram descontados. Os vales
+  // avulsos ficam de fora: aqui se paga uma venda, não a conta inteira do
+  // corretor (para isso existe a fila em Corretores).
+  const adiAbertos = adiantamentos.filter((a) => !a.pagamento_id);
+  const totalAdiAbertos = round2(adiAbertos.reduce((s, a) => s + Number(a.valor), 0));
+  const liquidoAPagar = round2(pagavel.bruto - totalAdiAbertos);
+
+  /**
+   * Paga a comissão desta venda sem sair da tela.
+   *
+   * Usa a MESMA action da fila de pagamento, com as mesmas chaves (venda, ou
+   * as parcelas liberadas): dois caminhos para o mesmo lugar, não duas regras.
+   */
+  async function pagarCorretor() {
+    if (!venda.corretor_id) return toast.error("Venda sem corretor.");
+    const rotulo = parcelas.length > 0
+      ? `Pagar ${formatBRL(liquidoAPagar)} ao corretor (${pagavel.chaves.length} parcela(s) liberada(s))?`
+      : `Pagar ${formatBRL(liquidoAPagar)} ao corretor?`;
+    if (!confirm(rotulo)) return;
+
+    setPagando(true);
+    const res = await registrarPagamento({
+      corretorId: venda.corretor_id,
+      chaves: pagavel.chaves,
+      adiantamentoIds: adiAbertos.map((a) => a.id),
+    });
+    setPagando(false);
+    if (res?.error) return toast.error(res.error);
+    toast.success("Pagamento registrado.");
+    if (res?.pagamentoId) window.open(`/recibo/pagamento/${res.pagamentoId}`, "_blank");
+    router.refresh();
+  }
 
   /**
    * Liberar a parcela é o que solta a fatia da comissão para a fila de
@@ -350,6 +385,21 @@ export function ProcessamentoCorretor({
             <ResumoLinha label="Comissão líquida" valor={calc.liquidoCorretor} strong divider />
             <ResumoLinha label="(−) Adiantamentos" valor={-totalAdiantamentos} />
             <ResumoLinha label="Líquido para pagamento" valor={liquidoPagamento} highlight />
+
+            {podeEditar ? (
+              pagavel.chaves.length > 0 ? (
+                <Button className="mt-3 w-full" onClick={pagarCorretor} disabled={pagando}>
+                  {pagando ? <Loader2 className="size-4 animate-spin" /> : null}
+                  Pagar corretor · {formatBRL(liquidoAPagar)}
+                </Button>
+              ) : (
+                <p className="mt-3 text-xs text-muted-foreground">
+                  {parcelas.length > 0
+                    ? "Nada liberado para pagar: marque as parcelas que a construtora já pagou."
+                    : "Comissão já paga."}
+                </p>
+              )
+            ) : null}
 
             {/* Venda parcelada não é paga de uma vez: o número acima é o total
                 da venda, e o que entra na fila de pagamento é a fatia de cada
