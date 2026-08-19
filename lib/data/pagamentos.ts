@@ -242,13 +242,25 @@ export interface PagamentoRealizado {
 }
 
 /** Histórico de pagamentos registrados, mais recentes primeiro. */
-export async function listarPagamentosRealizados(): Promise<PagamentoRealizado[]> {
+/**
+ * Pagamentos já registrados.
+ *
+ * O `tipo` separa as duas telas: comissão de corretor mora em Corretores,
+ * pagamento de colaborador mora em Pagamentos. As duas gravam na mesma tabela,
+ * então sem o recorte cada uma mostraria os pagamentos da outra.
+ */
+export async function listarPagamentosRealizados(
+  tipo?: "corretor" | "funcionario",
+): Promise<PagamentoRealizado[]> {
   const supabase = await createClient();
-  const { data } = await supabase
+  let q = supabase
     .from("pagamentos_corretor")
     .select(
-      "id, data, valor_bruto, total_bonificacoes, total_adiantamentos, valor_liquido, recibo_url, assinado_em, corretores(nome)",
-    )
+      "id, data, valor_bruto, total_bonificacoes, total_adiantamentos, valor_liquido, recibo_url, assinado_em, corretores!inner(nome, tipo)",
+    );
+  if (tipo === "funcionario") q = q.eq("corretores.tipo", "funcionario");
+  if (tipo === "corretor") q = q.neq("corretores.tipo", "funcionario");
+  const { data } = await q
     .order("data", { ascending: false })
     .order("created_at", { ascending: false });
 
@@ -261,7 +273,7 @@ export async function listarPagamentosRealizados(): Promise<PagamentoRealizado[]
     valor_liquido: number;
     recibo_url: string | null;
     assinado_em: string | null;
-    corretores: { nome: string } | null;
+    corretores: { nome: string; tipo: string } | null;
   }[];
 
   return rows.map((p) => ({

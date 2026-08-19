@@ -2,10 +2,7 @@ import Link from "next/link";
 import { FileText, PenLine } from "lucide-react";
 
 import { requireRole, ADMIN_FIN_ROLES } from "@/lib/auth";
-import {
-  listarPagamentosPendentes,
-  listarPagamentosRealizados,
-} from "@/lib/data/pagamentos";
+import { listarPagamentosRealizados } from "@/lib/data/pagamentos";
 import { salvarReciboPagamento } from "@/app/(app)/pagamentos/actions";
 import { round2 } from "@/lib/calculos";
 import { formatBRL, formatData } from "@/lib/format";
@@ -33,10 +30,11 @@ import { EstornarPagamentoButton } from "@/components/pagamentos/estornar-pagame
 import { ReciboAssinado } from "@/components/recibo/recibo-assinado";
 
 export default async function PagamentosPage() {
-  const [, pendentes, realizados] = await Promise.all([
+  const [, realizados] = await Promise.all([
     requireRole(ADMIN_FIN_ROLES),
-    listarPagamentosPendentes(),
-    listarPagamentosRealizados(),
+    // Só os de colaborador: a comissão do corretor virou assunto da aba
+    // Corretores, do fechamento da venda ao recibo.
+    listarPagamentosRealizados("funcionario"),
   ]);
 
   // Funcionário não tem comissão de venda, então não entra na lista de cima.
@@ -96,79 +94,20 @@ export default async function PagamentosPage() {
     contas: contasPorPessoa.get(f.id) ?? [],
   }));
 
-  const totalAPagar = round2(pendentes.reduce((s, c) => s + c.liquido, 0));
   const totalPago = round2(realizados.reduce((s, p) => s + p.valorLiquido, 0));
 
   return (
     <div>
       <PageHeader
         title="Pagamentos"
-        description="Pague as comissões dos corretores e gere os recibos."
+        description="Pagamento dos colaboradores: salário, contas em aberto e adiantamentos. Comissão de corretor fica em Corretores."
         help={<OnboardingHelp screen="pagamentos" />}
       />
 
-      <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <KpiCard label="A pagar (líquido)" value={totalAPagar} tone="negative" />
-        <KpiCard
-          label="Corretores pendentes"
-          value={pendentes.length}
-          currency={false}
-        />
+      <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <KpiCard label="Colaboradores" value={funcionarios.length} currency={false} />
         <KpiCard label="Total pago" value={totalPago} tone="positive" />
       </div>
-
-      {/* A pagar --------------------------------------------------------- */}
-      <Card className="mb-6">
-        <CardHeader>
-          <CardTitle>A pagar</CardTitle>
-        </CardHeader>
-        <CardContent className="px-0">
-          {pendentes.length === 0 ? (
-            <div className="py-10 text-center text-sm text-muted-foreground">
-              Nenhuma comissão aguardando liberação.
-            </div>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Corretor</TableHead>
-                  <TableHead className="text-right">Comissões</TableHead>
-                  <TableHead className="text-right">Bruto</TableHead>
-                  <TableHead className="text-right">Adiantamentos</TableHead>
-                  <TableHead className="text-right">Líquido</TableHead>
-                  <TableHead></TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {pendentes.map((c) => (
-                  <TableRow key={c.corretorId}>
-                    <TableCell className="font-medium">
-                      {c.corretorNome ?? "—"}
-                    </TableCell>
-                    <TableCell className="text-right tabular-nums">
-                      {c.comissoes.length}
-                    </TableCell>
-                    <TableCell className="text-right tabular-nums">
-                      {formatBRL(c.totalBruto)}
-                    </TableCell>
-                    <TableCell className="text-right tabular-nums">
-                      {c.totalAdiantamentos > 0
-                        ? `- ${formatBRL(c.totalAdiantamentos)}`
-                        : "—"}
-                    </TableCell>
-                    <TableCell className="text-right font-semibold tabular-nums">
-                      {formatBRL(c.liquido)}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <RegistrarPagamentoDialog corretor={c} />
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
-        </CardContent>
-      </Card>
 
       {/* Funcionários ----------------------------------------------------- */}
       {funcionarios.length > 0 ? (
@@ -232,14 +171,14 @@ export default async function PagamentosPage() {
         <CardContent className="px-0">
           {realizados.length === 0 ? (
             <div className="py-10 text-center text-sm text-muted-foreground">
-              Nenhum pagamento registrado ainda.
+              Nenhum pagamento de colaborador registrado ainda.
             </div>
           ) : (
             <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>Data</TableHead>
-                  <TableHead>Corretor</TableHead>
+                  <TableHead>Colaborador</TableHead>
                   <TableHead className="text-right">Bruto</TableHead>
                   <TableHead className="text-right">Adiantamentos</TableHead>
                   <TableHead className="text-right">Líquido</TableHead>

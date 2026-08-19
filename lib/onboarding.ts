@@ -105,7 +105,7 @@ export const ONBOARDING: Record<OnboardingScreen, OnboardingConteudo> = {
   corretores: {
     titulo: "Corretores",
     intro:
-      "As comissões dos corretores, uma linha por venda, com o status de pagamento de cada uma.",
+      "As comissões dos corretores, uma linha por venda, do fechamento ao recibo do pagamento.",
     topicos: [
       {
         titulo: "Status de pagamento",
@@ -118,9 +118,14 @@ export const ONBOARDING: Record<OnboardingScreen, OnboardingConteudo> = {
           "Em Processar você ajusta os percentuais do corretor (comissão, desconto de parceria, imposto NF) e lança adiantamentos daquela venda.",
       },
       {
-        titulo: "Pagamento",
+        titulo: "Venda parcelada",
         texto:
-          "O pagamento efetivo (com recibo) é feito na tela Pagamentos, que junta as comissões liberadas de cada corretor.",
+          "Quando a construtora libera mês a mês, a venda é uma linha só, e as parcelas aparecem dentro de Processar. Marque cada parcela como liberada quando a construtora pagar: é isso que solta a fatia da comissão para o pagamento.",
+      },
+      {
+        titulo: "Pagamento e recibo",
+        texto:
+          "No fim da página, 'A pagar' junta as comissões liberadas de cada corretor e desconta os adiantamentos; registrar gera o recibo imprimível. O estorno desfaz e devolve as comissões para aguardando liberação.",
       },
     ],
   },
@@ -171,17 +176,12 @@ export const ONBOARDING: Record<OnboardingScreen, OnboardingConteudo> = {
   pagamentos: {
     titulo: "Pagamentos",
     intro:
-      "Onde as comissões liberadas viram pagamento efetivo ao corretor, com recibo imprimível.",
+      "Pagamento dos colaboradores. Comissão de corretor não fica aqui: ela vive na aba Corretores, do fechamento da venda ao recibo.",
     topicos: [
       {
-        titulo: "A pagar",
+        titulo: "Colaboradores",
         texto:
-          "Agrupa por corretor as comissões Aguardando liberação e desconta os adiantamentos ainda não quitados. Mostra o líquido a pagar.",
-      },
-      {
-        titulo: "Registrar pagamento",
-        texto:
-          "Confirma o pagamento: marca as comissões como Pago, gera o registro e abre o recibo para impressão.",
+          "Cada colaborador aparece com as contas em aberto (o salário do mês, tipicamente) e os adiantamentos ainda não descontados. Pagar baixa essas contas em vez de criar uma despesa nova ao lado.",
       },
       {
         titulo: "Estornar",
