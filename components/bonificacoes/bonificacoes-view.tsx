@@ -13,9 +13,15 @@ import {
 import {
   abrirAnexoBonificacao,
   aprovarBonificacao,
+  excluirBonificacao,
   pagarBonificacao,
   recusarBonificacao,
 } from "@/app/(app)/bonificacoes/actions";
+import {
+  BonificacaoFormDialog,
+  type CorretorOpcao,
+  type VendaOpcao,
+} from "@/components/bonificacoes/bonificacao-form-dialog";
 import { formatBRL, formatData } from "@/lib/format";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -35,9 +41,13 @@ const hojeISO = () => new Date().toISOString().slice(0, 10);
 export function BonificacoesView({
   bonificacoes,
   podeDecidir,
+  corretores,
+  vendas,
 }: {
   bonificacoes: BonificacaoLinha[];
   podeDecidir: boolean;
+  corretores: CorretorOpcao[];
+  vendas: VendaOpcao[];
 }) {
   const router = useRouter();
   const [busy, setBusy] = useState<string | null>(null);
@@ -75,14 +85,18 @@ export function BonificacoesView({
       </div>
 
       <Card>
-        <CardHeader>
+        <CardHeader className="flex flex-row items-center justify-between gap-3">
           <CardTitle>Bonificações</CardTitle>
+          {podeDecidir ? (
+            <BonificacaoFormDialog corretores={corretores} vendas={vendas} />
+          ) : null}
         </CardHeader>
         <CardContent>
           {bonificacoes.length === 0 ? (
             <p className="py-10 text-center text-sm text-muted-foreground">
               Nenhuma bonificação ainda. Elas chegam sozinhas quando o corretor marca a
-              bonificação na venda e o financeiro aprova essa venda.
+              bonificação na venda e o financeiro aprova essa venda, ou pelo botão
+              &ldquo;Nova bonificação&rdquo; aqui em cima.
             </p>
           ) : (
             <ul className="divide-y">
@@ -169,6 +183,17 @@ export function BonificacoesView({
                               }
                             >
                               Aprovar
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              disabled={busy === b.id}
+                              onClick={() => {
+                                if (!confirm("Excluir esta bonificação?")) return;
+                                executar(b.id, () => excluirBonificacao(b.id));
+                              }}
+                            >
+                              Excluir
                             </Button>
                           </>
                         ) : (
