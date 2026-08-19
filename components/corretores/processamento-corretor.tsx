@@ -51,7 +51,7 @@ export function ProcessamentoCorretor({
   podeEditar: boolean;
 }) {
   const router = useRouter();
-  const { venda, adiantamentos } = dados;
+  const { venda, adiantamentos, parcelas } = dados;
 
   // Vales do corretor: os desta venda (incluídos) + os avulsos disponíveis.
   const linhasAdiantamento = [
@@ -332,6 +332,47 @@ export function ProcessamentoCorretor({
             <ResumoLinha label="Comissão líquida" valor={calc.liquidoCorretor} strong divider />
             <ResumoLinha label="(−) Adiantamentos" valor={-totalAdiantamentos} />
             <ResumoLinha label="Líquido para pagamento" valor={liquidoPagamento} highlight />
+
+            {/* Venda parcelada não é paga de uma vez: o número acima é o total
+                da venda, e o que entra na fila de pagamento é a fatia de cada
+                parcela que a construtora já liberou. */}
+            {parcelas.length > 0 ? (
+              <div className="mt-4 border-t pt-3">
+                <div className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                  Comissão por parcela
+                </div>
+                <ul className="space-y-1.5">
+                  {parcelas.map((p) => (
+                    <li key={p.id} className="flex items-baseline justify-between gap-2 text-xs">
+                      <span className="text-muted-foreground">
+                        {p.numero}/{p.total} · {formatData(p.vencimento)}
+                        <span className="block">
+                          {p.pago
+                            ? "paga ao corretor"
+                            : p.recebidoEm
+                              ? "liberada, na fila de pagamento"
+                              : "aguardando a construtora"}
+                        </span>
+                      </span>
+                      <span
+                        className={
+                          p.pago
+                            ? "tabular-nums text-muted-foreground line-through"
+                            : "tabular-nums"
+                        }
+                      >
+                        {formatBRL(p.liquidoCorretor)}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+                <p className="mt-2 text-[11px] leading-relaxed text-muted-foreground">
+                  A soma das parcelas é a comissão líquida da venda. O pagamento
+                  acontece parcela a parcela, em Pagamentos, conforme a construtora
+                  libera.
+                </p>
+              </div>
+            ) : null}
           </CardContent>
         </Card>
       </div>

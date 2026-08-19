@@ -150,13 +150,24 @@ export interface ProcessamentoVenda {
   adiantamentosDisponiveis: Adiantamento[];
   totalAdiantamentos: number;
   liquidoParaPagamento: number;
+  /** Parcelas da construtora com a fatia da comissao. Vazio em venda a vista. */
+  parcelas: {
+    id: string;
+    numero: number;
+    total: number;
+    vencimento: string;
+    valorParcela: number;
+    liquidoCorretor: number;
+    recebidoEm: string | null;
+    pago: boolean;
+  }[];
 }
 
 export async function carregarProcessamentoVenda(
   vendaId: string,
 ): Promise<ProcessamentoVenda | null> {
   const supabase = await createClient();
-  const [vRes, aRes] = await Promise.all([
+  const [vRes, aRes, pRes] = await Promise.all([
     supabase
       .from("vendas")
       .select(
@@ -169,6 +180,11 @@ export async function carregarProcessamentoVenda(
       .select("*")
       .eq("venda_id", vendaId)
       .order("data", { ascending: false }),
+    supabase
+      .from("venda_parcelas")
+      .select("id, numero, vencimento, valor, recebido_em, pagamento_id")
+      .eq("venda_id", vendaId)
+      .order("numero"),
   ]);
 
   if (!vRes.data) return null;
@@ -189,6 +205,33 @@ export async function carregarProcessamentoVenda(
     adiantamentosDisponiveis = (data ?? []) as Adiantamento[];
   }
 
+  // Em venda parcelada a comissão não é paga de uma vez: cada parcela
+  // liberada pela construtora libera a fatia dela. Sem esta lista, a tela de
+  // processamento mostrava só o total e não dizia de onde ele vinha nem o que
+  // já tinha sido pago.
+  const linhas = (pRes.data ?? []) as {
+    id: string;
+    numero: number;
+    vencimento: string;
+    valor: number;
+    recebido_em: string | null;
+    pagamento_id: string | null;
+  }[];
+  const fatias = ratearPorParcelas(
+    Number(venda.liquido_corretor),
+    linhas.map((p) => Number(p.valor)),
+  );
+  const parcelas = linhas.map((p, i) => ({
+    id: p.id,
+    numero: p.numero,
+    total: linhas.length,
+    vencimento: p.vencimento,
+    valorParcela: Number(p.valor),
+    liquidoCorretor: fatias[i],
+    recebidoEm: p.recebido_em,
+    pago: p.pagamento_id != null,
+  }));
+
   const totalAdiantamentos = round2(
     adiantamentos.reduce((s, a) => s + Number(a.valor), 0),
   );
@@ -203,5 +246,6 @@ export async function carregarProcessamentoVenda(
     adiantamentosDisponiveis,
     totalAdiantamentos,
     liquidoParaPagamento,
+    parcelas,
   };
 }
