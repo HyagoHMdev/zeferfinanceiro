@@ -110,13 +110,6 @@ export function EntradasTable({
 
   const entradaTemJoinville = (e: EntradaRow) =>
     (e.distribuicoes ?? []).some((d) => d.destino === "joinville" && Number(d.valor) !== 0);
-  // Coluna Joinville só aparece quando há alguma entrada com parcela dessa carteira.
-  const temJoinville = useMemo(
-    () => entradas.some(entradaTemJoinville),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [entradas],
-  );
-
   const somar = (linhas: EntradaRow[]): Totais => ({
     liquido: linhas.reduce((s, e) => s + Number(e.liquido), 0),
     empresa: linhas.reduce((s, e) => s + valorDe(e, "empresa"), 0),
@@ -226,24 +219,7 @@ export function EntradasTable({
         <TableCell className="text-right tabular-nums text-muted-foreground">
           {e.vendas ? formatBRL(e.vendas.comissao_bruta) : "—"}
         </TableCell>
-        <TableCell className="text-right tabular-nums text-muted-foreground">
-          {e.vendas ? formatBRL(e.vendas.liquido_zefer) : "—"}
-        </TableCell>
-        <TableCell className="text-right tabular-nums text-muted-foreground">
-          {e.vendas ? formatBRL(e.vendas.lucro_liquido) : "—"}
-        </TableCell>
         <TableCell className="text-right tabular-nums">{formatBRL(e.liquido)}</TableCell>
-        <TableCell className="text-right tabular-nums">
-          {formatBRL(valorDe(e, "empresa"))}
-        </TableCell>
-        <TableCell className="text-right tabular-nums">
-          {formatBRL(valorDe(e, "pessoal"))}
-        </TableCell>
-        {temJoinville ? (
-          <TableCell className="text-right tabular-nums">
-            {valorDe(e, "joinville") ? formatBRL(valorDe(e, "joinville")) : "—"}
-          </TableCell>
-        ) : null}
         {podeEditar ? (
           <TableCell>
             <div className="flex justify-end">
@@ -273,11 +249,6 @@ export function EntradasTable({
     return (
       <>
         <TableCell className="text-right tabular-nums">{formatBRL(t.liquido)}</TableCell>
-        <TableCell className="text-right tabular-nums">{formatBRL(t.empresa)}</TableCell>
-        <TableCell className="text-right tabular-nums">{formatBRL(t.pessoal)}</TableCell>
-        {temJoinville ? (
-          <TableCell className="text-right tabular-nums">{formatBRL(t.joinville)}</TableCell>
-        ) : null}
         {podeEditar ? <TableCell></TableCell> : null}
       </>
     );
@@ -365,12 +336,7 @@ export function EntradasTable({
               <TableHead>Tipo</TableHead>
               <TableHead>Descrição</TableHead>
               <TableHead className="text-right">Venda bruta</TableHead>
-              <TableHead className="text-right">Pós imposto</TableHead>
-              <TableHead className="text-right">Pós corr.+imp.</TableHead>
               <TableHead className="text-right">Líquido</TableHead>
-              <TableHead className="text-right">Empresa</TableHead>
-              <TableHead className="text-right">Pessoal</TableHead>
-              {temJoinville ? <TableHead className="text-right">Joinville</TableHead> : null}
               {podeEditar ? <TableHead></TableHead> : null}
             </TableRow>
           </TableHeader>
@@ -385,7 +351,7 @@ export function EntradasTable({
                         className="cursor-pointer bg-muted/50 font-medium hover:bg-muted"
                         onClick={() => toggleGrupo(g.chave)}
                       >
-                        <TableCell colSpan={6}>
+                        <TableCell colSpan={4}>
                           <span className="inline-flex items-center gap-1.5">
                             {aberto ? (
                               <ChevronDown className="size-4" />
@@ -407,23 +373,12 @@ export function EntradasTable({
           </TableBody>
           <TableFooter>
             <TableRow>
-              <TableCell colSpan={6}>
+              <TableCell colSpan={4}>
                 Total{temFiltro ? " (filtrado)" : ""}
               </TableCell>
               <TableCell className="text-right tabular-nums">
                 {formatBRL(totalGeral.liquido)}
               </TableCell>
-              <TableCell className="text-right tabular-nums">
-                {formatBRL(totalGeral.empresa)}
-              </TableCell>
-              <TableCell className="text-right tabular-nums">
-                {formatBRL(totalGeral.pessoal)}
-              </TableCell>
-              {temJoinville ? (
-                <TableCell className="text-right tabular-nums">
-                  {formatBRL(totalGeral.joinville)}
-                </TableCell>
-              ) : null}
               {podeEditar ? <TableCell></TableCell> : null}
             </TableRow>
           </TableFooter>
