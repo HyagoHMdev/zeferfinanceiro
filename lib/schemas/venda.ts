@@ -3,11 +3,12 @@ import { z } from "zod";
 /**
  * Schema de entrada de uma venda (percentuais já em fração: 5% → 0.05).
  *
- * A comissão do corretor é editável aqui E no módulo Corretores: ela sai do
+ * A cadeia do corretor é editável aqui E no módulo Corretores: ela sai do
  * padrão do cadastro dele, mas varia em caso específico (venda dividida,
  * condição negociada), e quem lança a venda precisa poder ajustar na hora, sem
- * ter de lembrar de abrir outra tela depois. O resto da cadeia do corretor
- * (imposto de NF, desconto de parceria) segue só no módulo Corretores.
+ * ter de lembrar de abrir outra tela depois. Os dois lados escrevem nas mesmas
+ * colunas da venda e recalculam a cadeia inteira, então salvar de um lado
+ * aparece no outro.
  */
 export const vendaSchema = z.object({
   data_venda: z.string().min(1, "Informe a data da venda"),
@@ -34,6 +35,11 @@ export const vendaSchema = z.object({
   // Ausente = mantém o que já estava na venda (ou o padrão do cadastro, na
   // criação). Só entra na conta quando vem preenchido de propósito.
   percentual_corretor: z.number().min(0).max(1).optional(),
+  // Imposto da NF do corretor e desconto de parceria: mesma regra do
+  // percentual acima (ausente = mantém o que a venda já tinha).
+  percentual_imposto_nf: z.number().min(0).max(1).optional(),
+  /** Desconto de parceria em R$ (não em %). Só entra quando há parceria. */
+  desconto_parceiro_valor: z.number().nonnegative().optional(),
   // Construtora libera a comissão mês a mês, conforme o cliente paga. Com isso
   // ligado, o repasse do investidor vira um lançamento por parcela.
   recebimento_parcelado: z.boolean().optional(),

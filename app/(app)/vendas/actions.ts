@@ -19,6 +19,8 @@ interface CorretorDefaults {
   corretorPct: number;
   impostoNfPct: number;
   descontoPct: number;
+  /** Desconto de parceria em R$. Quando presente, vence o percentual. */
+  descontoValor?: number;
 }
 
 /** Percentuais do corretor (comissão / imposto NF) a partir do cadastro + config. */
@@ -54,8 +56,14 @@ function montarLinha(input: VendaInput, corr: CorretorDefaults) {
     percentualImpostoImobiliaria: input.percentual_imposto_imobiliaria,
     percentualCorretor: corr.corretorPct,
     percentualDescontoParceiro: corr.descontoPct,
+    descontoParceiroValor: corr.descontoValor,
     percentualImpostoNf: corr.impostoNfPct,
   });
+
+  // O desconto é guardado em R$; o percentual legado acompanha para o
+  // relatório antigo, que ainda lê a coluna, não passar a mentir.
+  const pctDescontoEquivalente =
+    r.comissaoCorretorBruto > 0 ? r.descontoCorretor / r.comissaoCorretorBruto : 0;
 
   return {
     data_venda: input.data_venda,
@@ -96,7 +104,8 @@ function montarLinha(input: VendaInput, corr: CorretorDefaults) {
     // Corretor (geridos no módulo Corretores; aqui só o snapshot)
     percentual_corretor: corr.corretorPct,
     comissao_corretor_bruto: r.comissaoCorretorBruto,
-    percentual_desconto_parceiro: corr.descontoPct,
+    desconto_parceiro_valor: r.descontoCorretor,
+    percentual_desconto_parceiro: pctDescontoEquivalente,
     percentual_imposto_nf: corr.impostoNfPct,
     valor_imposto_nf: r.valorImpostoNf,
     liquido_corretor: r.liquidoCorretor,
@@ -231,11 +240,13 @@ export async function criarVenda(
   const supabase = await createClient();
   const config = await getConfig();
   const padrao = await defaultsCorretor(supabase, parsed.data.corretor_id, config);
-  // O formulário pode sobrescrever a % do corretor (caso específico); o resto
-  // da cadeia dele continua vindo do cadastro.
+  // O formulário manda na cadeia do corretor quando o campo vem preenchido;
+  // o que ele não mandar continua vindo do cadastro.
   const corr: CorretorDefaults = {
     ...padrao,
     corretorPct: parsed.data.percentual_corretor ?? padrao.corretorPct,
+    impostoNfPct: parsed.data.percentual_imposto_nf ?? padrao.impostoNfPct,
+    descontoValor: parsed.data.desconto_parceiro_valor ?? padrao.descontoValor,
   };
 
   const row = montarLinha(parsed.data, corr);
@@ -297,7 +308,7 @@ export async function atualizarVenda(
   const { data: atual } = await supabase
     .from("vendas")
     .select(
-      "corretor_id, percentual_corretor, percentual_imposto_nf, percentual_desconto_parceiro",
+      "corretor_id, percentual_corretor, percentual_imposto_nf, percentual_desconto_parceiro, desconto_parceiro_valor",
     )
     .eq("id", id)
     .single();
@@ -308,14 +319,26 @@ export async function atualizarVenda(
       corretorPct: Number(atual.percentual_corretor),
       impostoNfPct: Number(atual.percentual_imposto_nf),
       descontoPct: Number(atual.percentual_desconto_parceiro),
+      // Sem isto, uma venda com desconto em R$ voltava a ser calculada pelo
+      // percentual legado a cada gravação da venda, e o desconto escorregava.
+      descontoValor:
+        atual.desconto_parceiro_valor == null
+          ? undefined
+          : Number(atual.desconto_parceiro_valor),
     };
   } else {
     corr = await defaultsCorretor(supabase, parsed.data.corretor_id, config);
   }
-  // A % digitada no formulário vence o que estava salvo: é ela que carrega o
-  // acordo específico daquela venda.
+  // O que foi digitado no formulário vence o que estava salvo: é ele que
+  // carrega o acordo específico daquela venda.
   if (parsed.data.percentual_corretor !== undefined) {
     corr = { ...corr, corretorPct: parsed.data.percentual_corretor };
+  }
+  if (parsed.data.percentual_imposto_nf !== undefined) {
+    corr = { ...corr, impostoNfPct: parsed.data.percentual_imposto_nf };
+  }
+  if (parsed.data.desconto_parceiro_valor !== undefined) {
+    corr = { ...corr, descontoValor: parsed.data.desconto_parceiro_valor };
   }
 
   const { error } = await supabase
