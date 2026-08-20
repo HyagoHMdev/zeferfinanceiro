@@ -70,15 +70,15 @@ export const NAV_ITEMS: NavItem[] = [
     roles: ["admin", "financeiro"],
   },
   {
-    label: "Pessoal",
-    href: "/pessoal",
-    icon: Wallet,
-    roles: ["admin", "financeiro"],
-  },
-  {
     label: "Pagamentos colaboradores",
     href: "/pagamentos",
     icon: HandCoins,
+    roles: ["admin", "financeiro"],
+  },
+  {
+    label: "Pessoal",
+    href: "/pessoal",
+    icon: Wallet,
     roles: ["admin", "financeiro"],
   },
   {

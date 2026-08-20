@@ -216,7 +216,7 @@ export const ONBOARDING: Record<OnboardingScreen, OnboardingConteudo> = {
   "financeiro-caixa": {
     titulo: "Caixa",
     intro:
-      "O saldo atual e previsto, separado em Empresa (Zefer) e Pessoal.",
+      "O saldo atual e previsto da empresa, separado em Zefer e Zefer Joinville. O pessoal tem aba própria e não entra aqui.",
     topicos: [
       {
         titulo: "Filtro de mês",
@@ -299,7 +299,7 @@ export const ONBOARDING: Record<OnboardingScreen, OnboardingConteudo> = {
   "financeiro-lancamentos": {
     titulo: "Lançamentos (Financeiro)",
     intro:
-      "Custos fixos, despesas variáveis, investimentos e pessoal funcionam do mesmo jeito.",
+      "Custos fixos, despesas variáveis e investimentos funcionam do mesmo jeito. O pessoal tem aba própria.",
     topicos: [
       {
         titulo: "Recorrência",

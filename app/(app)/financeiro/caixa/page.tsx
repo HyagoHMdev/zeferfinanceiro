@@ -46,7 +46,7 @@ export default async function CaixaPage({
   const mes = mesParam && caixa.meses.includes(mesParam) ? mesParam : null;
 
   const descricao = !mes
-    ? "Saldo atual e previsto da empresa e pessoal — todos os meses."
+    ? "Saldo atual e previsto da empresa — todos os meses. O pessoal fica na aba Pessoal."
     : modo === "acumulado"
       ? "Acumulado até o fim do mês selecionado."
       : "Movimento (entradas e saídas) do mês selecionado.";
@@ -57,7 +57,6 @@ export default async function CaixaPage({
         <CaixaFiltro meses={caixa.meses} mesAtual={mes} modoAtual={modo} />
       </PageHeader>
       <Bloco titulo="Empresa (Zefer)" resumo={caixa.empresa} />
-      <Bloco titulo="Pessoal" resumo={caixa.pessoal} />
       <Bloco titulo="Zefer Joinville" resumo={caixa.joinville} />
     </div>
   );
