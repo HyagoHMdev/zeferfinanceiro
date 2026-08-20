@@ -70,6 +70,12 @@ export const NAV_ITEMS: NavItem[] = [
     roles: ["admin", "financeiro"],
   },
   {
+    label: "Pessoal",
+    href: "/pessoal",
+    icon: Wallet,
+    roles: ["admin", "financeiro"],
+  },
+  {
     label: "Pagamentos colaboradores",
     href: "/pagamentos",
     icon: HandCoins,
@@ -126,7 +132,6 @@ export const FINANCEIRO_SUBNAV = [
   { label: "Custos Fixos", href: "/financeiro/custos-fixos" },
   { label: "Despesas Variáveis", href: "/financeiro/despesas-variaveis" },
   { label: "Investimentos", href: "/financeiro/investimentos" },
-  { label: "Pessoal", href: "/financeiro/pessoal" },
   { label: "Zefer Joinville", href: "/financeiro/joinville" },
 ];
 

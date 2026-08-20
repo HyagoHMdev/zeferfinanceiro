@@ -118,14 +118,16 @@ export async function carregarCaixa(opts?: {
   modo?: CaixaModo;
 }): Promise<CaixaData> {
   const supabase = await createClient();
-  const [distRes, lancRes] = await Promise.all([
-    supabase.from("distribuicoes").select("destino, valor, entradas(data)"),
+  const [distRes, lancRes, entRes] = await Promise.all([
+    supabase.from("distribuicoes").select("entrada_id, destino, valor, entradas(data)"),
     supabase
       .from("lancamentos")
       .select("escopo, natureza, valor, status, competencia"),
+    supabase.from("entradas").select("id, data, liquido"),
   ]);
 
   const dist = (distRes.data ?? []) as unknown as {
+    entrada_id: string;
     destino: "empresa" | "pessoal" | "joinville";
     valor: number;
     entradas: { data: string } | null;
@@ -137,6 +139,12 @@ export async function carregarCaixa(opts?: {
     status: string;
     competencia: string;
   }[];
+  const entradasTab = (entRes.data ?? []) as { id: string; data: string; liquido: number }[];
+
+  // A entrada deixou de ser rateada: hoje ela é inteira da empresa. As antigas
+  // continuam tendo linhas de distribuição, e para elas vale o que foi
+  // rateado, senão os meses já fechados mudariam de valor sozinhos.
+  const rateadas = new Set(dist.map((d) => d.entrada_id));
 
   // Meses disponíveis: união das datas de entrada e das competências.
   const mesesSet = new Set<string>();
@@ -155,11 +163,17 @@ export async function carregarCaixa(opts?: {
   };
   const distF = dist.filter((d) => inclui(d.entradas?.data?.slice(0, 7) ?? null));
   const lancF = lanc.filter((l) => inclui(l.competencia.slice(0, 7)));
+  const entF = entradasTab.filter(
+    (e) => !rateadas.has(e.id) && inclui(e.data?.slice(0, 7) ?? null),
+  );
 
   const soma = <T,>(arr: T[], pred: (x: T) => boolean, val: (x: T) => number) =>
     round2(arr.reduce((s, x) => s + (pred(x) ? val(x) : 0), 0));
 
-  const entradasEmpresa = soma(distF, (d) => d.destino === "empresa", (d) => Number(d.valor));
+  const entradasEmpresa = round2(
+    soma(distF, (d) => d.destino === "empresa", (d) => Number(d.valor)) +
+      soma(entF, () => true, (e) => Number(e.liquido)),
+  );
   const entradasPessoal = round2(
     soma(distF, (d) => d.destino === "pessoal", (d) => Number(d.valor)) +
       soma(lancF, (l) => l.natureza === "entrada_pessoal", (l) => Number(l.valor)),
@@ -241,21 +255,27 @@ export interface FluxoMes {
 /** Fluxo de caixa mensal da EMPRESA para um ano (Jan–Dez). */
 export async function carregarFluxoAnual(ano: number): Promise<FluxoMes[]> {
   const supabase = await createClient();
-  const [distRes, lancRes] = await Promise.all([
+  const [distRes, lancRes, entRes] = await Promise.all([
     supabase
       .from("distribuicoes")
-      .select("valor, entradas(data)")
+      .select("entrada_id, valor, entradas(data)")
       .eq("destino", "empresa"),
     supabase
       .from("lancamentos")
       .select("valor, competencia")
       .eq("escopo", "empresa"),
+    supabase.from("entradas").select("id, data, liquido"),
   ]);
 
   const dist = (distRes.data ?? []) as unknown as {
+    entrada_id: string;
     valor: number;
     entradas: { data: string } | null;
   }[];
+  const { data: todasDist } = await supabase.from("distribuicoes").select("entrada_id");
+  const rateadas = new Set((todasDist ?? []).map((d) => (d as { entrada_id: string }).entrada_id));
+  const entradasNovas = ((entRes.data ?? []) as { id: string; data: string; liquido: number }[])
+    .filter((e) => !rateadas.has(e.id));
   const lanc = (lancRes.data ?? []) as { valor: number; competencia: string }[];
 
   const entradas = new Array(12).fill(0);
@@ -265,6 +285,12 @@ export async function carregarFluxoAnual(ano: number): Promise<FluxoMes[]> {
     if (!d.entradas?.data) continue;
     const dt = new Date(d.entradas.data);
     if (dt.getUTCFullYear() === ano) entradas[dt.getUTCMonth()] += Number(d.valor);
+  }
+  // Entradas novas (sem rateio) entram inteiras: hoje toda entrada e da empresa.
+  for (const e of entradasNovas) {
+    if (!e.data) continue;
+    const dt = new Date(e.data);
+    if (dt.getUTCFullYear() === ano) entradas[dt.getUTCMonth()] += Number(e.liquido);
   }
   for (const l of lanc) {
     const dt = new Date(l.competencia);

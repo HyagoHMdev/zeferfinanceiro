@@ -62,10 +62,6 @@ interface Props {
   vendas: VendaDisponivel[];
   entrada?: Entrada;
   percentuaisMensais?: PercentualMensal[];
-  /** % Empresa/Pessoal/Joinville atuais (edição). Criação usa 0/100/0. */
-  percentualEmpresaInicial?: number;
-  percentualPessoalInicial?: number;
-  percentualJoinvilleInicial?: number;
   trigger: React.ReactNode;
 }
 
@@ -74,9 +70,6 @@ export function EntradaFormDialog({
   vendas,
   entrada,
   percentuaisMensais = [],
-  percentualEmpresaInicial = 0,
-  percentualPessoalInicial = 1,
-  percentualJoinvilleInicial = 0,
   trigger,
 }: Props) {
   const router = useRouter();
@@ -89,31 +82,9 @@ export function EntradaFormDialog({
   const [descricao, setDescricao] = useState(entrada?.descricao ?? "");
   const [valor, setValor] = useState(entrada ? String(entrada.valor) : "");
   const [vendaId, setVendaId] = useState(entrada?.venda_id ?? NONE);
-  const [pctEmpresa, setPctEmpresa] = useState(
-    fracaoParaInputPct(percentualEmpresaInicial),
-  );
-  const [pctPessoal, setPctPessoal] = useState(
-    fracaoParaInputPct(percentualPessoalInicial),
-  );
-  const [pctJoinville, setPctJoinville] = useState(
-    fracaoParaInputPct(percentualJoinvilleInicial),
-  );
-
-  const fracEmpresa = inputPctParaFracao(pctEmpresa);
-  const fracPessoal = inputPctParaFracao(pctPessoal);
-  const fracJoinville = inputPctParaFracao(pctJoinville);
-  // Empresa + Pessoal + Zefer Joinville têm que somar 100%.
-  const somaValida = Math.abs(fracEmpresa + fracPessoal + fracJoinville - 1) < 0.0001;
-
-  // Sem dízimo: líquido = valor. As três parcelas são % do líquido; o pessoal
-  // fica com o resto para não sobrar/faltar centavo no arredondamento.
-  const dist = useMemo(() => {
-    const liquido = round2(parseNumeroBR(valor));
-    const valorEmpresa = round2(liquido * fracEmpresa);
-    const valorJoinville = round2(liquido * fracJoinville);
-    const valorPessoal = round2(liquido - valorEmpresa - valorJoinville);
-    return { liquido, valorEmpresa, valorPessoal, valorJoinville };
-  }, [valor, fracEmpresa, fracJoinville]);
+  // A entrada é toda da empresa: o que sai para o sócio vira uma saída, com
+  // categoria "Retirada", e não um percentual dentro da entrada.
+  const liquido = useMemo(() => round2(parseNumeroBR(valor)), [valor]);
 
   function onSelectVenda(value: string) {
     setVendaId(value);
@@ -128,12 +99,6 @@ export function EntradaFormDialog({
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!somaValida) {
-      toast.error(
-        "A soma de Empresa + Pessoal + Zefer Joinville deve dar exatamente 100%.",
-      );
-      return;
-    }
     setSaving(true);
     const input: EntradaInput = {
       data,
@@ -141,9 +106,6 @@ export function EntradaFormDialog({
       descricao: descricao.trim() || null,
       valor: parseNumeroBR(valor),
       percentual_dizimo: 0,
-      percentual_empresa: fracEmpresa,
-      percentual_pessoal: fracPessoal,
-      percentual_joinville: fracJoinville,
       venda_id: vendaId === NONE ? null : vendaId,
     };
     const res = entrada
@@ -166,7 +128,8 @@ export function EntradaFormDialog({
         <DialogHeader>
           <DialogTitle>{entrada ? "Editar entrada" : "Nova entrada"}</DialogTitle>
           <DialogDescription>
-            Divida a entrada entre Empresa, Pessoal e Zefer Joinville (soma 100%).
+            Todo o valor entra na empresa. Retirada do sócio é lançada como saída,
+            em Despesas Variáveis.
           </DialogDescription>
         </DialogHeader>
 
@@ -238,56 +201,12 @@ export function EntradaFormDialog({
             />
           </div>
 
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-            <div className="space-y-2">
-              <Label htmlFor="e-empresa">% Empresa</Label>
-              <Input
-                id="e-empresa"
-                inputMode="decimal"
-                value={pctEmpresa}
-                onChange={(ev) => setPctEmpresa(ev.target.value)}
-                placeholder="0"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="e-pessoal">% Pessoal</Label>
-              <Input
-                id="e-pessoal"
-                inputMode="decimal"
-                value={pctPessoal}
-                onChange={(ev) => setPctPessoal(ev.target.value)}
-                placeholder="100"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="e-joinville">% Zefer Joinville</Label>
-              <Input
-                id="e-joinville"
-                inputMode="decimal"
-                value={pctJoinville}
-                onChange={(ev) => setPctJoinville(ev.target.value)}
-                placeholder="0"
-              />
-            </div>
-          </div>
-
-          {!somaValida ? (
-            <p className="text-sm text-destructive">
-              A soma de Empresa + Pessoal + Zefer Joinville deve dar exatamente 100%.
-            </p>
-          ) : null}
-
           <div className="rounded-md border bg-muted/40 p-3 text-sm">
-            <Resumo label="Líquido" valor={dist.liquido} strong />
-            <Resumo label="Empresa (Zefer)" valor={dist.valorEmpresa} />
-            <Resumo label="Pessoal" valor={dist.valorPessoal} />
-            {fracJoinville > 0 ? (
-              <Resumo label="Zefer Joinville" valor={dist.valorJoinville} />
-            ) : null}
+            <Resumo label="Entra na empresa" valor={liquido} strong />
           </div>
 
           <DialogFooter>
-            <Button type="submit" disabled={saving || !somaValida}>
+            <Button type="submit" disabled={saving}>
               {saving ? <Loader2 className="size-4 animate-spin" /> : null}
               {entrada ? "Salvar" : "Registrar entrada"}
             </Button>

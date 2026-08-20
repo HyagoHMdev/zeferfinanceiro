@@ -27,6 +27,7 @@ export type OnboardingScreen =
   | "adiantamentos"
   | "pagamentos"
   | "entradas"
+  | "pessoal"
   | "financeiro-caixa"
   | "financeiro-a-pagar"
   | "financeiro-fluxo"
@@ -193,12 +194,12 @@ export const ONBOARDING: Record<OnboardingScreen, OnboardingConteudo> = {
   entradas: {
     titulo: "Entradas",
     intro:
-      "Todo dinheiro que entra: comissões (geradas pelas vendas), bonificações, premiações, investidores e outras.",
+      "Todo dinheiro que entra na empresa: comissões, bonificações, premiações, investidores e outras. A entrada não é mais repartida por percentual: retirada do sócio é lançada como saída, em Despesas Variáveis, na categoria Retirada.",
     topicos: [
       {
-        titulo: "Divisão Empresa / Pessoal",
+        titulo: "Retirada do sócio",
         texto:
-          "Cada entrada tem a divisão Empresa / Pessoal (que precisa somar 100%), ou vai 100% para a Zefer Joinville.",
+          "A entrada não se divide mais entre carteiras: ela entra inteira na empresa. Quando você tira dinheiro, lança uma SAÍDA em Despesas Variáveis com a categoria 'Retirada (sócio)', e registra a entrada correspondente na aba Pessoal. Assim o que saiu do caixa fica visível, em vez de escondido num percentual.",
       },
       {
         titulo: "Comissões automáticas",
@@ -270,6 +271,28 @@ export const ONBOARDING: Record<OnboardingScreen, OnboardingConteudo> = {
         titulo: "De onde vêm os números",
         texto:
           "Entradas vêm das comissões/distribuições; saídas, dos lançamentos da empresa.",
+      },
+    ],
+  },
+  pessoal: {
+    titulo: "Pessoal",
+    intro:
+      "Seu dinheiro, separado do da empresa. Nada aqui é criado por automação: entradas e saídas são lançadas à mão.",
+    topicos: [
+      {
+        titulo: "Entradas",
+        texto:
+          "Retirada da empresa, salário, aluguel recebido: tudo que entra no seu bolso é cadastrado aqui. A empresa não repassa mais percentual nenhum sozinha.",
+      },
+      {
+        titulo: "Custo fixo e variável",
+        texto:
+          "A separação vem do TIPO da categoria escolhida no lançamento: categoria de custo fixo cai no bloco de cima, o resto cai em variável. Gasto sem categoria conta como variável.",
+      },
+      {
+        titulo: "Sobra",
+        texto:
+          "Entradas menos custo fixo menos custo variável. É o que sobrou no período que a tela está mostrando.",
       },
     ],
   },

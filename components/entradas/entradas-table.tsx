@@ -228,9 +228,6 @@ export function EntradasTable({
                 vendas={vendas}
                 entrada={e}
                 percentuaisMensais={percentuaisMensais}
-                percentualEmpresaInicial={percDe(e, "empresa")}
-                percentualPessoalInicial={percDe(e, "pessoal")}
-                percentualJoinvilleInicial={percDe(e, "joinville")}
                 trigger={
                   <Button variant="ghost" size="icon" aria-label="Editar">
                     <Pencil className="size-4" />
