@@ -31,6 +31,8 @@ export interface AdiantamentoAPagar {
 export interface CorretorPendente {
   corretorId: string;
   corretorNome: string | null;
+  /** Para quem paga: a chave que ele vai colar no banco. */
+  chavePix: string | null;
   comissoes: ComissaoAPagar[];
   adiantamentos: AdiantamentoAPagar[];
   totalBruto: number;
@@ -49,7 +51,7 @@ export async function listarPagamentosPendentes(): Promise<CorretorPendente[]> {
   const { data: vendasData } = await supabase
     .from("vendas")
     .select(
-      "id, cliente, data_venda, liquido_corretor, comissao_corretor_bruto, valor_imposto_nf, corretor_id, recebimento_parcelado, corretores(nome), empreendimentos(nome)",
+      "id, cliente, data_venda, liquido_corretor, comissao_corretor_bruto, valor_imposto_nf, corretor_id, recebimento_parcelado, corretores(nome, chave_pix), empreendimentos(nome)",
     )
     .eq("status_pagamento_corretor", "aguardando_liberacao")
     .not("corretor_id", "is", null)
@@ -64,7 +66,7 @@ export async function listarPagamentosPendentes(): Promise<CorretorPendente[]> {
     valor_imposto_nf: number;
     corretor_id: string;
     recebimento_parcelado: boolean;
-    corretores: { nome: string } | null;
+    corretores: { nome: string; chave_pix: string | null } | null;
     empreendimentos: { nome: string } | null;
   }[];
 
@@ -128,6 +130,7 @@ export async function listarPagamentosPendentes(): Promise<CorretorPendente[]> {
       ({
         corretorId: v.corretor_id,
         corretorNome: v.corretores?.nome ?? null,
+        chavePix: v.corretores?.chave_pix ?? null,
         comissoes: [],
         adiantamentos: [],
         totalBruto: 0,

@@ -23,6 +23,7 @@ import {
 } from "@/app/(app)/corretores/actions";
 import { registrarPagamento } from "@/app/(app)/pagamentos/actions";
 import type { ProcessamentoVenda } from "@/lib/data/corretores";
+import { ChavePix } from "@/components/pagamentos/chave-pix";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -429,6 +430,15 @@ export function ProcessamentoCorretor({
                     <span className="tabular-nums">{formatBRL(r.valor)}</span>
                   </a>
                 ))}
+              </div>
+            ) : null}
+
+            {podeEditar && pagavel.chaves.length > 0 ? (
+              <div className="mt-3">
+                <ChavePix
+                  chave={venda.corretores?.chave_pix ?? null}
+                  nome={venda.corretores?.nome}
+                />
               </div>
             ) : null}
 

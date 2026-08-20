@@ -153,7 +153,7 @@ export async function listarComissoesCorretor(
 }
 
 export interface VendaComNomes extends Venda {
-  corretores: { nome: string } | null;
+  corretores: { nome: string; chave_pix: string | null } | null;
   empreendimentos: { nome: string } | null;
   construtoras: { nome: string } | null;
 }
@@ -198,7 +198,7 @@ export async function carregarProcessamentoVenda(
     supabase
       .from("vendas")
       .select(
-        "*, corretores(nome), empreendimentos(nome), construtoras(nome)",
+        "*, corretores(nome, chave_pix), empreendimentos(nome), construtoras(nome)",
       )
       .eq("id", vendaId)
       .single(),

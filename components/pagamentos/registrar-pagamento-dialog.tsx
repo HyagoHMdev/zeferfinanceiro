@@ -9,6 +9,7 @@ import { registrarPagamento } from "@/app/(app)/pagamentos/actions";
 import type { CorretorPendente } from "@/lib/data/pagamentos";
 import { round2 } from "@/lib/calculos";
 import { formatBRL, formatData } from "@/lib/format";
+import { ChavePix } from "@/components/pagamentos/chave-pix";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -171,6 +172,8 @@ export function RegistrarPagamentoDialog({ corretor }: { corretor: CorretorPende
         <>
 
         <div className="space-y-4 text-sm">
+          <ChavePix chave={corretor.chavePix} nome={corretor.corretorNome} />
+
           <div>
             <div className="mb-1 flex items-center justify-between">
               <span className="font-semibold">Comissões ({resumo.nComissoes}/{corretor.comissoes.length})</span>
