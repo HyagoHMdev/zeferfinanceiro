@@ -88,8 +88,11 @@ export async function listarContasAPagar(): Promise<LancamentoRow[]> {
     .from("lancamentos")
     .select("*, categorias_financeiras(nome), contas_bancarias(nome)")
     .neq("status", "pago")
-    // Conta pessoal não é conta da empresa: ela vive na aba Pessoal.
-    .eq("escopo", "empresa")
+    // Fora o pessoal, que tem aba própria. Joinville CONTINUA aqui: é carteira
+    // da empresa, não vida pessoal, e some-la escondeu 176 contas de uma vez.
+    .neq("escopo", "pessoal")
+    // Entrada não é conta a pagar.
+    .not("natureza", "in", "(entrada_pessoal,entrada_joinville)")
     .order("data_vencimento", { ascending: true, nullsFirst: false });
   return (data ?? []) as unknown as LancamentoRow[];
 }
