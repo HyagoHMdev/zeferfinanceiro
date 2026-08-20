@@ -171,6 +171,12 @@ export interface ProcessamentoVenda {
    * construtora já liberou e que ainda não entraram em nenhum pagamento.
    */
   pagavel: { chaves: string[]; bruto: number };
+  /**
+   * Recibos dos pagamentos que já quitaram esta venda (ou parcelas dela).
+   * Sem isto, o recibo só aparecia no instante do pagamento e depois sumia da
+   * tela, justamente quando alguém precisa reimprimir.
+   */
+  recibos: { id: string; data: string; valor: number; parcelas: number[] }[];
   /** Parcelas da construtora com a fatia da comissao. Vazio em venda a vista. */
   parcelas: {
     id: string;
@@ -269,6 +275,32 @@ export async function carregarProcessamentoVenda(
       ? { chaves: [venda.id], bruto: round2(Number(venda.liquido_corretor)) }
       : { chaves: [], bruto: 0 };
 
+  // Um recibo por pagamento envolvido: o da venda inteira, e/ou o das parcelas.
+  const idsPagamento = new Map<string, number[]>();
+  if (venda.pagamento_id) idsPagamento.set(venda.pagamento_id, []);
+  for (const p of parcelas) {
+    if (!p.pago) continue;
+    const linha = linhas.find((x) => x.id === p.id);
+    const pid = linha?.pagamento_id;
+    if (!pid) continue;
+    idsPagamento.set(pid, [...(idsPagamento.get(pid) ?? []), p.numero]);
+  }
+
+  let recibos: ProcessamentoVenda["recibos"] = [];
+  if (idsPagamento.size > 0) {
+    const { data: pags } = await supabase
+      .from("pagamentos_corretor")
+      .select("id, data, valor_liquido")
+      .in("id", [...idsPagamento.keys()])
+      .order("data", { ascending: false });
+    recibos = ((pags ?? []) as { id: string; data: string; valor_liquido: number }[]).map((x) => ({
+      id: x.id,
+      data: x.data,
+      valor: Number(x.valor_liquido),
+      parcelas: idsPagamento.get(x.id) ?? [],
+    }));
+  }
+
   const totalAdiantamentos = round2(
     adiantamentos.reduce((s, a) => s + Number(a.valor), 0),
   );
@@ -285,5 +317,6 @@ export async function carregarProcessamentoVenda(
     liquidoParaPagamento,
     parcelas,
     pagavel,
+    recibos,
   };
 }

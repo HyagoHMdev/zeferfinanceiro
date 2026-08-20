@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 
 import { createAdminClient } from "@/lib/supabase/admin";
 import { formatBRL, formatData } from "@/lib/format";
+import { ratearPorParcelas } from "@/lib/calculos";
 import { PrintButton } from "@/components/recibo/print-button";
 import { WhatsappButton } from "@/components/recibo/whatsapp-button";
 import { AssinaturaRecibo } from "@/components/recibo/assinatura-recibo";
@@ -39,13 +40,22 @@ export default async function ReciboPagamentoPage({
   if (!data) notFound();
   const pagamento = data as unknown as PagamentoRecibo;
 
-  const [vendasRes, adiRes, bonRes] = await Promise.all([
+  const [vendasRes, parcelasRes, adiRes, bonRes] = await Promise.all([
     supabase
       .from("vendas")
       .select(
         "id, cliente, liquido_corretor, comissao_corretor_bruto, valor_imposto_nf, desconto_parceiro_valor, possui_parceria, empreendimentos(nome)",
       )
       .eq("pagamento_id", id),
+    // Pagamento de venda parcelada não marca a VENDA como paga (ela só fecha na
+    // última parcela), então sem isto o recibo saía sem dizer de que venda era.
+    supabase
+      .from("venda_parcelas")
+      .select(
+        "id, numero, valor, venda_id, vendas(cliente, liquido_corretor, comissao_corretor_bruto, valor_imposto_nf, desconto_parceiro_valor, empreendimentos(nome))",
+      )
+      .eq("pagamento_id", id)
+      .order("numero"),
     supabase.from("adiantamentos").select("id, data, descricao, valor").eq("pagamento_id", id),
     supabase.from("bonificacoes").select("id, data, motivo, valor").eq("pagamento_id", id),
   ]);
@@ -60,15 +70,73 @@ export default async function ReciboPagamentoPage({
     possui_parceria: boolean;
     empreendimentos: { nome: string } | null;
   }[];
-  const totalComissaoBruta = vendas.reduce((s, v) => s + Number(v.comissao_corretor_bruto), 0);
-  const totalImposto = vendas.reduce((s, v) => s + Number(v.valor_imposto_nf), 0);
+  // Cada parcela paga vira uma linha da tabela, com a FATIA dela da comissão:
+  // é o mesmo rateio da fila de pagamento (peso da parcela sobre o total).
+  type ParcelaRecibo = {
+    id: string;
+    numero: number;
+    valor: number;
+    venda_id: string;
+    vendas: {
+      cliente: string | null;
+      liquido_corretor: number;
+      comissao_corretor_bruto: number;
+      valor_imposto_nf: number;
+      desconto_parceiro_valor: number | null;
+      empreendimentos: { nome: string } | null;
+    } | null;
+  };
+  const parcelasPagas = (parcelasRes.data ?? []) as unknown as ParcelaRecibo[];
+
+  const linhasParcela = await (async () => {
+    if (parcelasPagas.length === 0) return [];
+    const vendaIds = [...new Set(parcelasPagas.map((p) => p.venda_id))];
+    const { data: todas } = await supabase
+      .from("venda_parcelas")
+      .select("id, venda_id, valor")
+      .in("venda_id", vendaIds)
+      .order("numero");
+    const porVenda = new Map<string, { id: string; valor: number }[]>();
+    for (const p of (todas ?? []) as { id: string; venda_id: string; valor: number }[]) {
+      const lista = porVenda.get(p.venda_id) ?? [];
+      lista.push({ id: p.id, valor: Number(p.valor) });
+      porVenda.set(p.venda_id, lista);
+    }
+
+    return parcelasPagas.map((p) => {
+      const lista = porVenda.get(p.venda_id) ?? [];
+      const total = lista.length;
+      const fatia = (base: number) => {
+        const valores = lista.map((x) => x.valor);
+        const idx = lista.findIndex((x) => x.id === p.id);
+        return ratearPorParcelas(base, valores)[idx] ?? 0;
+      };
+      const v = p.vendas;
+      return {
+        id: p.id,
+        cliente: v?.cliente ?? null,
+        empreendimento: v?.empreendimentos?.nome ?? null,
+        parcela: `${p.numero}/${total}`,
+        comissao_corretor_bruto: fatia(Number(v?.comissao_corretor_bruto ?? 0)),
+        desconto_parceiro_valor: fatia(Number(v?.desconto_parceiro_valor ?? 0)),
+        valor_imposto_nf: fatia(Number(v?.valor_imposto_nf ?? 0)),
+        liquido_corretor: fatia(Number(v?.liquido_corretor ?? 0)),
+      };
+    });
+  })();
+
+  const totalComissaoBruta =
+    vendas.reduce((s, v) => s + Number(v.comissao_corretor_bruto), 0) +
+    linhasParcela.reduce((s, l) => s + l.comissao_corretor_bruto, 0);
+  const totalImposto =
+    vendas.reduce((s, v) => s + Number(v.valor_imposto_nf), 0) +
+    linhasParcela.reduce((s, l) => s + l.valor_imposto_nf, 0);
   // Sem esta coluna o recibo não fechava: comissão menos imposto não dava o
   // líquido pago, e a diferença (a metade da parceria que sai do corretor)
   // ficava sem explicação nenhuma no papel.
-  const totalDescontoParceria = vendas.reduce(
-    (s, v) => s + Number(v.desconto_parceiro_valor ?? 0),
-    0,
-  );
+  const totalDescontoParceria =
+    vendas.reduce((s, v) => s + Number(v.desconto_parceiro_valor ?? 0), 0) +
+    linhasParcela.reduce((s, l) => s + l.desconto_parceiro_valor, 0);
   const temParceria = totalDescontoParceria > 0;
   const adiantamentos = (adiRes.data ?? []) as {
     id: string;
@@ -126,8 +194,8 @@ export default async function ReciboPagamentoPage({
             <strong>{formatBRL(pagamento.valor_liquido)}</strong>, referente{" "}
             {/* Sem comissão o texto muda: pagamento de funcionário não tem venda,
                 e "referente às comissões" seria falso no documento assinado. */}
-            {vendas.length > 0
-              ? "às comissões e valores discriminados abaixo"
+            {vendas.length > 0 || linhasParcela.length > 0
+            ? "às comissões e valores discriminados abaixo"
               : "aos valores discriminados abaixo"}
             {pagamento.observacoes ? ` (${pagamento.observacoes})` : ""}, dando
             plena e geral quitação.
@@ -136,13 +204,13 @@ export default async function ReciboPagamentoPage({
 
         <div className="mb-4">
           <div className="text-sm font-semibold">
-            {vendas.length > 0 ? "Corretor" : "Colaborador"}
+            {vendas.length > 0 || linhasParcela.length > 0 ? "Corretor" : "Colaborador"}
           </div>
           <div>{pagamento.corretores?.nome ?? "—"}</div>
         </div>
 
 
-        {vendas.length > 0 ? (
+        {vendas.length > 0 || linhasParcela.length > 0 ? (
           <section className="mb-4">
             <div className="mb-1 text-sm font-semibold">Comissões</div>
             <table className="w-full text-sm">
@@ -179,6 +247,31 @@ export default async function ReciboPagamentoPage({
                     </td>
                     <td className="py-1 text-right font-medium tabular-nums">
                       {formatBRL(v.liquido_corretor)}
+                    </td>
+                  </tr>
+                ))}
+                {linhasParcela.map((l) => (
+                  <tr key={l.id} className="border-b last:border-0">
+                    <td className="py-1">
+                      {l.empreendimento ?? "Venda"}
+                      {l.cliente ? ` — ${l.cliente}` : ""}
+                      <span className="text-zinc-500"> · parcela {l.parcela}</span>
+                    </td>
+                    <td className="py-1 text-right tabular-nums">
+                      {formatBRL(l.comissao_corretor_bruto)}
+                    </td>
+                    {temParceria ? (
+                      <td className="py-1 text-right tabular-nums text-zinc-500">
+                        {l.desconto_parceiro_valor > 0
+                          ? `- ${formatBRL(l.desconto_parceiro_valor)}`
+                          : "—"}
+                      </td>
+                    ) : null}
+                    <td className="py-1 text-right tabular-nums text-zinc-500">
+                      - {formatBRL(l.valor_imposto_nf)}
+                    </td>
+                    <td className="py-1 text-right font-medium tabular-nums">
+                      {formatBRL(l.liquido_corretor)}
                     </td>
                   </tr>
                 ))}
@@ -223,7 +316,7 @@ export default async function ReciboPagamentoPage({
           {/* Funcionário não tem comissão nem imposto de NF: as linhas viriam
               zeradas e o rótulo "Comissão" seria falso num documento assinado.
               Nesse caso o recibo mostra só o valor do pagamento. */}
-          {vendas.length > 0 ? (
+          {vendas.length > 0 || linhasParcela.length > 0 ? (
             <>
               <div className="flex justify-between">
                 <span>Comissão bruta</span>

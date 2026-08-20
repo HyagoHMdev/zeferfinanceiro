@@ -4,7 +4,7 @@ import * as React from "react";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Loader2, Plus, Check } from "lucide-react";
+import { Loader2, Plus, Check, FileText } from "lucide-react";
 
 import { calcularVenda, resumoCorretor, round2 } from "@/lib/calculos";
 import {
@@ -53,9 +53,12 @@ export function ProcessamentoCorretor({
   podeEditar: boolean;
 }) {
   const router = useRouter();
-  const { venda, adiantamentos, parcelas, pagavel } = dados;
+  const { venda, adiantamentos, parcelas, pagavel, recibos } = dados;
   const [parcelaBusy, setParcelaBusy] = useState<string | null>(null);
   const [pagando, setPagando] = useState(false);
+  // Recibo do pagamento feito agora. Vira um link de verdade na tela:
+  // window.open depois do await é bloqueado como popup, e o recibo sumia.
+  const [reciboId, setReciboId] = useState<string | null>(null);
 
   // Adiantamentos DESTA venda que ainda não foram descontados. Os vales
   // avulsos ficam de fora: aqui se paga uma venda, não a conta inteira do
@@ -86,7 +89,7 @@ export function ProcessamentoCorretor({
     setPagando(false);
     if (res?.error) return toast.error(res.error);
     toast.success("Pagamento registrado.");
-    if (res?.pagamentoId) window.open(`/recibo/pagamento/${res.pagamentoId}`, "_blank");
+    setReciboId(res?.pagamentoId ?? null);
     router.refresh();
   }
 
@@ -385,6 +388,49 @@ export function ProcessamentoCorretor({
             <ResumoLinha label="Comissão líquida" valor={calc.liquidoCorretor} strong divider />
             <ResumoLinha label="(−) Adiantamentos" valor={-totalAdiantamentos} />
             <ResumoLinha label="Líquido para pagamento" valor={liquidoPagamento} highlight />
+
+            {/* Recibos desta venda: o do pagamento feito agora e os antigos.
+                Antes o link so existia no instante do pagamento e sumia no
+                recarregar, bem quando alguem precisa reimprimir. */}
+            {reciboId && !recibos.some((r) => r.id === reciboId) ? (
+              <a
+                href={`/recibo/pagamento/${reciboId}`}
+                target="_blank"
+                rel="noreferrer"
+                className="mt-3 flex w-full items-center justify-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90"
+              >
+                <FileText className="size-4" />
+                Abrir recibo do pagamento
+              </a>
+            ) : null}
+
+            {recibos.length > 0 ? (
+              <div className="mt-3 space-y-1.5 border-t pt-3">
+                <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                  {recibos.length === 1 ? "Recibo" : "Recibos"}
+                </div>
+                {recibos.map((r) => (
+                  <a
+                    key={r.id}
+                    href={`/recibo/pagamento/${r.id}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="flex items-center justify-between gap-2 rounded-md border px-3 py-2 text-xs hover:bg-muted/50"
+                  >
+                    <span className="inline-flex items-center gap-1.5">
+                      <FileText className="size-3.5" />
+                      {formatData(r.data)}
+                      {r.parcelas.length > 0 ? (
+                        <span className="text-muted-foreground">
+                          · parcela{r.parcelas.length > 1 ? "s" : ""} {r.parcelas.join(", ")}
+                        </span>
+                      ) : null}
+                    </span>
+                    <span className="tabular-nums">{formatBRL(r.valor)}</span>
+                  </a>
+                ))}
+              </div>
+            ) : null}
 
             {podeEditar ? (
               pagavel.chaves.length > 0 ? (

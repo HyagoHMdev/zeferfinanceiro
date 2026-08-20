@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Loader2, HandCoins } from "lucide-react";
+import { Loader2, HandCoins, FileText } from "lucide-react";
 
 import { registrarPagamento } from "@/app/(app)/pagamentos/actions";
 import type { CorretorPendente } from "@/lib/data/pagamentos";
@@ -26,6 +26,10 @@ export function RegistrarPagamentoDialog({ corretor }: { corretor: CorretorPende
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
+  // Pagamento recém-registrado. Enquanto ele existe, o diálogo vira a tela do
+  // recibo: abrir em window.open depois do await é bloqueado como popup pelo
+  // navegador, e o recibo simplesmente não aparecia.
+  const [reciboId, setReciboId] = useState<string | null>(null);
 
   // Seleção: começa com tudo marcado (pagar todas as comissões e descontar todos
   // os adiantamentos), mas dá para escolher só algumas.
@@ -43,6 +47,7 @@ export function RegistrarPagamentoDialog({ corretor }: { corretor: CorretorPende
   // o item apareceria na lista já DESMARCADO e sairia do pagamento calado.
   function alternarDialogo(abrir: boolean) {
     if (abrir) {
+      setReciboId(null);
       setSel(new Set(corretor.comissoes.map((c) => c.chave)));
       setAdiSel(new Set(corretor.adiantamentos.map((a) => a.id)));
     }
@@ -117,12 +122,8 @@ export function RegistrarPagamentoDialog({ corretor }: { corretor: CorretorPende
       return;
     }
     toast.success("Pagamento registrado");
-    setOpen(false);
+    setReciboId(res?.pagamentoId ?? null);
     router.refresh();
-    // Abre o recibo imprimível em nova aba.
-    if (res?.pagamentoId) {
-      window.open(`/recibo/pagamento/${res.pagamentoId}`, "_blank");
-    }
   }
 
   return (
@@ -135,12 +136,39 @@ export function RegistrarPagamentoDialog({ corretor }: { corretor: CorretorPende
       </DialogTrigger>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>Pagar {corretor.corretorNome ?? "corretor"}</DialogTitle>
+          <DialogTitle>
+            {reciboId ? "Pagamento registrado" : `Pagar ${corretor.corretorNome ?? "corretor"}`}
+          </DialogTitle>
           <DialogDescription>
-            Escolha quais comissões pagar. As selecionadas serão marcadas como pagas e um recibo
-            será gerado para o corretor assinar.
+            {reciboId
+              ? "Abra o recibo para imprimir ou mandar ao corretor assinar."
+              : "Escolha quais comissões pagar. As selecionadas serão marcadas como pagas e um recibo será gerado para o corretor assinar."}
           </DialogDescription>
         </DialogHeader>
+
+        {reciboId ? (
+          <div className="space-y-3">
+            <a
+              href={`/recibo/pagamento/${reciboId}`}
+              target="_blank"
+              rel="noreferrer"
+              className="flex w-full items-center justify-center gap-2 rounded-md bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground hover:opacity-90"
+            >
+              <FileText className="size-4" />
+              Abrir recibo
+            </a>
+            <p className="text-xs text-muted-foreground">
+              Ele também fica em &ldquo;Pagamentos realizados&rdquo;, aqui embaixo, junto do
+              botão para anexar a via assinada.
+            </p>
+            <DialogClose asChild>
+              <Button variant="outline" className="w-full">
+                Fechar
+              </Button>
+            </DialogClose>
+          </div>
+        ) : (
+        <>
 
         <div className="space-y-4 text-sm">
           <div>
@@ -253,6 +281,8 @@ export function RegistrarPagamentoDialog({ corretor }: { corretor: CorretorPende
             Confirmar pagamento
           </Button>
         </DialogFooter>
+        </>
+        )}
       </DialogContent>
     </Dialog>
   );
