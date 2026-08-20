@@ -124,9 +124,35 @@ export function LancamentoFormDialog({
 
   const isGrupo = isEdit && Boolean(lancamento?.recorrencia_grupo);
 
-  const categoriasFiltradas = TIPOS_COM_CATEGORIA.includes(natureza)
-    ? cadastros.categorias.filter((c) => c.tipo === natureza)
-    : cadastros.categorias;
+  // O pessoal tem cadastro próprio e enxuto: sem conta bancária, centro de
+  // custo ou fornecedor, que são coisas da empresa (nenhum dos lançamentos
+  // pessoais usa esses campos). E as categorias oferecidas são só as do
+  // pessoal, não as 40 da empresa.
+  const ehPessoal = escopoFixo === "pessoal";
+  const categoriasPessoais = cadastros.categorias.filter((c) =>
+    c.nome.toLowerCase().startsWith("pessoal"),
+  );
+
+  // Na saída, o tipo de custo é a decisão principal: é ele que joga o
+  // lançamento no bloco "custo fixo" ou "custo variável" da aba Pessoal.
+  const [tipoCusto, setTipoCusto] = useState<"custo_fixo" | "despesa_variavel">(() => {
+    const atual = cadastros.categorias.find((c) => c.id === lancamento?.categoria_id);
+    return atual?.tipo === "custo_fixo" ? "custo_fixo" : "despesa_variavel";
+  });
+
+  const categoriasFiltradas = ehPessoal
+    ? natureza === "saida_pessoal"
+      ? categoriasPessoais.filter((c) => c.tipo === tipoCusto)
+      : categoriasPessoais.filter((c) => /entrada/i.test(c.nome))
+    : TIPOS_COM_CATEGORIA.includes(natureza)
+      ? cadastros.categorias.filter((c) => c.tipo === natureza)
+      : cadastros.categorias;
+
+  // Com uma opção só, escolher é ritual: já deixa marcada.
+  const categoriaEfetiva =
+    categoriaId === NONE && categoriasFiltradas.length === 1
+      ? categoriasFiltradas[0].id
+      : categoriaId;
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -134,7 +160,7 @@ export function LancamentoFormDialog({
     const input: LancamentoInput = {
       escopo: escopoFixo,
       natureza: naturezaFixa ?? natureza,
-      categoria_id: categoriaId === NONE ? null : categoriaId,
+      categoria_id: categoriaEfetiva === NONE ? null : categoriaEfetiva,
       descricao: descricao.trim(),
       valor: parseNumeroBR(valor),
       competencia,
@@ -142,9 +168,9 @@ export function LancamentoFormDialog({
       status,
       recorrencia: isEdit ? "nenhuma" : recorrencia,
       repeticoes: isEdit ? 1 : Math.max(1, Math.round(parseNumeroBR(repeticoes))),
-      conta_id: contaId === NONE ? null : contaId,
-      centro_custo_id: centroId === NONE ? null : centroId,
-      fornecedor_id: fornecedorId === NONE ? null : fornecedorId,
+      conta_id: ehPessoal || contaId === NONE ? null : contaId,
+      centro_custo_id: ehPessoal || centroId === NONE ? null : centroId,
+      fornecedor_id: ehPessoal || fornecedorId === NONE ? null : fornecedorId,
       anexo_url: anexoUrl,
       observacoes: observacoes.trim() || null,
     };
@@ -224,9 +250,31 @@ export function LancamentoFormDialog({
                 required
               />
             </div>
+            {ehPessoal && natureza === "saida_pessoal" ? (
+              <div className="space-y-2">
+                <Label>Tipo de custo</Label>
+                <Select
+                  value={tipoCusto}
+                  onValueChange={(v) => {
+                    setTipoCusto(v as typeof tipoCusto);
+                    // A categoria antiga é de outro tipo: limpa para não salvar
+                    // um gasto fixo com categoria de variável.
+                    setCategoriaId(NONE);
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="custo_fixo">Custo fixo</SelectItem>
+                    <SelectItem value="despesa_variavel">Custo variável</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            ) : null}
             <div className="space-y-2">
               <Label>Categoria</Label>
-              <Select value={categoriaId} onValueChange={setCategoriaId}>
+              <Select value={categoriaEfetiva} onValueChange={setCategoriaId}>
                 <SelectTrigger>
                   <SelectValue placeholder="—" />
                 </SelectTrigger>
@@ -264,7 +312,7 @@ export function LancamentoFormDialog({
                 onChange={(e) => setVencimento(e.target.value)}
               />
             </div>
-            <div className="space-y-2">
+            <div className={ehPessoal ? "hidden" : "space-y-2"}>
               <Label>Conta</Label>
               <Select value={contaId} onValueChange={setContaId}>
                 <SelectTrigger>
@@ -280,7 +328,7 @@ export function LancamentoFormDialog({
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-2">
+            <div className={ehPessoal ? "hidden" : "space-y-2"}>
               <Label>Centro de custo</Label>
               <Select value={centroId} onValueChange={setCentroId}>
                 <SelectTrigger>
@@ -296,7 +344,7 @@ export function LancamentoFormDialog({
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-2">
+            <div className={ehPessoal ? "hidden" : "space-y-2"}>
               <Label>Fornecedor</Label>
               <Select value={fornecedorId} onValueChange={setFornecedorId}>
                 <SelectTrigger>
