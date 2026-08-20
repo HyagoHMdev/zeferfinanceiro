@@ -101,6 +101,10 @@ export function PessoalView({
   podeEditar: boolean;
 }) {
   const [mes, setMes] = useState(TODOS);
+  // Dia do VENCIMENTO, não da competência: competência é mês fechado, e o dia
+  // que interessa é o de pagar. Funciona junto do mês ou sozinho, e sozinho
+  // responde "o que vence todo dia 10", que é como conta fixa é lembrada.
+  const [dia, setDia] = useState(TODOS);
 
   // Mês atual no topo, como nas outras telas. Aqui importa mais: a recorrência
   // vai até 2031, e ordenar só decrescente abriria o filtro em jul/2031.
@@ -110,9 +114,27 @@ export function PessoalView({
     return ordenarMeses([...s]);
   }, [lancamentos]);
 
-  const filtrados = useMemo(
+  const doMes = useMemo(
     () => (mes === TODOS ? lancamentos : lancamentos.filter((l) => l.competencia.slice(0, 7) === mes)),
     [lancamentos, mes],
+  );
+
+  // Os dias oferecidos saem do recorte de mês: sem isso o select ofereceria
+  // dia que não existe no mês escolhido.
+  const dias = useMemo(() => {
+    const s = new Set<number>();
+    for (const l of doMes) {
+      if (l.data_vencimento) s.add(Number(l.data_vencimento.slice(8, 10)));
+    }
+    return [...s].sort((a, b) => a - b);
+  }, [doMes]);
+
+  const filtrados = useMemo(
+    () =>
+      dia === TODOS
+        ? doMes
+        : doMes.filter((l) => l.data_vencimento?.slice(8, 10) === dia.padStart(2, "0")),
+    [doMes, dia],
   );
 
   // Fixo x variável sai do TIPO da categoria; sem categoria conta como
@@ -133,12 +155,24 @@ export function PessoalView({
   const totalEntradas = soma(grupos.entradas);
   const totalFixos = soma(grupos.fixos);
   const totalVariaveis = soma(grupos.variaveis);
-  const sufixo = mes === TODOS ? "" : ` · ${mesLabel(mes)}`;
+  const sufixo = [
+    mes === TODOS ? null : mesLabel(mes),
+    dia === TODOS ? null : `dia ${dia}`,
+  ]
+    .filter(Boolean)
+    .map((x) => ` · ${x}`)
+    .join("");
 
   return (
     <div>
       <div className="mb-4 flex flex-wrap items-center gap-2">
-        <Select value={mes} onValueChange={setMes}>
+        <Select
+          value={mes}
+          onValueChange={(v) => {
+            setMes(v);
+            setDia(TODOS);
+          }}
+        >
           <SelectTrigger size="sm" className="w-44">
             <SelectValue placeholder="Mês" />
           </SelectTrigger>
@@ -151,8 +185,29 @@ export function PessoalView({
             ))}
           </SelectContent>
         </Select>
-        {mes !== TODOS ? (
-          <Button variant="ghost" size="sm" onClick={() => setMes(TODOS)}>
+        <Select value={dia} onValueChange={setDia}>
+          <SelectTrigger size="sm" className="w-36">
+            <SelectValue placeholder="Dia" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value={TODOS}>Todos os dias</SelectItem>
+            {dias.map((d) => (
+              <SelectItem key={d} value={String(d)}>
+                dia {d}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        {mes !== TODOS || dia !== TODOS ? (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => {
+              setMes(TODOS);
+              setDia(TODOS);
+            }}
+          >
             <X className="size-4" />
             Limpar
           </Button>
