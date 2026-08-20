@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { ChevronDown, ChevronRight, Plus, X } from "lucide-react";
 
 import { round2 } from "@/lib/calculos";
-import { mesAbrev } from "@/lib/format";
+import { mesAbrev, ordenarMeses } from "@/lib/format";
 import type { CadastrosLancamento, LancamentoRow } from "@/lib/data/financeiro";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -102,10 +102,12 @@ export function PessoalView({
 }) {
   const [mes, setMes] = useState(TODOS);
 
+  // Mês atual no topo, como nas outras telas. Aqui importa mais: a recorrência
+  // vai até 2031, e ordenar só decrescente abriria o filtro em jul/2031.
   const meses = useMemo(() => {
     const s = new Set<string>();
     for (const l of lancamentos) s.add(l.competencia.slice(0, 7));
-    return [...s].sort((a, b) => b.localeCompare(a));
+    return ordenarMeses([...s]);
   }, [lancamentos]);
 
   const filtrados = useMemo(

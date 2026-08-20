@@ -223,3 +223,19 @@ export function formatarCpf(valor: string): string {
   if (d.length <= 9) return `${d.slice(0, 3)}.${d.slice(3, 6)}.${d.slice(6)}`;
   return `${d.slice(0, 3)}.${d.slice(3, 6)}.${d.slice(6, 9)}-${d.slice(9)}`;
 }
+
+/**
+ * Ordena meses 'YYYY-MM' do jeito que o resto do sistema mostra lançamento:
+ * mês atual primeiro, depois os futuros em ordem, e por último os passados do
+ * mais recente para o mais antigo.
+ *
+ * Ordenar só decrescente funciona onde não existe futuro (adiantamentos,
+ * comissões), mas no pessoal há recorrência lançada até 2031: o filtro abriria
+ * em "jul/2031", que não é onde ninguém está.
+ */
+export function ordenarMeses(meses: string[], hoje = new Date()): string[] {
+  const atual = `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, "0")}`;
+  const futuros = meses.filter((m) => m >= atual).sort((a, b) => a.localeCompare(b));
+  const passados = meses.filter((m) => m < atual).sort((a, b) => b.localeCompare(a));
+  return [...futuros, ...passados];
+}
