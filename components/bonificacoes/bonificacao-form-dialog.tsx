@@ -40,6 +40,8 @@ export interface VendaOpcao {
   id: string;
   corretorId: string | null;
   label: string;
+  /** 'YYYY-MM-DD' da venda: é ela que datura a bonificação. */
+  data: string;
 }
 
 /**
@@ -67,10 +69,27 @@ export function BonificacaoFormDialog({
   const [vendaId, setVendaId] = useState(NONE);
   const [observacao, setObservacao] = useState("");
   const [anexos, setAnexos] = useState<DocumentoVenda[]>([]);
+  // Só para avisar de onde veio a data que está no campo.
+  const [dataDaVenda, setDataDaVenda] = useState(false);
 
   // Escolhido o corretor, só as vendas dele fazem sentido na lista.
   const vendasDoCorretor =
     corretorId === NONE ? vendas : vendas.filter((v) => v.corretorId === corretorId);
+
+  /**
+   * Vincular a venda traz a data dela.
+   *
+   * O bônus é daquela venda, não do dia em que alguém sentou para lançar: sem
+   * isso a bonificação de uma venda de março caía em agosto e bagunçava o mês
+   * do relatório. Continua editável, para o caso raro de a campanha ter data
+   * própria.
+   */
+  function escolherVenda(id: string) {
+    setVendaId(id);
+    const v = vendas.find((x) => x.id === id);
+    setDataDaVenda(Boolean(v));
+    if (v) setData(v.data.slice(0, 10));
+  }
 
   function limpar() {
     setCorretorId(NONE);
@@ -80,6 +99,7 @@ export function BonificacaoFormDialog({
     setVendaId(NONE);
     setObservacao("");
     setAnexos([]);
+    setDataDaVenda(false);
   }
 
   async function salvar() {
@@ -169,13 +189,21 @@ export function BonificacaoFormDialog({
               id="bf-data"
               type="date"
               value={data}
-              onChange={(e) => setData(e.target.value)}
+              onChange={(e) => {
+                setData(e.target.value);
+                setDataDaVenda(false);
+              }}
             />
+            {dataDaVenda ? (
+              <p className="text-xs text-muted-foreground">
+                Data da venda vinculada. Dá para mudar.
+              </p>
+            ) : null}
           </div>
 
           <div className="space-y-2">
             <Label>Venda (opcional)</Label>
-            <Select value={vendaId} onValueChange={setVendaId}>
+            <Select value={vendaId} onValueChange={escolherVenda}>
               <SelectTrigger>
                 <SelectValue placeholder="Sem venda vinculada" />
               </SelectTrigger>

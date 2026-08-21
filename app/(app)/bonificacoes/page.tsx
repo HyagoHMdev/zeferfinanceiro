@@ -1,7 +1,7 @@
 import { requireRole, STAFF_ROLES, ADMIN_FIN_ROLES } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { listarBonificacoes } from "@/lib/data/bonificacoes";
-import { formatBRL } from "@/lib/format";
+import { formatBRL, formatData } from "@/lib/format";
 import { PageHeader } from "@/components/page-header";
 import { BonificacoesView } from "@/components/bonificacoes/bonificacoes-view";
 import type {
@@ -49,7 +49,10 @@ export default async function BonificacoesPage() {
     (v): VendaOpcao => ({
       id: v.id,
       corretorId: v.corretor_id,
-      label: `${v.empreendimentos?.nome ?? "Venda"}${v.cliente ? " — " + v.cliente : ""} (${formatBRL(v.vgv)})`,
+      data: v.data_venda,
+      // A data entra no rótulo porque é ela que a bonificação vai herdar:
+      // quem escolhe precisa ver qual data está puxando.
+      label: `${v.empreendimentos?.nome ?? "Venda"}${v.cliente ? " · " + v.cliente : ""} (${formatData(v.data_venda)} · ${formatBRL(v.vgv)})`,
     }),
   );
 
