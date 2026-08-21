@@ -15,6 +15,7 @@ import { ChecklistsPendentes } from "@/components/vendas/checklists-pendentes";
 import { listarChecklistsPendentes } from "@/lib/data/checklist";
 import { VendaStatusBadge } from "@/components/vendas/status-badge";
 import { VendaStatusSelect } from "@/components/vendas/venda-status-select";
+import { NotaFiscalCelula } from "@/components/vendas/nota-fiscal-celula";
 import {
   Table,
   TableBody,
@@ -37,6 +38,7 @@ interface VendaRow {
   liquido_corretor: number;
   lucro_liquido: number;
   status: VendaStatus;
+  nota_fiscal_path: string | null;
   construtoras: { nome: string } | null;
   empreendimentos: { nome: string } | null;
   corretores: { nome: string } | null;
@@ -53,7 +55,7 @@ export default async function VendasPage({
   let q = supabase
     .from("vendas")
     .select(
-      "id, data_venda, unidade, cliente, origem, vgv, comissao_bruta, liquido_zefer, liquido_corretor, lucro_liquido, status, construtoras(nome), empreendimentos(nome), corretores(nome)",
+      "id, data_venda, unidade, cliente, origem, vgv, comissao_bruta, liquido_zefer, liquido_corretor, lucro_liquido, status, nota_fiscal_path, construtoras(nome), empreendimentos(nome), corretores(nome)",
     );
   // O filtro entra na CONSULTA, não na tela: assim os totais do rodapé já saem
   // do recorte, sem ter que recalcular em dois lugares.
@@ -118,6 +120,7 @@ export default async function VendasPage({
                   <TableHead className="text-right">Líquido Zefer</TableHead>
                   <TableHead className="text-right">Lucro</TableHead>
                   <TableHead>Status</TableHead>
+                  <TableHead className="text-center">Nota fiscal</TableHead>
                   {podeEditar ? <TableHead></TableHead> : null}
                 </TableRow>
               </TableHeader>
@@ -163,6 +166,13 @@ export default async function VendasPage({
                         <VendaStatusBadge status={v.status} />
                       )}
                     </TableCell>
+                    <TableCell className="text-center">
+                      <NotaFiscalCelula
+                        vendaId={v.id}
+                        path={v.nota_fiscal_path}
+                        podeEditar={podeEditar}
+                      />
+                    </TableCell>
                     {podeEditar ? (
                       <TableCell className="text-right">
                         <Button asChild variant="ghost" size="icon">
@@ -194,7 +204,8 @@ export default async function VendasPage({
                   <TableCell className="text-right font-medium tabular-nums">
                     {formatBRL(totalLucro)}
                   </TableCell>
-                  <TableCell colSpan={podeEditar ? 2 : 1}></TableCell>
+                  {/* Status + Nota fiscal (+ editar). */}
+                  <TableCell colSpan={podeEditar ? 3 : 2}></TableCell>
                 </TableRow>
               </TableFooter>
             </Table>

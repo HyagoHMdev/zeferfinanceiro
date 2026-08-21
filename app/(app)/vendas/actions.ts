@@ -3,7 +3,7 @@
 import { acharLeadPorTelefone } from "@/lib/data/lead";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import type { z } from "zod";
+import { z } from "zod";
 
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -509,4 +509,38 @@ export async function abrirAnexoChecklist(
   const { data, error } = await admin.storage.from("contratos").createSignedUrl(path, 300);
   if (error || !data?.signedUrl) return { erro: error?.message ?? "Falha ao gerar o link." };
   return { url: data.signedUrl };
+}
+
+const notaSchema = z.object({
+  vendaId: z.string().uuid(),
+  /** Caminho no bucket; null remove a nota. */
+  path: z.string().min(1).nullable(),
+});
+
+/**
+ * Anexa (ou remove) a nota fiscal da comissão daquela venda.
+ *
+ * Fica fora do formulário da venda porque quem sobe a nota costuma estar na
+ * LISTA, conferindo quais faltam, e abrir a venda inteira só para anexar um
+ * arquivo é caminho longo para uma tarefa de dois cliques.
+ */
+export async function salvarNotaFiscal(
+  input: z.infer<typeof notaSchema>,
+): Promise<ActionResult> {
+  await requireRole(ADMIN_FIN_ROLES);
+  const parsed = notaSchema.safeParse(input);
+  if (!parsed.success) return { error: "Dados inválidos." };
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("vendas")
+    .update({
+      nota_fiscal_path: parsed.data.path,
+      nota_fiscal_em: parsed.data.path ? new Date().toISOString() : null,
+    })
+    .eq("id", parsed.data.vendaId);
+  if (error) return { error: error.message };
+
+  revalidar(parsed.data.vendaId);
+  return {};
 }
