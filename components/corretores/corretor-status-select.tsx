@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
 import { alterarStatusPagamentoCorretor } from "@/app/(app)/corretores/actions";
+import { cn } from "@/lib/utils";
 import {
   STATUS_PAGAMENTO_CORRETOR_LABEL,
   type StatusPagamentoCorretor,
@@ -18,6 +19,14 @@ import {
 } from "@/components/ui/select";
 
 const OPCOES: StatusPagamentoCorretor[] = ["aguardando_liberacao", "pago"];
+
+// As mesmas cores do badge das linhas parceladas, para a coluna inteira ser
+// lida de relance: verde = pago, âmbar = ainda deve.
+// dark:bg-* explícito para sobrepor o padrão do SelectTrigger.
+const COR: Record<StatusPagamentoCorretor, string> = {
+  aguardando_liberacao: "bg-warning text-black border-transparent dark:bg-warning",
+  pago: "bg-success text-white border-transparent dark:bg-success",
+};
 
 export function CorretorStatusSelect({
   vendaId,
@@ -47,7 +56,7 @@ export function CorretorStatusSelect({
 
   return (
     <Select value={st} onValueChange={onChange} disabled={busy}>
-      <SelectTrigger size="sm" className="w-44">
+      <SelectTrigger size="sm" className={cn("w-44 font-medium", COR[st])}>
         <SelectValue />
       </SelectTrigger>
       <SelectContent>
