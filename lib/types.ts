@@ -74,6 +74,8 @@ export interface Corretor {
   creci: string | null;
   email: string | null;
   cpf: string | null;
+  /** 'YYYY-MM-DD'. Coluna `date`: aniversário não tem hora nem fuso. */
+  data_nascimento: string | null;
   ativo: boolean;
   created_at: string;
   updated_at: string;

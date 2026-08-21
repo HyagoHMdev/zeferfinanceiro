@@ -12,6 +12,7 @@ import {
   formatPercent,
   fracaoParaInputPct,
   inputPctParaFracao,
+  formatData,
 } from "@/lib/format";
 import { salvarCadastro, excluirCadastro } from "@/app/(app)/configuracoes/actions";
 import { Button } from "@/components/ui/button";
@@ -49,7 +50,7 @@ import type { PercentualMensal } from "@/lib/types";
 
 const NONE = "__none__";
 
-export type CampoTipo = "text" | "number" | "percent" | "select" | "switch";
+export type CampoTipo = "text" | "number" | "percent" | "select" | "switch" | "date";
 
 export interface Campo {
   name: string;
@@ -63,7 +64,7 @@ export interface Campo {
 export interface Coluna {
   key: string;
   label: string;
-  formato?: "text" | "currency" | "percent" | "bool";
+  formato?: "text" | "currency" | "percent" | "bool" | "date";
   alignRight?: boolean;
 }
 
@@ -79,6 +80,8 @@ function estadoInicial(campos: Campo[], registro?: Registro): FormState {
     else if (c.tipo === "percent")
       s[c.name] = v == null ? "" : fracaoParaInputPct(Number(v));
     else if (c.tipo === "select") s[c.name] = v == null ? NONE : String(v);
+    // <input type="date"> so aceita YYYY-MM-DD: se vier com hora, corta.
+    else if (c.tipo === "date") s[c.name] = v == null ? "" : String(v).slice(0, 10);
     else s[c.name] = v == null ? "" : String(v);
   }
   return s;
@@ -172,6 +175,8 @@ export function CadastroManager({
         return v == null ? "—" : formatPercent(Number(v));
       case "bool":
         return v ? "Ativo" : "Inativo";
+      case "date":
+        return formatData(v as string | null);
       default:
         return v == null || v === "" ? "—" : String(v);
     }
@@ -309,6 +314,7 @@ export function CadastroManager({
                     <Label htmlFor={`f-${c.name}`}>{c.label}</Label>
                     <Input
                       id={`f-${c.name}`}
+                      type={c.tipo === "date" ? "date" : undefined}
                       inputMode={
                         c.tipo === "number" || c.tipo === "percent"
                           ? "decimal"

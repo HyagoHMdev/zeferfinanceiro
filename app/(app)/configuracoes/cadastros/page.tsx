@@ -152,6 +152,7 @@ export default async function CadastrosPage({
             { name: "dados_bancarios", label: "Dados bancários", tipo: "text" },
             { name: "telefone", label: "WhatsApp", tipo: "text" },
             { name: "cpf", label: "CPF", tipo: "text" },
+            { name: "data_nascimento", label: "Data de nascimento", tipo: "date" },
             { name: "creci", label: "CRECI", tipo: "text" },
             { name: "email", label: "E-mail", tipo: "text" },
             { name: "ativo", label: "Ativo", tipo: "switch" },
@@ -160,6 +161,7 @@ export default async function CadastrosPage({
             { key: "nome", label: "Nome" },
             { key: "tipo", label: "Tipo" },
             { key: "percentual_comissao_padrao", label: "% Comissão", formato: "percent", alignRight: true },
+            { key: "data_nascimento", label: "Nascimento", formato: "date" },
             { key: "ativo", label: "Status", formato: "bool" },
           ]}
           percentuais={{
